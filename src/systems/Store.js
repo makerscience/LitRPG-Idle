@@ -31,7 +31,7 @@ function createInitialState() {
     prestigeMultiplier: D(1),
     unlockedCheats: [],
     titles: [],
-    flags: { crackTriggered: false },
+    flags: { crackTriggered: false, firstKill: false, firstLevelUp: false, reachedZone2: false },
     settings: { autoAttack: false },
     timestamps: { lastSave: 0, lastOnline: 0 },
   };
@@ -163,6 +163,11 @@ const Store = {
     state.currentZone = zone;
     emit(EVENTS.WORLD_ZONE_CHANGED, { world, zone });
     emit(EVENTS.STATE_CHANGED, { changedKeys: ['currentWorld', 'currentZone'] });
+  },
+
+  setFlag(key, value) {
+    state.flags[key] = value;
+    emit(EVENTS.STATE_CHANGED, { changedKeys: ['flags'] });
   },
 
   updateTimestamps(partial) {

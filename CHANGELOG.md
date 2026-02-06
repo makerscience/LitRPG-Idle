@@ -4,6 +4,16 @@
 
 ---
 
+## 2026-02-06 (Phase 3)
+- UI Shell: TopBar (gold/mana/fragments + level/XP bar with pop-tween), SystemLog (scrollable masked green monospace log, color-coded by event type), ZoneNav (arrow navigation for zones 1-5)
+- UIScene parallel overlay orchestrating all UI components
+- DialogueManager with flag-gated one-shot SYSTEM triggers (first kill, first level-up, Zone 2)
+- LAYOUT + COLORS constants in config.js; Store.setFlag() mutation method
+- GameScene combat elements repositioned to 960px game area (right 320px reserved for log)
+- Kill log lines condensed: "Sewer Rat defeated! +5 Gold, +8 XP" (single line per kill)
+
+---
+
 ## 2026-02-06 (Phase 2)
 - Combat loop: click enemy → damage → death → gold/XP → respawn after 500ms
 - Enemy data for World 1 (5 zones, 13 enemies) in `src/data/enemies.js`

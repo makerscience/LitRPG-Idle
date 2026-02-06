@@ -63,6 +63,32 @@ export const SAVE = {
   maxOfflineTime: 12 * 60 * 60 * 1000,  // 12 hours in ms
 };
 
+export const LAYOUT = {
+  topBar:   { x: 0, y: 0, w: 1280, h: 50 },
+  gameArea: { x: 0, y: 50, w: 960, h: 670 },
+  logPanel: { x: 960, y: 50, w: 320, h: 670 },
+  bottomBar:{ x: 0, y: 670, w: 960, h: 50 },   // placeholder for Phase 6 cheat deck
+  zoneNav:  { y: 70, centerX: 480 },             // relative to gameArea top
+};
+
+export const COLORS = {
+  panelBg:      0x111111,
+  topBarBg:     0x0a0a0a,
+  separator:    0x333333,
+  logText: {
+    combat:     '#22c55e',   // green
+    gold:       '#eab308',   // yellow
+    system:     '#eab308',   // yellow (same as gold)
+    levelUp:    '#818cf8',   // indigo
+    zoneChange: '#38bdf8',   // sky blue
+    default:    '#a1a1aa',   // zinc-400
+  },
+  xpBar: {
+    bg:         0x374151,
+    fill:       0x6366f1,    // indigo-500
+  },
+};
+
 export const UI = {
   formatThresholds: {
     thousand: 1e3,

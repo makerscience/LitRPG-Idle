@@ -4,16 +4,16 @@
 - Building a LitRPG idle/clicker game with a snarky SYSTEM narrator, using Phaser + Vite + break_infinity.js.
 
 ## Active Objectives (max 3)
-1. Phase 2 COMPLETE — move to Phase 3 (Auto-Attack + DPS)
-2. Polish combat feel (auto-attack toggle, DPS counter)
-3. Start inventory/loot groundwork
+1. Phase 3 COMPLETE — move to Phase 4 (Loot + Inventory)
+2. Polish UI (auto-attack toggle in Phase 5, DPS counter)
+3. Start loot/inventory groundwork
 
 ## Next Actions
-- [ ] Verify Phase 2 in-browser: click enemy, see damage, kill, respawn, gold/XP accumulate
-- [ ] Commit Phase 2 changes
-- [ ] Plan Phase 3 (Auto-Attack, DPS display, passive income)
-- [ ] Add HUD overlay showing gold, level, XP bar
-- [ ] Enable auto-attack toggle via Store.settings.autoAttack
+- [ ] Verify Phase 3 in-browser: TopBar, SystemLog, ZoneNav, SYSTEM dialogue all working
+- [ ] Commit Phase 3 changes
+- [ ] Plan Phase 4 (Loot drops, inventory grid, equipment)
+- [ ] Add item data definitions and drop tables
+- [ ] Implement inventory UI panel
 
 ## Open Loops / Blockers
 - (none currently)
@@ -21,7 +21,7 @@
 ## How to Resume in 30 Seconds
 - **Open:** `.memory/CURRENT_FOCUS.md`
 - **Next:** Execute the first unchecked item in "Next Actions"
-- **If unclear:** Check `MVP_PLAN.md` Phase 2/3 requirements
+- **If unclear:** Check `MVP_PLAN.md` Phase 4 requirements
 
 ## Key Context
 - Tech stack: Phaser 3, Vite 7, break_infinity.js, localStorage saves
@@ -34,13 +34,13 @@
 ---
 
 ## Last Session Summary (max ~8 bullets)
-- Phase 2 implemented: full combat loop working
-- Created `src/data/enemies.js` — 13 enemies across 5 zones (W1)
-- Replaced TimeEngine stub with tick scheduler (register, scheduleOnce, etc.)
-- Created `src/systems/CombatEngine.js` — damage calc, crit, death, respawn cycle
-- Created `src/scenes/GameScene.js` — HP bar, floating damage numbers, hit flash, death anim
-- Added WORLD_ZONE_CHANGED emit to Store.setZone()
-- BootScene auto-transitions to GameScene after 1s
+- Phase 3 implemented: full UI shell working
+- Created `src/ui/TopBar.js` — gold/mana/fragments display + level/XP bar with pop-tween
+- Created `src/ui/SystemLog.js` — scrollable masked log with color-coded lines (green/yellow/indigo/sky blue)
+- Created `src/ui/ZoneNav.js` — zone arrow navigation with boundary dimming
+- Created `src/systems/DialogueManager.js` — flag-gated SYSTEM dialogue (first kill, first level-up, Zone 2)
+- Created `src/scenes/UIScene.js` — parallel overlay orchestrating TopBar, SystemLog, ZoneNav, DialogueManager
+- Added LAYOUT + COLORS constants to config.js, setFlag() to Store, repositioned GameScene to 960px game area
 - `vite build` passes cleanly
 
 ## Pinned References
