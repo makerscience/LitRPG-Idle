@@ -1,19 +1,23 @@
 # CURRENT_FOCUS
 
 ## One-liner
-- Maintain governance-only memory for Claude Code sessions; keep CURRENT_FOCUS + DECISIONS accurate and skimmable.
+- Building a LitRPG idle/clicker game with a snarky SYSTEM narrator, using Phaser + Vite + break_infinity.js.
 
 ## Active Objectives (max 3)
-1. Set up governance-only memory system
-2. (add more as needed)
+1. Complete Phase 0: Environment setup + guardrails (Phaser boots, events.js, config.js)
+2. Establish project file structure per architecture plan
+3. Get a colored rectangle rendering in browser as proof of life
 
 ## Next Actions
-- [ ] Test that Claude reads these files at session start
-- [ ] Try the session end protocol
-- [ ] (add more as needed)
+- [ ] Run `npm init` and install dependencies (phaser, break_infinity.js, vite)
+- [ ] Create `index.html`, `src/main.js` with Phaser boot + blank scene + colored rectangle
+- [ ] Create `src/events.js` with canonical event strings from ARCHITECTURE
+- [ ] Create `src/config.js` with damage formulas and balance constants
+- [ ] Set canvas size to 1280x720
 
 ## Open Loops / Blockers
-- None yet
+- Node.js must be installed on this machine
+- (none currently)
 
 ## How to Resume in 30 Seconds
 - **Open:** `.memory/CURRENT_FOCUS.md`
@@ -21,19 +25,25 @@
 - **If unclear:** Run "Follow the Session Start Protocol"
 
 ## Key Context
+- Tech stack: Phaser 3, Vite, break_infinity.js, localStorage saves
+- Platform: Desktop-first, 1280x720, targeting Itch.io
+- 8-phase build plan in `MVP_PLAN.md`
+- Architecture + event catalog in `ARCHITECTURE.md`
 - Memory files: `.memory/CURRENT_FOCUS.md`, `.memory/DECISIONS.md`
-- Decision log: `.memory/DECISIONS.md`
 - Changelog: `CHANGELOG.md`
-- How to start session: "Follow the Session Start Protocol"
-- How to end session: "Do the Session End Protocol"
 
 ---
 
 ## Last Session Summary (max ~8 bullets)
-- Initial setup of governance-only memory system
+- Created governance-only memory system (CLAUDE.md, .memory/, CHANGELOG.md)
+- Connected project folder to GitHub repo (makerscience/LitRPG-Idle)
+- Initial commit pushed to main branch
+- Reviewed Architecture and MVP Plan documents
 
 ## Pinned References
 - Governance rules: `CLAUDE.md`
-- Original guide: `Minimal Claude Organization Setup (Governance-Only).md`
+- Architecture: `ARCHITECTURE.md`
+- MVP Plan: `MVP_PLAN.md`
+- Original setup guide: `Minimal Claude Organization Setup (Governance-Only).md`
 
 Hard rule: If "Key Context" becomes a wall of text, move it into real docs and link here.

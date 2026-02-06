@@ -1,0 +1,30 @@
+{
+  "name": "litrpg-idle",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/makerscience/LitRPG-Idle.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/makerscience/LitRPG-Idle/issues"
+  },
+  "homepage": "https://github.com/makerscience/LitRPG-Idle#readme",
+  "dependencies": {
+    "break_infinity.js": "^2.2.0",
+    "phaser": "^3.90.0"
+  },
+  "devDependencies": {
+    "vite": "^7.3.1"
+  }
+}
