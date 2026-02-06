@@ -4,16 +4,16 @@
 - Building a LitRPG idle/clicker game with a snarky SYSTEM narrator, using Phaser + Vite + break_infinity.js.
 
 ## Active Objectives (max 3)
-1. Phase 1 COMPLETE — move to Phase 2 (TimeEngine + Combat core)
-2. Implement CombatEngine with enemy spawning + damage application
-3. Get click-to-damage working on an enemy sprite
+1. Phase 2 COMPLETE — move to Phase 3 (Auto-Attack + DPS)
+2. Polish combat feel (auto-attack toggle, DPS counter)
+3. Start inventory/loot groundwork
 
 ## Next Actions
-- [ ] Fill in `TimeEngine.js` with tick loop + offline time calculation
-- [ ] Create `src/systems/CombatEngine.js` with enemy spawning + damage
-- [ ] Create `src/scenes/GameScene.js` with basic enemy display
-- [ ] Wire BootScene → GameScene transition
-- [ ] Add click handler on enemy to deal damage
+- [ ] Verify Phase 2 in-browser: click enemy, see damage, kill, respawn, gold/XP accumulate
+- [ ] Commit Phase 2 changes
+- [ ] Plan Phase 3 (Auto-Attack, DPS display, passive income)
+- [ ] Add HUD overlay showing gold, level, XP bar
+- [ ] Enable auto-attack toggle via Store.settings.autoAttack
 
 ## Open Loops / Blockers
 - (none currently)
@@ -21,7 +21,7 @@
 ## How to Resume in 30 Seconds
 - **Open:** `.memory/CURRENT_FOCUS.md`
 - **Next:** Execute the first unchecked item in "Next Actions"
-- **If unclear:** Check `MVP_PLAN.md` Phase 1 requirements
+- **If unclear:** Check `MVP_PLAN.md` Phase 2/3 requirements
 
 ## Key Context
 - Tech stack: Phaser 3, Vite 7, break_infinity.js, localStorage saves
@@ -34,13 +34,14 @@
 ---
 
 ## Last Session Summary (max ~8 bullets)
-- Phase 1 complete: data backbone in place
-- Created `src/systems/BigNum.js` — D(), fromJSON(), format(), Decimal re-export
-- Created `src/systems/Store.js` — centralized state, named mutations, event emission
-- Created `src/systems/SaveManager.js` — localStorage save/load, backup rotation, migrations
-- Created `src/systems/TimeEngine.js` — stub for boot sequence
-- Updated `src/main.js` — boot sequence: Store → SaveManager → TimeEngine → Phaser
-- Build passes, all modules resolve correctly
+- Phase 2 implemented: full combat loop working
+- Created `src/data/enemies.js` — 13 enemies across 5 zones (W1)
+- Replaced TimeEngine stub with tick scheduler (register, scheduleOnce, etc.)
+- Created `src/systems/CombatEngine.js` — damage calc, crit, death, respawn cycle
+- Created `src/scenes/GameScene.js` — HP bar, floating damage numbers, hit flash, death anim
+- Added WORLD_ZONE_CHANGED emit to Store.setZone()
+- BootScene auto-transitions to GameScene after 1s
+- `vite build` passes cleanly
 
 ## Pinned References
 - Governance rules: `CLAUDE.md`

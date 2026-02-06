@@ -161,6 +161,7 @@ const Store = {
   setZone(world, zone) {
     state.currentWorld = world;
     state.currentZone = zone;
+    emit(EVENTS.WORLD_ZONE_CHANGED, { world, zone });
     emit(EVENTS.STATE_CHANGED, { changedKeys: ['currentWorld', 'currentZone'] });
   },
 

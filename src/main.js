@@ -1,9 +1,11 @@
 import Phaser from 'phaser';
 import BootScene from './scenes/BootScene.js';
+import GameScene from './scenes/GameScene.js';
 import { WORLD } from './config.js';
 import Store from './systems/Store.js';
 import SaveManager from './systems/SaveManager.js';
 import TimeEngine from './systems/TimeEngine.js';
+import CombatEngine from './systems/CombatEngine.js';
 
 // ── Boot sequence ───────────────────────────────────────────────────
 Store.init();
@@ -21,7 +23,7 @@ const config = {
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
   physics: { default: false },
-  scene: [BootScene],
+  scene: [BootScene, GameScene],
 };
 
 const game = new Phaser.Game(config);
@@ -31,4 +33,5 @@ if (import.meta.env.DEV) {
   window.game = game;
   window.Store = Store;
   window.SaveManager = SaveManager;
+  window.CombatEngine = CombatEngine;
 }

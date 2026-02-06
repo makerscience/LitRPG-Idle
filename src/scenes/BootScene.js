@@ -34,5 +34,10 @@ export default class BootScene extends Phaser.Scene {
     });
 
     console.log('[BootScene] lifecycle complete — rectangle rendered');
+
+    // Transition to GameScene after brief display
+    this.time.delayedCall(1000, () => {
+      this.scene.start('GameScene');
+    });
   }
 }
