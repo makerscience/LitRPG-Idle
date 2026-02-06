@@ -4,28 +4,27 @@
 - Building a LitRPG idle/clicker game with a snarky SYSTEM narrator, using Phaser + Vite + break_infinity.js.
 
 ## Active Objectives (max 3)
-1. Complete Phase 0: Environment setup + guardrails (Phaser boots, events.js, config.js)
-2. Establish project file structure per architecture plan
-3. Get a colored rectangle rendering in browser as proof of life
+1. Phase 1 COMPLETE — move to Phase 2 (TimeEngine + Combat core)
+2. Implement CombatEngine with enemy spawning + damage application
+3. Get click-to-damage working on an enemy sprite
 
 ## Next Actions
-- [ ] Run `npm init` and install dependencies (phaser, break_infinity.js, vite)
-- [ ] Create `index.html`, `src/main.js` with Phaser boot + blank scene + colored rectangle
-- [ ] Create `src/events.js` with canonical event strings from ARCHITECTURE
-- [ ] Create `src/config.js` with damage formulas and balance constants
-- [ ] Set canvas size to 1280x720
+- [ ] Fill in `TimeEngine.js` with tick loop + offline time calculation
+- [ ] Create `src/systems/CombatEngine.js` with enemy spawning + damage
+- [ ] Create `src/scenes/GameScene.js` with basic enemy display
+- [ ] Wire BootScene → GameScene transition
+- [ ] Add click handler on enemy to deal damage
 
 ## Open Loops / Blockers
-- Node.js must be installed on this machine
 - (none currently)
 
 ## How to Resume in 30 Seconds
 - **Open:** `.memory/CURRENT_FOCUS.md`
 - **Next:** Execute the first unchecked item in "Next Actions"
-- **If unclear:** Run "Follow the Session Start Protocol"
+- **If unclear:** Check `MVP_PLAN.md` Phase 1 requirements
 
 ## Key Context
-- Tech stack: Phaser 3, Vite, break_infinity.js, localStorage saves
+- Tech stack: Phaser 3, Vite 7, break_infinity.js, localStorage saves
 - Platform: Desktop-first, 1280x720, targeting Itch.io
 - 8-phase build plan in `MVP_PLAN.md`
 - Architecture + event catalog in `ARCHITECTURE.md`
@@ -35,10 +34,13 @@
 ---
 
 ## Last Session Summary (max ~8 bullets)
-- Created governance-only memory system (CLAUDE.md, .memory/, CHANGELOG.md)
-- Connected project folder to GitHub repo (makerscience/LitRPG-Idle)
-- Initial commit pushed to main branch
-- Reviewed Architecture and MVP Plan documents
+- Phase 1 complete: data backbone in place
+- Created `src/systems/BigNum.js` — D(), fromJSON(), format(), Decimal re-export
+- Created `src/systems/Store.js` — centralized state, named mutations, event emission
+- Created `src/systems/SaveManager.js` — localStorage save/load, backup rotation, migrations
+- Created `src/systems/TimeEngine.js` — stub for boot sequence
+- Updated `src/main.js` — boot sequence: Store → SaveManager → TimeEngine → Phaser
+- Build passes, all modules resolve correctly
 
 ## Pinned References
 - Governance rules: `CLAUDE.md`
