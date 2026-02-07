@@ -10,6 +10,9 @@ let unsubs = [];
 
 const CheatManager = {
   init() {
+    // Handle already-loaded saves where SAVE_LOADED fired before manager init.
+    CheatManager._checkLootHoarderUnlock();
+
     unsubs.push(on(EVENTS.ECON_FRAGMENTS_GAINED, () => {
       CheatManager._checkLootHoarderUnlock();
     }));

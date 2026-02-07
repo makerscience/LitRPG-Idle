@@ -2,7 +2,7 @@
 // State holds live Decimal instances; strings only exist in localStorage.
 
 import { D, fromJSON, Decimal } from './BigNum.js';
-import { PROGRESSION, ECONOMY, SAVE, PRESTIGE } from '../config.js';
+import { PROGRESSION, ECONOMY, SAVE, PRESTIGE, COMBAT } from '../config.js';
 import { emit, EVENTS } from '../events.js';
 
 let state = null;
@@ -23,6 +23,7 @@ function createInitialState() {
       xp: D(stats.xp),
       xpToNext: D(PROGRESSION.xpForLevel(stats.level)),
     },
+    playerHp: D(stats.vit * COMBAT.playerHpPerVit),
     equipped: { head: null, body: null, weapon: null, legs: null },
     inventoryStacks: {},
     purchasedUpgrades: {},
@@ -42,7 +43,7 @@ function createInitialState() {
 }
 
 // Fields that are stored as Decimal (BigNum) — used for hydration
-const DECIMAL_FIELDS = ['gold', 'glitchFragments', 'mana', 'prestigeMultiplier'];
+const DECIMAL_FIELDS = ['gold', 'glitchFragments', 'mana', 'prestigeMultiplier', 'playerHp'];
 const DECIMAL_STAT_FIELDS = ['xp', 'xpToNext'];
 
 /**
@@ -195,6 +196,7 @@ const Store = {
     state.playerStats.xp = D(stats.xp);
     state.playerStats.xpToNext = D(PROGRESSION.xpForLevel(stats.level));
 
+    state.playerHp = D(stats.vit * COMBAT.playerHpPerVit);
     state.purchasedUpgrades = {};
     state.totalKills = 0;
 
@@ -281,6 +283,34 @@ const Store = {
 
   isCheatActive(cheatId) {
     return state.activeCheats[cheatId] === true;
+  },
+
+  // ── Player HP mutations ──────────────────────────────────────────
+
+  damagePlayer(amount) {
+    state.playerHp = Decimal.max(state.playerHp.minus(D(amount)), D(0));
+    const maxHp = D(state.playerStats.vit * COMBAT.playerHpPerVit);
+    emit(EVENTS.COMBAT_PLAYER_DAMAGED, {
+      amount: D(amount),
+      remainingHp: state.playerHp,
+      maxHp,
+    });
+    if (state.playerHp.lte(0)) {
+      emit(EVENTS.COMBAT_PLAYER_DIED, {});
+    }
+  },
+
+  healPlayer(amount) {
+    const maxHp = D(state.playerStats.vit * COMBAT.playerHpPerVit);
+    state.playerHp = Decimal.min(state.playerHp.plus(D(amount)), maxHp);
+  },
+
+  getPlayerMaxHp() {
+    return D(state.playerStats.vit * COMBAT.playerHpPerVit);
+  },
+
+  resetPlayerHp() {
+    state.playerHp = D(state.playerStats.vit * COMBAT.playerHpPerVit);
   },
 
   incrementKills() {

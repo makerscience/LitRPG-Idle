@@ -11,6 +11,12 @@ let justPrestiged = false;
 
 const PrestigeManager = {
   init() {
+    // Handle already-loaded saves where SAVE_LOADED fired before manager init.
+    const initialState = Store.getState();
+    if (initialState.furthestZone >= PRESTIGE.minZone) {
+      prestigeAvailableEmitted = true;
+    }
+
     // Track furthest zone on zone changes
     unsubs.push(on(EVENTS.WORLD_ZONE_CHANGED, (data) => {
       const state = Store.getState();

@@ -1,5 +1,15 @@
 # CHANGELOG
 
+## 2026-02-07 (Post-Phase: Goblin Sprites + Enemy Attack / Player HP)
+- Enemy sprite system: Goblin Grunt renders with 4 poses (default, reaction, attack, dead) instead of red rectangle; pose-switching on combat events
+- Enemy attack mechanic: enemies deal damage to player every 3s, triggering attack pose on sprite enemies
+- Player HP system: HP bar under player, HP = VIT * 10, 2% regen/sec, death at 0 HP pauses combat + respawns after 1.5s
+- HP resets on level-up (VIT growth) and prestige; playerHp persists in save data
+- Non-goblin enemies still render as red rectangles (graceful fallback for enemies without sprites)
+- Sprite enemies use fade-only death animation (no squish/scale tweens) to avoid display size warping
+
+---
+
 ## 2026-02-07 (Phase 8)
 - 80+ SYSTEM dialogue lines across 15 trigger categories (data-driven `src/data/dialogue.js`), replacing hardcoded strings in DialogueManager
 - Visual juice: gold particles on kill, expand→shrink death animation, level-up golden flash, cheat activation glitch effect

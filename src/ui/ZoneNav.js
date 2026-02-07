@@ -39,11 +39,12 @@ export default class ZoneNav {
   _refresh() {
     const state = Store.getState();
     const zone = state.currentZone;
+    const maxUnlockedZone = Math.max(1, Math.min(state.furthestZone ?? 1, WORLD.zoneCount));
     this.zoneLabel.setText(`Zone ${zone}`);
 
-    // Dim/disable at boundaries
+    // Dim/disable at boundaries and progression cap
     const atMin = zone <= 1;
-    const atMax = zone >= WORLD.zoneCount;
+    const atMax = zone >= maxUnlockedZone;
 
     this.leftArrow.setAlpha(atMin ? 0.3 : 1);
     if (atMin) this.leftArrow.disableInteractive();
@@ -56,8 +57,9 @@ export default class ZoneNav {
 
   _changeZone(delta) {
     const state = Store.getState();
+    const maxUnlockedZone = Math.max(1, Math.min(state.furthestZone ?? 1, WORLD.zoneCount));
     const newZone = state.currentZone + delta;
-    if (newZone < 1 || newZone > WORLD.zoneCount) return;
+    if (newZone < 1 || newZone > maxUnlockedZone) return;
     Store.setZone(state.currentWorld, newZone);
   }
 

@@ -11,6 +11,11 @@ export const COMBAT = {
   critMultiplier: 2,
   autoAttackInterval: 800,    // ms
   spawnDelay: 400,            // ms after kill before next enemy
+  enemyAttackInterval: 3000,       // ms — enemy attacks every 3 seconds
+  playerHpPerVit: 10,              // max HP = vit * playerHpPerVit
+  playerRegenPercent: 0.02,        // 2% of max HP per second
+  playerRegenInterval: 1000,       // regen tick every 1s
+  playerDeathRespawnDelay: 1500,   // ms before player respawns after death
 };
 
 export const PROGRESSION = {

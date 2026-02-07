@@ -6,7 +6,8 @@ import TimeEngine from '../systems/TimeEngine.js';
 import Store from '../systems/Store.js';
 import { on, EVENTS } from '../events.js';
 import { format } from '../systems/BigNum.js';
-import { UI, LAYOUT, ZONE_THEMES } from '../config.js';
+import { UI, LAYOUT, ZONE_THEMES, COMBAT } from '../config.js';
+import { getEnemyById } from '../data/enemies.js';
 
 export default class GameScene extends Phaser.Scene {
   constructor() {
@@ -25,15 +26,29 @@ export default class GameScene extends Phaser.Scene {
     this._createParallax(Store.getState().currentZone);
 
     // Player placeholder — blue rect
-    this.add.rectangle(playerX, this._combatY, 200, 250, 0x3b82f6);
+    this.playerRect = this.add.rectangle(playerX, this._combatY, 200, 250, 0x3b82f6);
     this.add.text(playerX, this._combatY - 130, 'Player', {
       fontFamily: 'monospace', fontSize: '16px', color: '#ffffff',
     }).setOrigin(0.5);
 
-    // Enemy placeholder — red rect (click target)
+    // Player HP bar
+    this.playerHpBarBg = this.add.rectangle(playerX, this._combatY + 140, 200, 16, 0x374151);
+    this.playerHpBarFill = this.add.rectangle(playerX - 100, this._combatY + 140, 200, 16, 0x22c55e);
+    this.playerHpBarFill.setOrigin(0, 0.5);
+
+    // Enemy placeholder — red rect (click target for enemies without sprites)
     this.enemyRect = this.add.rectangle(this._enemyX, this._combatY, 200, 250, 0xef4444);
     this.enemyRect.setInteractive({ useHandCursor: true });
     this.enemyRect.on('pointerdown', () => CombatEngine.playerAttack());
+
+    // Enemy sprite (for enemies with sprite assets)
+    this.enemySprite = this.add.image(this._enemyX, this._combatY, 'goblin001_default');
+    this.enemySprite.setVisible(false);
+    this.enemySprite.on('pointerdown', () => CombatEngine.playerAttack());
+    this._currentEnemySprites = null;
+    this._poseRevertTimer = null;
+    this._spriteW = 200;
+    this._spriteH = 250;
 
     // Enemy name text
     this.enemyNameText = this.add.text(this._enemyX, this._combatY - 140, '', {
@@ -54,6 +69,10 @@ export default class GameScene extends Phaser.Scene {
     this._unsubs.push(on(EVENTS.COMBAT_ENEMY_SPAWNED, (data) => this._onEnemySpawned(data)));
     this._unsubs.push(on(EVENTS.COMBAT_ENEMY_DAMAGED, (data) => this._onEnemyDamaged(data)));
     this._unsubs.push(on(EVENTS.COMBAT_ENEMY_KILLED, (data) => this._onEnemyKilled(data)));
+
+    // Player HP events
+    this._unsubs.push(on(EVENTS.COMBAT_PLAYER_DAMAGED, (data) => this._onPlayerDamaged(data)));
+    this._unsubs.push(on(EVENTS.COMBAT_PLAYER_DIED, () => this._onPlayerDied()));
 
     // Visual juice subscriptions
     this._unsubs.push(on(EVENTS.PROG_LEVEL_UP, () => this._onLevelUp()));
@@ -100,24 +119,50 @@ export default class GameScene extends Phaser.Scene {
 
   _setEnemyVisible(visible) {
     const alpha = visible ? 1 : 0;
-    this.enemyRect.setAlpha(alpha);
+    if (this._currentEnemySprites) {
+      this.enemySprite.setAlpha(alpha);
+      if (visible) this.enemySprite.setInteractive({ useHandCursor: true });
+      else this.enemySprite.disableInteractive();
+      this.enemyRect.setAlpha(0); // always hidden when sprite is active
+      this.enemyRect.disableInteractive();
+    } else {
+      this.enemyRect.setAlpha(alpha);
+      if (visible) this.enemyRect.setInteractive({ useHandCursor: true });
+      else this.enemyRect.disableInteractive();
+    }
     this.enemyNameText.setAlpha(alpha);
     this.hpBarBg.setAlpha(alpha);
     this.hpBarFill.setAlpha(alpha);
-    if (visible) {
-      this.enemyRect.setInteractive({ useHandCursor: true });
-    } else {
-      this.enemyRect.disableInteractive();
-    }
   }
 
   _onEnemySpawned(data) {
+    const template = getEnemyById(data.enemyId);
+    this._currentEnemySprites = template?.sprites || null;
+
+    if (this._currentEnemySprites) {
+      // Show sprite with default pose
+      this.enemySprite.setTexture(this._currentEnemySprites.default);
+      this.enemySprite.setScale(1);  // reset from death anim before resizing
+      this.enemySprite.setDisplaySize(200, 250);
+      this.enemySprite.setVisible(true);
+      this.enemySprite.setAlpha(1);
+      this.enemySprite.setInteractive({ useHandCursor: true });
+      // Hide rect
+      this.enemyRect.setAlpha(0);
+      this.enemyRect.disableInteractive();
+    } else {
+      // No sprites — use rect (existing behavior)
+      this.enemySprite.setVisible(false);
+      this.enemyRect.setFillStyle(0xef4444);
+      this.enemyRect.setAlpha(1);
+      this.enemyRect.setScale(1);
+      this.enemyRect.setInteractive({ useHandCursor: true });
+    }
+
+    // Common: name + HP bar
     this.enemyNameText.setText(data.name);
     this.hpBarFill.setDisplaySize(200, 20);
     this.hpBarFill.setFillStyle(0x22c55e);
-    this.enemyRect.setFillStyle(0xef4444);
-    this.enemyRect.setAlpha(1);
-    this.enemyRect.setScale(1);
     this._setEnemyVisible(true);
   }
 
@@ -143,38 +188,86 @@ export default class GameScene extends Phaser.Scene {
     // Floating damage number (magnitude-tiered)
     this._spawnDamageNumber(data.amount, data.isCrit);
 
-    // Hit flash — briefly tint white
-    this.enemyRect.setFillStyle(0xffffff);
-    this.time.delayedCall(80, () => {
-      if (this.enemyRect) this.enemyRect.setFillStyle(0xef4444);
-    });
+    const target = this._currentEnemySprites ? this.enemySprite : this.enemyRect;
+
+    if (this._currentEnemySprites) {
+      // Sprite: switch to reaction pose for 500ms
+      this.enemySprite.setTexture(this._currentEnemySprites.reaction);
+      this.enemySprite.setDisplaySize(this._spriteW, this._spriteH);
+      this.enemySprite.setTint(0xffffff);
+      this.time.delayedCall(80, () => this.enemySprite.clearTint());
+
+      // Clear any existing pose-revert timer
+      if (this._poseRevertTimer) this._poseRevertTimer.remove();
+      this._poseRevertTimer = this.time.delayedCall(500, () => {
+        if (this._currentEnemySprites) {
+          this.enemySprite.setTexture(this._currentEnemySprites.default);
+          this.enemySprite.setDisplaySize(this._spriteW, this._spriteH);
+        }
+      });
+    } else {
+      // Rect: existing hit flash behavior
+      this.enemyRect.setFillStyle(0xffffff);
+      this.time.delayedCall(80, () => {
+        if (this.enemyRect) this.enemyRect.setFillStyle(0xef4444);
+      });
+    }
+
+    // Hit reaction — squish + knockback (rects only; sprites skip to avoid display size warping)
+    if (!this._currentEnemySprites) {
+      if (this._hitReactionTween) this._hitReactionTween.stop();
+      target.setScale(1);
+      target.x = this._enemyX;
+      this._hitReactionTween = this.tweens.add({
+        targets: target,
+        scaleX: 0.85,
+        scaleY: 1.15,
+        x: this._enemyX + 8,
+        duration: 60,
+        ease: 'Quad.easeOut',
+        yoyo: true,
+      });
+    }
   }
 
   _onEnemyKilled(_data) {
-    // Enhanced death animation: scale up → shrink + fade
-    this.tweens.add({
-      targets: this.enemyRect,
-      scaleX: 1.2,
-      scaleY: 1.2,
-      duration: 100,
-      ease: 'Quad.easeOut',
-      onComplete: () => {
+    const target = this._currentEnemySprites ? this.enemySprite : this.enemyRect;
+
+    // Clear any pending pose revert
+    if (this._poseRevertTimer) { this._poseRevertTimer.remove(); this._poseRevertTimer = null; }
+
+    if (this._currentEnemySprites) {
+      // Show dead pose, then fade out (no scaling for sprites)
+      this.enemySprite.setTexture(this._currentEnemySprites.dead);
+      this.enemySprite.setDisplaySize(this._spriteW, this._spriteH);
+      this.enemySprite.disableInteractive();
+
+      this.time.delayedCall(500, () => {
         this.tweens.add({
-          targets: [this.enemyRect, this.enemyNameText, this.hpBarBg, this.hpBarFill],
-          alpha: 0,
-          duration: 200,
-          ease: 'Power2',
+          targets: [target, this.enemyNameText, this.hpBarBg, this.hpBarFill],
+          alpha: 0, duration: 300, ease: 'Power2',
         });
-        this.tweens.add({
-          targets: this.enemyRect,
-          scaleX: 0.5,
-          scaleY: 0.5,
-          duration: 200,
-          ease: 'Power2',
-        });
-      },
-    });
-    this.enemyRect.disableInteractive();
+      });
+    } else {
+      // Existing rect death animation
+      this.tweens.add({
+        targets: this.enemyRect,
+        scaleX: 1.2, scaleY: 1.2,
+        duration: 100, ease: 'Quad.easeOut',
+        onComplete: () => {
+          this.tweens.add({
+            targets: [this.enemyRect, this.enemyNameText, this.hpBarBg, this.hpBarFill],
+            alpha: 0, duration: 200, ease: 'Power2',
+          });
+          this.tweens.add({
+            targets: this.enemyRect,
+            scaleX: 0.5, scaleY: 0.5,
+            duration: 200, ease: 'Power2',
+          });
+        },
+      });
+      this.enemyRect.disableInteractive();
+    }
 
     // Gold particles flying to TopBar
     this._spawnGoldParticles();
@@ -255,15 +348,24 @@ export default class GameScene extends Phaser.Scene {
       // Arc offset for variety
       const arcX = (Math.random() - 0.5) * 80;
       const arcY = -30 - Math.random() * 40;
+      const controlX = (startX + targetX) / 2 + arcX;
+      const controlY = (startY + targetY) / 2 + arcY;
 
       const duration = 400 + Math.random() * 200;
+      const path = { t: 0 };
 
       this.tweens.add({
-        targets: particle,
-        x: targetX,
-        y: targetY,
+        targets: path,
+        t: 1,
         duration,
-        ease: 'Quad.easeIn',
+        ease: 'Sine.easeInOut',
+        onUpdate: () => {
+          const t = path.t;
+          const oneMinusT = 1 - t;
+          // Quadratic Bezier interpolation (start -> control -> target).
+          particle.x = oneMinusT * oneMinusT * startX + 2 * oneMinusT * t * controlX + t * t * targetX;
+          particle.y = oneMinusT * oneMinusT * startY + 2 * oneMinusT * t * controlY + t * t * targetY;
+        },
         onComplete: () => particle.destroy(),
       });
     }
@@ -282,6 +384,53 @@ export default class GameScene extends Phaser.Scene {
       duration: 400,
       ease: 'Power2',
       onComplete: () => overlay.destroy(),
+    });
+  }
+
+  _onPlayerDamaged(data) {
+    // Update player HP bar
+    const ratio = data.maxHp.gt(0) ? data.remainingHp.div(data.maxHp).toNumber() : 0;
+    const barWidth = Math.max(0, ratio * 200);
+    this.playerHpBarFill.setDisplaySize(barWidth, 16);
+    const color = ratio > 0.5 ? 0x22c55e : ratio > 0.25 ? 0xeab308 : 0xef4444;
+    this.playerHpBarFill.setFillStyle(color);
+
+    // Show attack pose on enemy sprite for 500ms
+    if (this._currentEnemySprites) {
+      this.enemySprite.setTexture(this._currentEnemySprites.attack);
+      this.enemySprite.setDisplaySize(this._spriteW, this._spriteH);
+      if (this._poseRevertTimer) this._poseRevertTimer.remove();
+      this._poseRevertTimer = this.time.delayedCall(500, () => {
+        if (this._currentEnemySprites) {
+          this.enemySprite.setTexture(this._currentEnemySprites.default);
+          this.enemySprite.setDisplaySize(this._spriteW, this._spriteH);
+        }
+      });
+    }
+
+    // Player hit flash — brief red tint
+    this.playerRect.setFillStyle(0xef4444);
+    this.time.delayedCall(120, () => {
+      if (this.playerRect) this.playerRect.setFillStyle(0x3b82f6);
+    });
+  }
+
+  _onPlayerDied() {
+    // Flash/fade on player rect
+    this.tweens.add({
+      targets: this.playerRect,
+      alpha: 0.3,
+      duration: 200,
+      yoyo: true,
+      repeat: 2,
+      onComplete: () => {
+        this.playerRect.setAlpha(1);
+        // Refresh HP bar to full after respawn
+        this.time.delayedCall(COMBAT.playerDeathRespawnDelay, () => {
+          this.playerHpBarFill.setDisplaySize(200, 16);
+          this.playerHpBarFill.setFillStyle(0x22c55e);
+        });
+      },
     });
   }
 

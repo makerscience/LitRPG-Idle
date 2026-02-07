@@ -9,7 +9,14 @@ const WORLD_1_ENEMIES = [
   { id: 'w1z1_slime',  name: 'Green Slime',     zone: 1, hp: '20',  attack: 3,  goldDrop: '10',  xpDrop: '15',  lootTable: [
     { itemId: 'iron_dagger', weight: 40 }, { itemId: 'iron_helm', weight: 30 }, { itemId: 'leather_tunic', weight: 30 },
   ] },
-  { id: 'w1z1_goblin', name: 'Goblin Grunt',    zone: 1, hp: '40',  attack: 5,  goldDrop: '20',  xpDrop: '30',  lootTable: [
+  { id: 'w1z1_goblin', name: 'Goblin Grunt',    zone: 1, hp: '40',  attack: 5,  goldDrop: '20',  xpDrop: '30',
+    sprites: {
+      default:  'goblin001_default',
+      reaction: 'goblin001_reaction',
+      attack:   'goblin001_attack',
+      dead:     'goblin001_dead',
+    },
+    lootTable: [
     { itemId: 'iron_dagger', weight: 40 }, { itemId: 'iron_helm', weight: 30 }, { itemId: 'leather_tunic', weight: 30 },
   ] },
 
@@ -60,6 +67,10 @@ export function getRandomEnemy(zone) {
   const pool = getEnemiesForZone(zone);
   if (pool.length === 0) return null;
   return pool[Math.floor(Math.random() * pool.length)];
+}
+
+export function getEnemyById(id) {
+  return WORLD_1_ENEMIES.find(e => e.id === id);
 }
 
 export { WORLD_1_ENEMIES };

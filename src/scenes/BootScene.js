@@ -6,6 +6,13 @@ export default class BootScene extends Phaser.Scene {
     super('BootScene');
   }
 
+  preload() {
+    this.load.image('goblin001_default',  'Images/goblin001_default.png');
+    this.load.image('goblin001_reaction', 'Images/goblin001_reaction.png');
+    this.load.image('goblin001_attack',   'Images/goblin001_attack.png');
+    this.load.image('goblin001_dead',     'Images/goblin001_dead.png');
+  }
+
   create() {
     console.log(`[BootScene] create — canvas ${WORLD.width}x${WORLD.height}`);
 

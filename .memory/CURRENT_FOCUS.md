@@ -4,17 +4,17 @@
 - Building a LitRPG idle/clicker game with a snarky SYSTEM narrator, using Phaser + Vite + break_infinity.js.
 
 ## Active Objectives (max 3)
-1. Phase 8 COMPLETE — commit and test
-2. All 8 phases implemented — game is feature-complete for MVP
-3. Manual playtest to verify balance targets (zone 1-3 in ~10 min, first prestige at ~15-20 min)
+1. Goblin sprites + enemy attack / player HP system — IMPLEMENTED
+2. Manual playtest to verify new sprite system + combat balance
+3. Consider additional enemy sprites for other enemies
 
 ## Next Actions
-- [ ] Commit Phase 8 changes
-- [ ] Manual playtest: verify dialogue triggers fire correctly (first kill, milestones, zone entrances, ambient)
-- [ ] Manual playtest: verify visual juice (gold particles, death anim, level flash, cheat glitch, parallax)
-- [ ] Manual playtest: verify balance targets (zone 1-3 ~10 min, prestige ~15-20 min)
-- [ ] Verify save migration v4→v5 with old save data
-- [ ] Consider Itch.io packaging / offline progress (deferred scope)
+- [ ] Manual playtest: verify goblin sprite poses (default, reaction on hit, attack on enemy attack, dead on kill)
+- [ ] Manual playtest: verify player HP bar drains on enemy attacks, regens between attacks
+- [ ] Manual playtest: verify player death → flash → respawn after 1.5s with full HP
+- [ ] Manual playtest: verify non-goblin enemies still render as red rectangles
+- [ ] Manual playtest: verify save/load preserves playerHp
+- [ ] Consider adding sprites for other enemies (sewer rat, slime, etc.)
 
 ## Open Loops / Blockers
 - (none currently)
@@ -35,14 +35,12 @@
 ---
 
 ## Last Session Summary (max ~8 bullets)
-- Phase 8 implemented: Polish pass — dialogue, visual juice, parallax, balance
-- Created `src/data/dialogue.js` — ~80 SYSTEM lines across 15 trigger categories
-- Refactored `DialogueManager` — data-driven imports, cooldown tracking, kill milestone arbitration, ambient timer, big damage detection, timer cleanup in destroy()
-- Rewrote `GameScene` — magnitude-tiered damage numbers with shake/glow, gold particles on kill, expand→shrink death anim, level-up flash, cheat glitch effect, procedural parallax backgrounds (5 zones, 3 layers each)
-- Balance pass: HP cuts ~50%, XP bumps zones 2-3, cheaper upgrade costs, faster auto-attack (800ms) + spawn (400ms), fragment drop 8%, higher loot drop rates
-- Kill counting moved from FirstCrackDirector to CombatEngine (increment before emit)
-- CheatDeck dialogue emit removed (now handled by DialogueManager via CHEAT_TOGGLED)
-- UpgradePanel: always-clickable buy buttons with failed-purchase dialogue (10s local cooldown)
+- Implemented enemy sprite system: Goblin Grunt shows 4 PNG poses (default/reaction/attack/dead) with pose-switching on combat events
+- Added enemy attack mechanic: enemies attack player every 3s via CombatEngine timer
+- Added player HP system: HP bar below player rect, HP = VIT * 10, 2% regen/sec, death/respawn cycle
+- Modified 6 files: enemies.js (sprite metadata + getEnemyById), BootScene.js (preload), config.js (combat params), Store.js (playerHp state/mutations), CombatEngine.js (enemy attack/regen/death timers), GameScene.js (sprite rendering + player HP bar + pose switching)
+- Non-sprite enemies gracefully fallback to red rectangle rendering
+- Player HP resets on level-up and prestige; persists in saves via DECIMAL_FIELDS hydration
 
 ## Pinned References
 - Governance rules: `CLAUDE.md`

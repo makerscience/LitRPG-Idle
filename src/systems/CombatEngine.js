@@ -36,6 +36,32 @@ const CombatEngine = {
       }
     }));
 
+    // Enemy attack timer — fires every 3s
+    TimeEngine.register(
+      'combat:enemyAttack',
+      () => CombatEngine.enemyAttack(),
+      COMBAT.enemyAttackInterval,
+      true,
+    );
+
+    // Player HP regen — fires every 1s
+    TimeEngine.register(
+      'combat:playerRegen',
+      () => CombatEngine._regenPlayerHp(),
+      COMBAT.playerRegenInterval,
+      true,
+    );
+
+    // Subscribe to player death
+    unsubs.push(on(EVENTS.COMBAT_PLAYER_DIED, () => {
+      CombatEngine._onPlayerDeath();
+    }));
+
+    // On level-up, restore HP to new max (VIT increases)
+    unsubs.push(on(EVENTS.PROG_LEVEL_UP, () => {
+      Store.resetPlayerHp();
+    }));
+
     // Subscribe to zone changes
     unsubs.push(on(EVENTS.WORLD_ZONE_CHANGED, () => {
       // Cancel pending spawn delay
@@ -51,6 +77,9 @@ const CombatEngine = {
   destroy() {
     TimeEngine.unregister('combat:autoAttack');
     TimeEngine.unregister('combat:spawnDelay');
+    TimeEngine.unregister('combat:enemyAttack');
+    TimeEngine.unregister('combat:playerRegen');
+    TimeEngine.unregister('combat:playerRespawn');
     for (const unsub of unsubs) unsub();
     unsubs = [];
     currentEnemy = null;
@@ -141,6 +170,35 @@ const CombatEngine = {
       hp: currentEnemy.hp,
       maxHp: currentEnemy.maxHp,
     };
+  },
+
+  enemyAttack() {
+    if (!currentEnemy) return;
+    const damage = currentEnemy.attack;
+    Store.damagePlayer(damage);
+  },
+
+  _regenPlayerHp() {
+    const maxHp = Store.getPlayerMaxHp();
+    const regenAmount = maxHp.times(COMBAT.playerRegenPercent);
+    Store.healPlayer(regenAmount);
+  },
+
+  _onPlayerDeath() {
+    // Pause combat
+    TimeEngine.setEnabled('combat:autoAttack', false);
+    TimeEngine.setEnabled('combat:enemyAttack', false);
+    TimeEngine.setEnabled('combat:playerRegen', false);
+    currentEnemy = null;
+
+    // Respawn after delay
+    TimeEngine.scheduleOnce('combat:playerRespawn', () => {
+      Store.resetPlayerHp();
+      TimeEngine.setEnabled('combat:autoAttack', true);
+      TimeEngine.setEnabled('combat:enemyAttack', true);
+      TimeEngine.setEnabled('combat:playerRegen', true);
+      CombatEngine.spawnEnemy();
+    }, COMBAT.playerDeathRespawnDelay);
   },
 
   _onEnemyDeath() {

@@ -43,12 +43,13 @@ export default class SystemLog {
     this.container.setMask(this._mask);
 
     // Mouse wheel scrolling — scoped to log panel area
-    scene.input.on('wheel', (_pointer, _gameObjects, _dx, dy) => {
+    this._onWheel = (_pointer, _gameObjects, _dx, dy) => {
       const pointer = scene.input.activePointer;
       if (pointer.x >= x && pointer.x <= x + w && pointer.y >= y && pointer.y <= y + h) {
         this._scroll(dy);
       }
-    });
+    };
+    scene.input.on('wheel', this._onWheel);
 
     // Track current enemy name for damage lines
     this._currentEnemyName = '';
@@ -254,6 +255,10 @@ export default class SystemLog {
   destroy() {
     for (const unsub of this._unsubs) unsub();
     this._unsubs = [];
+    if (this._onWheel) {
+      this.scene.input.off('wheel', this._onWheel);
+      this._onWheel = null;
+    }
     for (const obj of this._lineObjects) obj.destroy();
     this._lineObjects = [];
     if (this._mask) {
