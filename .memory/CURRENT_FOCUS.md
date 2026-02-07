@@ -4,16 +4,17 @@
 - Building a LitRPG idle/clicker game with a snarky SYSTEM narrator, using Phaser + Vite + break_infinity.js.
 
 ## Active Objectives (max 3)
-1. Phase 3 COMPLETE — move to Phase 4 (Loot + Inventory)
-2. Polish UI (auto-attack toggle in Phase 5, DPS counter)
-3. Start loot/inventory groundwork
+1. Phase 6 COMPLETE — move to Phase 7 (Prestige / Reboot system)
+2. Test cheat unlock + merge chain + toggle persistence in-browser
+3. Balance drop pacing with Loot Hoarder active
 
 ## Next Actions
-- [ ] Verify Phase 3 in-browser: TopBar, SystemLog, ZoneNav, SYSTEM dialogue all working
-- [ ] Commit Phase 3 changes
-- [ ] Plan Phase 4 (Loot drops, inventory grid, equipment)
-- [ ] Add item data definitions and drop tables
-- [ ] Implement inventory UI panel
+- [ ] Commit Phase 6 changes
+- [ ] Test full cheat loop: 10 fragments → unlock → toggle ON → drops boost → 100 daggers auto-merge
+- [ ] Test chain merge: enough steel swords → mithril blade
+- [ ] Test toggle OFF stops merges, toggle ON resumes
+- [ ] Test save/load persists unlockedCheats, activeCheats, firstMerge flag
+- [ ] Plan Phase 7 (Prestige system)
 
 ## Open Loops / Blockers
 - (none currently)
@@ -21,7 +22,7 @@
 ## How to Resume in 30 Seconds
 - **Open:** `.memory/CURRENT_FOCUS.md`
 - **Next:** Execute the first unchecked item in "Next Actions"
-- **If unclear:** Check `MVP_PLAN.md` Phase 4 requirements
+- **If unclear:** Check `MVP_PLAN.md` Phase 7 requirements
 
 ## Key Context
 - Tech stack: Phaser 3, Vite 7, break_infinity.js, localStorage saves
@@ -34,14 +35,14 @@
 ---
 
 ## Last Session Summary (max ~8 bullets)
-- Phase 3 implemented: full UI shell working
-- Created `src/ui/TopBar.js` — gold/mana/fragments display + level/XP bar with pop-tween
-- Created `src/ui/SystemLog.js` — scrollable masked log with color-coded lines (green/yellow/indigo/sky blue)
-- Created `src/ui/ZoneNav.js` — zone arrow navigation with boundary dimming
-- Created `src/systems/DialogueManager.js` — flag-gated SYSTEM dialogue (first kill, first level-up, Zone 2)
-- Created `src/scenes/UIScene.js` — parallel overlay orchestrating TopBar, SystemLog, ZoneNav, DialogueManager
-- Added LAYOUT + COLORS constants to config.js, setFlag() to Store, repositioned GameScene to 960px game area
-- `vite build` passes cleanly
+- Phase 6 implemented: Loot Hoarder cheat + Cheat Deck UI
+- Created `src/data/cheats.js` — cheat definitions with systemDialogue per lifecycle event
+- Created `src/systems/CheatManager.js` — fragment threshold detection, auto-unlock at 10 fragments
+- Created `src/ui/CheatDeck.js` — bottom bar toggle cards with pulsing green glow, hidden until unlocked
+- Updated Store with activeCheats, unlockCheat/toggleCheat/isCheatActive mutations, firstMerge flag
+- Added _tryAutoMerge to InventorySystem with chain merge support (depth-bounded), triggered on every tryAddItem
+- LootEngine boosts drop chance ×1.5 and drop count ×3 when Loot Hoarder active
+- Save migration v2→v3; DialogueManager + SystemLog wired for merge/unlock/toggle events
 
 ## Pinned References
 - Governance rules: `CLAUDE.md`

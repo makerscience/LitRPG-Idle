@@ -7,11 +7,16 @@ import Store from './systems/Store.js';
 import SaveManager from './systems/SaveManager.js';
 import TimeEngine from './systems/TimeEngine.js';
 import CombatEngine from './systems/CombatEngine.js';
+import LootEngine from './systems/LootEngine.js';
+import InventorySystem from './systems/InventorySystem.js';
+import UpgradeManager from './systems/UpgradeManager.js';
+import CheatManager from './systems/CheatManager.js';
 
 // ── Boot sequence ───────────────────────────────────────────────────
 Store.init();
 SaveManager.init(Store);
 TimeEngine.init();
+LootEngine.init();
 
 const config = {
   type: Phaser.AUTO,
@@ -35,4 +40,8 @@ if (import.meta.env.DEV) {
   window.Store = Store;
   window.SaveManager = SaveManager;
   window.CombatEngine = CombatEngine;
+  window.LootEngine = LootEngine;
+  window.InventorySystem = InventorySystem;
+  window.UpgradeManager = UpgradeManager;
+  window.CheatManager = CheatManager;
 }

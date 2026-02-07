@@ -25,13 +25,16 @@ function createInitialState() {
     },
     equipped: { head: null, body: null, weapon: null, legs: null },
     inventoryStacks: {},
+    purchasedUpgrades: {},
+    totalKills: 0,
     currentWorld: 1,
     currentZone: 1,
     prestigeCount: 0,
     prestigeMultiplier: D(1),
     unlockedCheats: [],
+    activeCheats: {},
     titles: [],
-    flags: { crackTriggered: false, firstKill: false, firstLevelUp: false, reachedZone2: false },
+    flags: { crackTriggered: false, firstKill: false, firstLevelUp: false, reachedZone2: false, firstEquip: false, firstFragment: false, firstMerge: false },
     settings: { autoAttack: false },
     timestamps: { lastSave: 0, lastOnline: 0 },
   };
@@ -69,10 +72,13 @@ function hydrateState(saved) {
   // Simple objects / arrays — shallow copy
   if (saved.equipped) fresh.equipped = { ...fresh.equipped, ...saved.equipped };
   if (saved.inventoryStacks) fresh.inventoryStacks = saved.inventoryStacks;
+  if (saved.purchasedUpgrades) fresh.purchasedUpgrades = { ...saved.purchasedUpgrades };
+  if (saved.totalKills != null) fresh.totalKills = saved.totalKills;
   if (saved.currentWorld != null) fresh.currentWorld = saved.currentWorld;
   if (saved.currentZone != null) fresh.currentZone = saved.currentZone;
   if (saved.prestigeCount != null) fresh.prestigeCount = saved.prestigeCount;
   if (saved.unlockedCheats) fresh.unlockedCheats = [...saved.unlockedCheats];
+  if (saved.activeCheats) fresh.activeCheats = { ...saved.activeCheats };
   if (saved.titles) fresh.titles = [...saved.titles];
   if (saved.flags) fresh.flags = { ...fresh.flags, ...saved.flags };
   if (saved.settings) fresh.settings = { ...fresh.settings, ...saved.settings };
@@ -168,6 +174,85 @@ const Store = {
   setFlag(key, value) {
     state.flags[key] = value;
     emit(EVENTS.STATE_CHANGED, { changedKeys: ['flags'] });
+  },
+
+  // ── Inventory / Equipment mutations ─────────────────────────────
+
+  addInventoryItem(itemId, count = 1) {
+    const stacks = state.inventoryStacks;
+    if (stacks[itemId]) {
+      stacks[itemId].count += count;
+    } else {
+      stacks[itemId] = { count, tier: 0 };
+    }
+    emit(EVENTS.INV_ITEM_ADDED, { itemId, count, totalCount: stacks[itemId].count });
+    emit(EVENTS.STATE_CHANGED, { changedKeys: ['inventoryStacks'] });
+  },
+
+  removeInventoryItem(itemId, count = 1) {
+    const stacks = state.inventoryStacks;
+    if (!stacks[itemId]) return;
+    stacks[itemId].count -= count;
+    if (stacks[itemId].count <= 0) {
+      delete stacks[itemId];
+    }
+    emit(EVENTS.STATE_CHANGED, { changedKeys: ['inventoryStacks'] });
+  },
+
+  equipItem(slot, itemId) {
+    state.equipped[slot] = itemId;
+    emit(EVENTS.INV_ITEM_EQUIPPED, { slot, itemId });
+    emit(EVENTS.STATE_CHANGED, { changedKeys: ['equipped'] });
+  },
+
+  unequipItem(slot) {
+    state.equipped[slot] = null;
+    emit(EVENTS.STATE_CHANGED, { changedKeys: ['equipped'] });
+  },
+
+  // ── Upgrade / Economy mutations ──────────────────────────────────
+
+  spendGold(amount) {
+    state.gold = state.gold.minus(D(amount));
+    emit(EVENTS.STATE_CHANGED, { changedKeys: ['gold'] });
+  },
+
+  spendFragments(amount) {
+    state.glitchFragments = state.glitchFragments.minus(D(amount));
+    emit(EVENTS.STATE_CHANGED, { changedKeys: ['glitchFragments'] });
+  },
+
+  upgradeLevel(upgradeId) {
+    if (!state.purchasedUpgrades[upgradeId]) {
+      state.purchasedUpgrades[upgradeId] = 0;
+    }
+    state.purchasedUpgrades[upgradeId] += 1;
+    emit(EVENTS.STATE_CHANGED, { changedKeys: ['purchasedUpgrades'] });
+    return state.purchasedUpgrades[upgradeId];
+  },
+
+  // ── Cheat mutations ───────────────────────────────────────────────
+
+  unlockCheat(cheatId) {
+    if (state.unlockedCheats.includes(cheatId)) return;
+    state.unlockedCheats.push(cheatId);
+    state.activeCheats[cheatId] = true;
+    emit(EVENTS.CHEAT_UNLOCKED, { cheatId });
+    emit(EVENTS.STATE_CHANGED, { changedKeys: ['unlockedCheats', 'activeCheats'] });
+  },
+
+  toggleCheat(cheatId) {
+    state.activeCheats[cheatId] = !state.activeCheats[cheatId];
+    emit(EVENTS.CHEAT_TOGGLED, { cheatId, active: state.activeCheats[cheatId] });
+    emit(EVENTS.STATE_CHANGED, { changedKeys: ['activeCheats'] });
+  },
+
+  isCheatActive(cheatId) {
+    return state.activeCheats[cheatId] === true;
+  },
+
+  incrementKills() {
+    state.totalKills += 1;
   },
 
   updateTimestamps(partial) {

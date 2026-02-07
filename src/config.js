@@ -43,7 +43,12 @@ export const LOOT = {
     rare:       8,
     epic:       2,
   },
-  mergeThreshold: 100,
+  mergeThreshold: 10,
+};
+
+export const INVENTORY = {
+  maxUniqueStacks: 20,
+  dropChanceByZone: { 1: 0.40, 2: 0.35, 3: 0.30, 4: 0.25, 5: 0.20 },
 };
 
 export const PRESTIGE = {
@@ -57,8 +62,18 @@ export const WORLD = {
   height: 720,
 };
 
+export const CHEATS = {
+  lootHoarder: {
+    id: 'loot_hoarder',
+    fragmentsRequired: 10,
+    dropMultiplier: 3,        // items per successful drop roll when active
+    dropChanceBoost: 1.5,     // multiplier on base drop chance when active
+    dropChanceCap: 0.80,      // cap after boost
+  },
+};
+
 export const SAVE = {
-  schemaVersion: 1,
+  schemaVersion: 3,
   autosaveInterval: 30_000,   // ms
   maxOfflineTime: 12 * 60 * 60 * 1000,  // 12 hours in ms
 };
@@ -81,7 +96,14 @@ export const COLORS = {
     system:     '#eab308',   // yellow (same as gold)
     levelUp:    '#818cf8',   // indigo
     zoneChange: '#38bdf8',   // sky blue
+    loot:       '#a855f7',   // purple
     default:    '#a1a1aa',   // zinc-400
+  },
+  rarity: {
+    common:   '#a1a1aa',
+    uncommon: '#22c55e',
+    rare:     '#3b82f6',
+    epic:     '#a855f7',
   },
   xpBar: {
     bg:         0x374151,

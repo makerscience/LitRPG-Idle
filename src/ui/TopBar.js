@@ -57,6 +57,12 @@ export default class TopBar {
       this._refreshLevel(s);
       this._refreshXp(s);
     }));
+    // Refresh on currency spend (no pop — only pops on gain)
+    this._unsubs.push(on(EVENTS.STATE_CHANGED, (data) => {
+      if (data.changedKeys.includes('gold')) this._refreshGold(Store.getState());
+      if (data.changedKeys.includes('glitchFragments')) this._refreshFragments(Store.getState());
+    }));
+
     this._unsubs.push(on(EVENTS.SAVE_LOADED, () => {
       const s = Store.getState();
       this._refreshGold(s);

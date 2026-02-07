@@ -7,19 +7,34 @@ import { D, Decimal } from './BigNum.js';
 import { emit, on, EVENTS } from '../events.js';
 import { DAMAGE_FORMULAS, COMBAT } from '../config.js';
 import { getRandomEnemy } from '../data/enemies.js';
+import InventorySystem from './InventorySystem.js';
+import UpgradeManager from './UpgradeManager.js';
 
 let currentEnemy = null;
 let unsubs = [];
+let forcedCritMultiplier = null;
 
 const CombatEngine = {
   init() {
-    // Register auto-attack ticker (disabled until Phase 3 or settings toggle)
+    // Register auto-attack ticker (enabled by default — it's an idle game)
     TimeEngine.register(
       'combat:autoAttack',
       () => CombatEngine.playerAttack(),
       COMBAT.autoAttackInterval,
-      false,
+      true,
     );
+
+    // Re-register auto-attack when speed upgrade purchased
+    unsubs.push(on(EVENTS.UPG_PURCHASED, (data) => {
+      if (data.upgradeId === 'auto_attack_speed') {
+        TimeEngine.register(
+          'combat:autoAttack',
+          () => CombatEngine.playerAttack(),
+          UpgradeManager.getAutoAttackInterval(),
+          true,
+        );
+      }
+    }));
 
     // Subscribe to zone changes
     unsubs.push(on(EVENTS.WORLD_ZONE_CHANGED, () => {
@@ -88,15 +103,34 @@ const CombatEngine = {
 
   getPlayerDamage(state) {
     const str = state.playerStats.str;
-    const wpnDmg = 0; // No weapons until Phase 4
+    const wpnDmg = InventorySystem.getEquippedWeaponDamage();
     const baseDamage = DAMAGE_FORMULAS.mortal(str, wpnDmg);
     const prestigeMult = state.prestigeMultiplier;
+    const clickDmgMult = UpgradeManager.getMultiplier('clickDamage');
 
-    const isCrit = Math.random() < COMBAT.critChance;
-    const critMult = isCrit ? COMBAT.critMultiplier : 1;
+    // Crit chance includes flat bonus from upgrades
+    const critChance = COMBAT.critChance + UpgradeManager.getFlatBonus('critChance');
 
-    const damage = D(baseDamage).times(prestigeMult).times(critMult).floor();
+    // Forced crit from FirstCrackDirector consumes the override
+    let isCrit;
+    let critMult;
+    if (forcedCritMultiplier != null) {
+      isCrit = true;
+      critMult = forcedCritMultiplier;
+      forcedCritMultiplier = null;
+    } else {
+      isCrit = Math.random() < critChance;
+      // After crack, crits are permanently 10x
+      const baseCritMult = state.flags.crackTriggered ? 10 : COMBAT.critMultiplier;
+      critMult = isCrit ? baseCritMult : 1;
+    }
+
+    const damage = D(baseDamage).times(clickDmgMult).times(prestigeMult).times(critMult).floor();
     return { damage, isCrit };
+  },
+
+  setForcedCrit(mult) {
+    forcedCritMultiplier = mult;
   },
 
   getCurrentEnemy() {
@@ -113,9 +147,10 @@ const CombatEngine = {
     const dead = currentEnemy;
     currentEnemy = null;
 
-    emit(EVENTS.COMBAT_ENEMY_KILLED, { enemyId: dead.id, name: dead.name });
+    emit(EVENTS.COMBAT_ENEMY_KILLED, { enemyId: dead.id, name: dead.name, lootTable: dead.lootTable });
 
-    Store.addGold(dead.goldDrop);
+    const goldAmount = D(dead.goldDrop).times(UpgradeManager.getMultiplier('goldMultiplier')).floor();
+    Store.addGold(goldAmount);
     Store.addXp(dead.xpDrop);
 
     TimeEngine.scheduleOnce('combat:spawnDelay', () => {

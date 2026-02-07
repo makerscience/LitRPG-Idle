@@ -5,7 +5,12 @@ import Phaser from 'phaser';
 import TopBar from '../ui/TopBar.js';
 import SystemLog from '../ui/SystemLog.js';
 import ZoneNav from '../ui/ZoneNav.js';
+import InventoryPanel from '../ui/InventoryPanel.js';
+import UpgradePanel from '../ui/UpgradePanel.js';
+import CheatDeck from '../ui/CheatDeck.js';
 import DialogueManager from '../systems/DialogueManager.js';
+import FirstCrackDirector from '../systems/FirstCrackDirector.js';
+import CheatManager from '../systems/CheatManager.js';
 import { LAYOUT, COLORS } from '../config.js';
 
 export default class UIScene extends Phaser.Scene {
@@ -28,9 +33,14 @@ export default class UIScene extends Phaser.Scene {
     this.topBar = new TopBar(this);
     this.systemLog = new SystemLog(this);
     this.zoneNav = new ZoneNav(this);
+    this.inventoryPanel = new InventoryPanel(this);
+    this.upgradePanel = new UpgradePanel(this);
+    this.cheatDeck = new CheatDeck(this);
 
-    // Initialize dialogue triggers
+    // Initialize dialogue triggers + First Crack director + cheat manager
     DialogueManager.init();
+    FirstCrackDirector.init();
+    CheatManager.init();
 
     this.events.on('shutdown', () => this._shutdown());
 
@@ -41,7 +51,12 @@ export default class UIScene extends Phaser.Scene {
     if (this.topBar) { this.topBar.destroy(); this.topBar = null; }
     if (this.systemLog) { this.systemLog.destroy(); this.systemLog = null; }
     if (this.zoneNav) { this.zoneNav.destroy(); this.zoneNav = null; }
+    if (this.inventoryPanel) { this.inventoryPanel.destroy(); this.inventoryPanel = null; }
+    if (this.upgradePanel) { this.upgradePanel.destroy(); this.upgradePanel = null; }
+    if (this.cheatDeck) { this.cheatDeck.destroy(); this.cheatDeck = null; }
     DialogueManager.destroy();
+    FirstCrackDirector.destroy();
+    CheatManager.destroy();
     console.log('[UIScene] shutdown — cleaned up');
   }
 }

@@ -3,7 +3,10 @@
 
 import { on, EVENTS } from '../events.js';
 import { format } from '../systems/BigNum.js';
-import { LAYOUT, COLORS, UI } from '../config.js';
+import { LAYOUT, COLORS, UI, LOOT } from '../config.js';
+import { getItem } from '../data/items.js';
+import { getUpgrade } from '../data/upgrades.js';
+import { getCheat } from '../data/cheats.js';
 
 export default class SystemLog {
   constructor(scene) {
@@ -11,6 +14,8 @@ export default class SystemLog {
     this._unsubs = [];
     this._lines = [];
     this._lineObjects = [];
+    this._lineYOffsets = [];
+    this._totalContentHeight = 0;
     this._scrollOffset = 0;
 
     const { x, y, w, h } = LAYOUT.logPanel;
@@ -87,6 +92,69 @@ export default class SystemLog {
     this._unsubs.push(on(EVENTS.DIALOGUE_QUEUED, (data) => {
       this.addLine(`SYSTEM: ${data.text}`, 'system');
     }));
+
+    // Loot / Inventory events
+    this._unsubs.push(on(EVENTS.LOOT_DROPPED, (data) => {
+      const item = getItem(data.itemId);
+      const name = item ? item.name : data.itemId;
+      const rarity = data.rarity ? data.rarity.charAt(0).toUpperCase() + data.rarity.slice(1) : 'Common';
+      const countStr = data.count > 1 ? `${data.count}x ` : '';
+      this.addLine(`Dropped: ${countStr}${name} (${rarity})`, 'loot');
+    }));
+
+    this._unsubs.push(on(EVENTS.INV_ITEM_EQUIPPED, (data) => {
+      const item = getItem(data.itemId);
+      if (!item) return;
+      const stat = item.statBonuses.atk > 0 ? `+${item.statBonuses.atk} ATK` : `+${item.statBonuses.def} DEF`;
+      this.addLine(`Equipped ${item.name} [${stat}]`, 'loot');
+    }));
+
+    this._unsubs.push(on(EVENTS.INV_ITEM_SOLD, (data) => {
+      const item = getItem(data.itemId);
+      const name = item ? item.name : data.itemId;
+      this.addLine(`Sold ${data.count}x ${name} for ${data.goldGained} Gold`, 'gold');
+    }));
+
+    this._unsubs.push(on(EVENTS.INV_FULL, () => {
+      this.addLine('Inventory full!', 'default');
+    }));
+
+    // Upgrade purchased
+    this._unsubs.push(on(EVENTS.UPG_PURCHASED, (data) => {
+      const upgrade = getUpgrade(data.upgradeId);
+      const name = upgrade ? upgrade.name : data.upgradeId;
+      this.addLine(`Purchased ${name} (Lv.${data.level})`, 'system');
+    }));
+
+    // Glitch fragment gained
+    this._unsubs.push(on(EVENTS.ECON_FRAGMENTS_GAINED, (data) => {
+      this.addLine(`+${format(data.amount)} Glitch Fragment`, 'loot');
+    }));
+
+    // Item merged
+    this._unsubs.push(on(EVENTS.INV_ITEM_MERGED, (data) => {
+      const source = getItem(data.itemId);
+      const target = getItem(data.targetItemId);
+      const srcName = source ? source.name : data.itemId;
+      const tgtName = target ? target.name : data.targetItemId;
+      const consumed = data.merges * LOOT.mergeThreshold;
+      this.addLine(`Merged ${consumed}x ${srcName} → ${data.merges}x ${tgtName}`, 'loot');
+    }));
+
+    // Cheat unlocked
+    this._unsubs.push(on(EVENTS.CHEAT_UNLOCKED, (data) => {
+      const cheat = getCheat(data.cheatId);
+      const name = cheat ? cheat.name : data.cheatId;
+      this.addLine(`CHEAT UNLOCKED: ${name}`, 'system');
+    }));
+
+    // Cheat toggled
+    this._unsubs.push(on(EVENTS.CHEAT_TOGGLED, (data) => {
+      const cheat = getCheat(data.cheatId);
+      const name = cheat ? cheat.name : data.cheatId;
+      const status = data.active ? 'ACTIVATED' : 'DEACTIVATED';
+      this.addLine(`Cheat ${name}: ${status}`, 'system');
+    }));
   }
 
   _flushKill() {
@@ -120,30 +188,35 @@ export default class SystemLog {
     // Destroy old text objects
     for (const obj of this._lineObjects) obj.destroy();
     this._lineObjects = [];
+    this._lineYOffsets = [];
 
-    const startY = this._panelY + this._padding + this._scrollOffset;
+    let cumY = 0;
 
     for (let i = 0; i < this._lines.length; i++) {
       const { text, color } = this._lines[i];
-      const yPos = startY + i * this._lineHeight;
 
-      const textObj = this.scene.add.text(this._textX, yPos, text, {
+      const textObj = this.scene.add.text(this._textX, 0, text, {
         fontFamily: 'monospace',
         fontSize: '11px',
         color,
         wordWrap: { width: this._panelW - this._padding * 2 },
       });
 
+      this._lineYOffsets.push(cumY);
+      cumY += textObj.height + 4; // 4px gap between entries
+
       this.container.add(textObj);
       this._lineObjects.push(textObj);
     }
+
+    this._totalContentHeight = cumY;
+    this._updatePositions();
   }
 
   _scrollToBottom() {
-    const totalHeight = this._lines.length * this._lineHeight;
     const visibleHeight = this._panelH - this._padding * 2;
-    if (totalHeight > visibleHeight) {
-      this._scrollOffset = -(totalHeight - visibleHeight);
+    if (this._totalContentHeight > visibleHeight) {
+      this._scrollOffset = -(this._totalContentHeight - visibleHeight);
     } else {
       this._scrollOffset = 0;
     }
@@ -151,10 +224,9 @@ export default class SystemLog {
   }
 
   _scroll(dy) {
-    const totalHeight = this._lines.length * this._lineHeight;
     const visibleHeight = this._panelH - this._padding * 2;
     const maxScroll = 0;
-    const minScroll = -(Math.max(0, totalHeight - visibleHeight));
+    const minScroll = -(Math.max(0, this._totalContentHeight - visibleHeight));
 
     this._scrollOffset -= dy * 0.5;
     this._scrollOffset = Math.max(minScroll, Math.min(maxScroll, this._scrollOffset));
@@ -164,7 +236,7 @@ export default class SystemLog {
   _updatePositions() {
     const startY = this._panelY + this._padding + this._scrollOffset;
     for (let i = 0; i < this._lineObjects.length; i++) {
-      this._lineObjects[i].setY(startY + i * this._lineHeight);
+      this._lineObjects[i].setY(startY + this._lineYOffsets[i]);
     }
   }
 

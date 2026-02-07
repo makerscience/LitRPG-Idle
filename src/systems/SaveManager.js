@@ -13,7 +13,22 @@ let boundBeforeUnload = null;
 
 /** Migration functions keyed by target schemaVersion. */
 const migrations = {
-  // Pattern: 2: (data) => { data.newField = defaultValue; data.schemaVersion = 2; return data; }
+  2: (data) => {
+    data.purchasedUpgrades = data.purchasedUpgrades || {};
+    data.totalKills = data.totalKills || 0;
+    if (data.flags) {
+      data.flags.firstFragment = data.flags.firstFragment ?? false;
+    }
+    data.schemaVersion = 2;
+    return data;
+  },
+  3: (data) => {
+    data.activeCheats = data.activeCheats || {};
+    data.unlockedCheats = data.unlockedCheats || [];
+    if (data.flags) data.flags.firstMerge = data.flags.firstMerge ?? false;
+    data.schemaVersion = 3;
+    return data;
+  },
 };
 
 /** Run all applicable migrations in order. */
