@@ -2,7 +2,7 @@
 // Hidden until first cheat unlocked. Each card is an ON/OFF toggle button.
 
 import Store from '../systems/Store.js';
-import { on, emit, EVENTS } from '../events.js';
+import { on, EVENTS } from '../events.js';
 import { LAYOUT, COLORS } from '../config.js';
 import { getCheat, getAllCheats } from '../data/cheats.js';
 
@@ -98,12 +98,7 @@ export default class CheatDeck {
       bg.setInteractive({ useHandCursor: true });
       bg.on('pointerdown', () => {
         Store.toggleCheat(cheatId);
-        const nowActive = Store.isCheatActive(cheatId);
-        const cheatData = getCheat(cheatId);
-        const dialogue = nowActive
-          ? cheatData.systemDialogue.onActivate
-          : cheatData.systemDialogue.onDeactivate;
-        emit(EVENTS.DIALOGUE_QUEUED, { text: dialogue });
+        // Dialogue now handled by DialogueManager via CHEAT_TOGGLED event
       });
 
       // Pulsing glow when active

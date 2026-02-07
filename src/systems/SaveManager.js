@@ -36,6 +36,20 @@ const migrations = {
     data.schemaVersion = 4;
     return data;
   },
+  5: (data) => {
+    if (data.flags) {
+      data.flags.firstSell = data.flags.firstSell ?? false;
+      data.flags.reachedZone3 = data.flags.reachedZone3 ?? false;
+      data.flags.reachedZone4 = data.flags.reachedZone4 ?? false;
+      data.flags.reachedZone5 = data.flags.reachedZone5 ?? false;
+      data.flags.kills100 = data.flags.kills100 ?? false;
+      data.flags.kills500 = data.flags.kills500 ?? false;
+      data.flags.kills1000 = data.flags.kills1000 ?? false;
+      data.flags.kills5000 = data.flags.kills5000 ?? false;
+    }
+    data.schemaVersion = 5;
+    return data;
+  },
 };
 
 /** Run all applicable migrations in order. */

@@ -35,7 +35,7 @@ function createInitialState() {
     unlockedCheats: [],
     activeCheats: {},
     titles: [],
-    flags: { crackTriggered: false, firstKill: false, firstLevelUp: false, reachedZone2: false, firstEquip: false, firstFragment: false, firstMerge: false, firstPrestige: false },
+    flags: { crackTriggered: false, firstKill: false, firstLevelUp: false, reachedZone2: false, reachedZone3: false, reachedZone4: false, reachedZone5: false, firstEquip: false, firstFragment: false, firstMerge: false, firstPrestige: false, firstSell: false, kills100: false, kills500: false, kills1000: false, kills5000: false },
     settings: { autoAttack: false },
     timestamps: { lastSave: 0, lastOnline: 0 },
   };

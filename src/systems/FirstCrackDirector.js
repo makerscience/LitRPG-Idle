@@ -14,8 +14,6 @@ const FirstCrackDirector = {
       const state = Store.getState();
       if (state.flags.crackTriggered) return;
 
-      Store.incrementKills();
-
       if (state.totalKills >= 20) {
         FirstCrackDirector._startCrackSequence();
       }

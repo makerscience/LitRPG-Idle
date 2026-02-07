@@ -147,6 +147,7 @@ const CombatEngine = {
     const dead = currentEnemy;
     currentEnemy = null;
 
+    Store.incrementKills();
     emit(EVENTS.COMBAT_ENEMY_KILLED, { enemyId: dead.id, name: dead.name, lootTable: dead.lootTable });
 
     const state = Store.getState();

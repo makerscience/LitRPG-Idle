@@ -6,48 +6,48 @@ const WORLD_1_ENEMIES = [
   { id: 'w1z1_rat',    name: 'Sewer Rat',       zone: 1, hp: '10',  attack: 2,  goldDrop: '5',   xpDrop: '8',   lootTable: [
     { itemId: 'iron_dagger', weight: 40 }, { itemId: 'iron_helm', weight: 30 }, { itemId: 'leather_tunic', weight: 30 },
   ] },
-  { id: 'w1z1_slime',  name: 'Green Slime',     zone: 1, hp: '25',  attack: 3,  goldDrop: '10',  xpDrop: '15',  lootTable: [
+  { id: 'w1z1_slime',  name: 'Green Slime',     zone: 1, hp: '20',  attack: 3,  goldDrop: '10',  xpDrop: '15',  lootTable: [
     { itemId: 'iron_dagger', weight: 40 }, { itemId: 'iron_helm', weight: 30 }, { itemId: 'leather_tunic', weight: 30 },
   ] },
-  { id: 'w1z1_goblin', name: 'Goblin Grunt',    zone: 1, hp: '50',  attack: 5,  goldDrop: '20',  xpDrop: '30',  lootTable: [
+  { id: 'w1z1_goblin', name: 'Goblin Grunt',    zone: 1, hp: '40',  attack: 5,  goldDrop: '20',  xpDrop: '30',  lootTable: [
     { itemId: 'iron_dagger', weight: 40 }, { itemId: 'iron_helm', weight: 30 }, { itemId: 'leather_tunic', weight: 30 },
   ] },
 
   // Zone 2 (HP 100–500)
-  { id: 'w1z2_wolf',    name: 'Dire Wolf',        zone: 2, hp: '100',  attack: 12,  goldDrop: '50',   xpDrop: '60',   lootTable: [
+  { id: 'w1z2_wolf',    name: 'Dire Wolf',        zone: 2, hp: '80',   attack: 12,  goldDrop: '50',   xpDrop: '80',   lootTable: [
     { itemId: 'steel_sword', weight: 25 }, { itemId: 'leather_cap', weight: 30 }, { itemId: 'chainmail_vest', weight: 25 }, { itemId: 'iron_greaves', weight: 20 },
   ] },
-  { id: 'w1z2_skeleton',name: 'Skeleton Soldier',  zone: 2, hp: '250',  attack: 18,  goldDrop: '100',  xpDrop: '120',  lootTable: [
+  { id: 'w1z2_skeleton',name: 'Skeleton Soldier',  zone: 2, hp: '200',  attack: 18,  goldDrop: '100',  xpDrop: '160',  lootTable: [
     { itemId: 'steel_sword', weight: 25 }, { itemId: 'leather_cap', weight: 30 }, { itemId: 'chainmail_vest', weight: 25 }, { itemId: 'iron_greaves', weight: 20 },
   ] },
-  { id: 'w1z2_bandit',  name: 'Bandit Captain',    zone: 2, hp: '500',  attack: 25,  goldDrop: '200',  xpDrop: '250',  lootTable: [
+  { id: 'w1z2_bandit',  name: 'Bandit Captain',    zone: 2, hp: '400',  attack: 25,  goldDrop: '200',  xpDrop: '300',  lootTable: [
     { itemId: 'steel_sword', weight: 25 }, { itemId: 'leather_cap', weight: 30 }, { itemId: 'chainmail_vest', weight: 25 }, { itemId: 'iron_greaves', weight: 20 },
   ] },
 
   // Zone 3 (HP 1K–10K)
-  { id: 'w1z3_orc',   name: 'Orc Berserker', zone: 3, hp: '1000',   attack: 50,   goldDrop: '500',   xpDrop: '600',   lootTable: [
+  { id: 'w1z3_orc',   name: 'Orc Berserker', zone: 3, hp: '800',    attack: 50,   goldDrop: '500',   xpDrop: '800',   lootTable: [
     { itemId: 'mithril_blade', weight: 30 }, { itemId: 'steel_helm', weight: 35 }, { itemId: 'steel_greaves', weight: 35 },
   ] },
-  { id: 'w1z3_troll', name: 'Cave Troll',    zone: 3, hp: '5000',   attack: 80,   goldDrop: '1500',  xpDrop: '2000',  lootTable: [
+  { id: 'w1z3_troll', name: 'Cave Troll',    zone: 3, hp: '3000',   attack: 80,   goldDrop: '1500',  xpDrop: '2500',  lootTable: [
     { itemId: 'mithril_blade', weight: 30 }, { itemId: 'steel_helm', weight: 35 }, { itemId: 'steel_greaves', weight: 35 },
   ] },
-  { id: 'w1z3_mage',  name: 'Dark Mage',     zone: 3, hp: '10000',  attack: 120,  goldDrop: '3000',  xpDrop: '4000',  lootTable: [
+  { id: 'w1z3_mage',  name: 'Dark Mage',     zone: 3, hp: '6000',   attack: 120,  goldDrop: '3000',  xpDrop: '5000',  lootTable: [
     { itemId: 'mithril_blade', weight: 30 }, { itemId: 'steel_helm', weight: 35 }, { itemId: 'steel_greaves', weight: 35 },
   ] },
 
   // Zone 4 (HP 50K–500K)
-  { id: 'w1z4_whelp',  name: 'Dragon Whelp', zone: 4, hp: '50000',   attack: 300,   goldDrop: '10000',   xpDrop: '15000',  lootTable: [
+  { id: 'w1z4_whelp',  name: 'Dragon Whelp', zone: 4, hp: '25000',   attack: 300,   goldDrop: '10000',   xpDrop: '15000',  lootTable: [
     { itemId: 'adamantine_axe', weight: 100 },
   ] },
-  { id: 'w1z4_golem',  name: 'Iron Golem',   zone: 4, hp: '200000',  attack: 500,   goldDrop: '50000',   xpDrop: '60000',  lootTable: [
+  { id: 'w1z4_golem',  name: 'Iron Golem',   zone: 4, hp: '100000',  attack: 500,   goldDrop: '50000',   xpDrop: '60000',  lootTable: [
     { itemId: 'adamantine_axe', weight: 100 },
   ] },
-  { id: 'w1z4_lich',   name: 'Lich Lord',    zone: 4, hp: '500000',  attack: 800,   goldDrop: '100000',  xpDrop: '150000', lootTable: [
+  { id: 'w1z4_lich',   name: 'Lich Lord',    zone: 4, hp: '250000',  attack: 800,   goldDrop: '100000',  xpDrop: '150000', lootTable: [
     { itemId: 'adamantine_axe', weight: 100 },
   ] },
 
   // Zone 5 (boss)
-  { id: 'w1z5_dragon', name: 'Elder Dragon', zone: 5, hp: '2000000', attack: 2000,  goldDrop: '500000',  xpDrop: '750000', lootTable: [
+  { id: 'w1z5_dragon', name: 'Elder Dragon', zone: 5, hp: '1000000', attack: 2000,  goldDrop: '500000',  xpDrop: '750000', lootTable: [
     { itemId: 'dragonbone_blade', weight: 100 },
   ] },
 ];

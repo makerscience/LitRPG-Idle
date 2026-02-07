@@ -1,6 +1,11 @@
 # CHANGELOG
 
-## Unreleased
+## 2026-02-07 (Phase 8)
+- 80+ SYSTEM dialogue lines across 15 trigger categories (data-driven `src/data/dialogue.js`), replacing hardcoded strings in DialogueManager
+- Visual juice: gold particles on kill, expand→shrink death animation, level-up golden flash, cheat activation glitch effect
+- Magnitude-tiered damage numbers (size/color/shake/glow scale with damage), screen shake on 100K+/1M+ hits
+- Procedural parallax backgrounds per zone (5 themes, 3 scrolling layers each)
+- Balance pass: ~50% HP reductions, XP bumps zones 2-3, cheaper early upgrades, faster auto-attack (800ms) + spawn (400ms), higher fragment/loot drop rates
 
 ---
 

@@ -9,8 +9,8 @@ export const DAMAGE_FORMULAS = {
 export const COMBAT = {
   critChance: 0.05,
   critMultiplier: 2,
-  autoAttackInterval: 1000,   // ms
-  spawnDelay: 500,            // ms after kill before next enemy
+  autoAttackInterval: 800,    // ms
+  spawnDelay: 400,            // ms after kill before next enemy
 };
 
 export const PROGRESSION = {
@@ -33,7 +33,7 @@ export const ECONOMY = {
   startingGold: 0,
   startingFragments: 0,
   goldMultiplierPerZone: 1.5,
-  fragmentDropChance: 0.05,
+  fragmentDropChance: 0.08,
 };
 
 export const LOOT = {
@@ -48,7 +48,7 @@ export const LOOT = {
 
 export const INVENTORY = {
   maxUniqueStacks: 20,
-  dropChanceByZone: { 1: 0.40, 2: 0.35, 3: 0.30, 4: 0.25, 5: 0.20 },
+  dropChanceByZone: { 1: 0.40, 2: 0.35, 3: 0.35, 4: 0.30, 5: 0.25 },
 };
 
 export const PRESTIGE = {
@@ -74,7 +74,7 @@ export const CHEATS = {
 };
 
 export const SAVE = {
-  schemaVersion: 4,
+  schemaVersion: 5,
   autosaveInterval: 30_000,   // ms
   maxOfflineTime: 12 * 60 * 60 * 1000,  // 12 hours in ms
 };
@@ -122,8 +122,22 @@ export const UI = {
   damageNumbers: {
     duration: 800,
     floatDistance: 40,
-    fontSize: 18,
-    critFontSize: 26,
+    tiers: [
+      { min: 0,      fontSize: 16, color: '#ffffff', style: 'normal', shake: 0 },
+      { min: 100,    fontSize: 18, color: '#ffffff', style: 'normal', shake: 0 },
+      { min: 1000,   fontSize: 22, color: '#eab308', style: 'bold',   shake: 0 },
+      { min: 100000, fontSize: 26, color: '#f59e0b', style: 'bold',   shake: 0.002 },
+      { min: 1e6,    fontSize: 30, color: '#f59e0b', style: 'bold',   shake: 0.004 },
+    ],
+    critBonusSize: 4,
   },
   logMaxLines: 50,
+};
+
+export const ZONE_THEMES = {
+  1: { name: 'Sewers',         layers: [0x1a2a1a, 0x0d1f0d, 0x0a1a0a] },
+  2: { name: 'Wilderness',     layers: [0x1a2e1a, 0x152815, 0x0d1f0d] },
+  3: { name: 'Deep Caverns',   layers: [0x1a1a2e, 0x15152b, 0x0d0d1f] },
+  4: { name: 'Volcanic Ruins', layers: [0x2e1a1a, 0x2b1515, 0x1f0d0d] },
+  5: { name: "Dragon's Lair",  layers: [0x2e2a1a, 0x2b2515, 0x1f1d0d] },
 };

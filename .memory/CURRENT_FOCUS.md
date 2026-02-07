@@ -4,17 +4,17 @@
 - Building a LitRPG idle/clicker game with a snarky SYSTEM narrator, using Phaser + Vite + break_infinity.js.
 
 ## Active Objectives (max 3)
-1. Phase 7 COMPLETE — move to Phase 8 (Polish / Final)
-2. Test prestige loop: zone 4 → prestige → multiplier → zone 1 enemies melt
-3. Verify save/load persistence of prestigeCount, multiplier, furthestZone
+1. Phase 8 COMPLETE — commit and test
+2. All 8 phases implemented — game is feature-complete for MVP
+3. Manual playtest to verify balance targets (zone 1-3 in ~10 min, first prestige at ~15-20 min)
 
 ## Next Actions
-- [ ] Commit Phase 7 changes
-- [ ] Test full prestige loop: reach zone 4 → button appears → confirm → reset → multiplier applies
-- [ ] Test two-click confirm safeguard (3s timeout)
-- [ ] Test mutual exclusion: BAG/UPGRADES/PRESTIGE panels don't overlap
-- [ ] Test save migration v3→v4 with old save data
-- [ ] Plan Phase 8 (Polish / Final pass)
+- [ ] Commit Phase 8 changes
+- [ ] Manual playtest: verify dialogue triggers fire correctly (first kill, milestones, zone entrances, ambient)
+- [ ] Manual playtest: verify visual juice (gold particles, death anim, level flash, cheat glitch, parallax)
+- [ ] Manual playtest: verify balance targets (zone 1-3 ~10 min, prestige ~15-20 min)
+- [ ] Verify save migration v4→v5 with old save data
+- [ ] Consider Itch.io packaging / offline progress (deferred scope)
 
 ## Open Loops / Blockers
 - (none currently)
@@ -22,7 +22,7 @@
 ## How to Resume in 30 Seconds
 - **Open:** `.memory/CURRENT_FOCUS.md`
 - **Next:** Execute the first unchecked item in "Next Actions"
-- **If unclear:** Check `MVP_PLAN.md` Phase 8 requirements
+- **If unclear:** Check `Current Phase Plan.md` for Phase 8 verification checklist
 
 ## Key Context
 - Tech stack: Phaser 3, Vite 7, break_infinity.js, localStorage saves
@@ -35,14 +35,14 @@
 ---
 
 ## Last Session Summary (max ~8 bullets)
-- Phase 7 implemented: Prestige loop — reset for multiplier
-- Created `src/systems/PrestigeManager.js` — zone tracking, eligibility, prestige execution, transient flags
-- Created `src/ui/PrestigePanel.js` — modal with keeps/resets/gains columns, two-click confirm, P key toggle
-- Updated Store with furthestZone, setFurthestZone(), performPrestige() (resets stats/upgrades/kills, keeps gear/cheats/fragments)
-- CombatEngine now applies prestigeMultiplier to gold + XP drops, re-spawns enemy on prestige
-- DialogueManager: prestige available/performed dialogue + 5s delayed post-prestige combat snark
-- TopBar prestige counter (hidden when 0, shows P1 x1.25 format), SystemLog prestige event lines
-- Save migration v3→v4; mutual exclusion across all 3 panels; SAVE_REQUESTED event subscription
+- Phase 8 implemented: Polish pass — dialogue, visual juice, parallax, balance
+- Created `src/data/dialogue.js` — ~80 SYSTEM lines across 15 trigger categories
+- Refactored `DialogueManager` — data-driven imports, cooldown tracking, kill milestone arbitration, ambient timer, big damage detection, timer cleanup in destroy()
+- Rewrote `GameScene` — magnitude-tiered damage numbers with shake/glow, gold particles on kill, expand→shrink death anim, level-up flash, cheat glitch effect, procedural parallax backgrounds (5 zones, 3 layers each)
+- Balance pass: HP cuts ~50%, XP bumps zones 2-3, cheaper upgrade costs, faster auto-attack (800ms) + spawn (400ms), fragment drop 8%, higher loot drop rates
+- Kill counting moved from FirstCrackDirector to CombatEngine (increment before emit)
+- CheatDeck dialogue emit removed (now handled by DialogueManager via CHEAT_TOGGLED)
+- UpgradePanel: always-clickable buy buttons with failed-purchase dialogue (10s local cooldown)
 
 ## Pinned References
 - Governance rules: `CLAUDE.md`

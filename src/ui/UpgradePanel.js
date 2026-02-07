@@ -2,12 +2,13 @@
 // Toggle via UPGRADES button or U key. Legit upgrades on left, exploit on right.
 
 import Phaser from 'phaser';
-import { on, EVENTS } from '../events.js';
+import { on, emit, EVENTS } from '../events.js';
 import { LAYOUT, COLORS } from '../config.js';
 import Store from '../systems/Store.js';
 import UpgradeManager from '../systems/UpgradeManager.js';
 import { getUpgradesByCategory } from '../data/upgrades.js';
 import { format } from '../systems/BigNum.js';
+import { FAILED_PURCHASE } from '../data/dialogue.js';
 
 const PANEL_W = 750;
 const PANEL_H = 500;
@@ -17,6 +18,7 @@ export default class UpgradePanel {
     this.scene = scene;
     this._unsubs = [];
     this._isOpen = false;
+    this._lastFailedPurchaseTime = 0;
 
     // All modal objects for bulk show/hide
     this._modalObjects = [];
@@ -212,14 +214,22 @@ export default class UpgradePanel {
           backgroundColor: buyBg, padding: { x: 6, y: 3 },
         });
 
-        if (canBuy) {
-          buyBtn.setInteractive({ useHandCursor: true });
-          buyBtn.on('pointerdown', () => {
+        buyBtn.setInteractive({ useHandCursor: true });
+        buyBtn.on('pointerdown', () => {
+          if (UpgradeManager.canPurchase(upgrade.id)) {
             UpgradeManager.purchase(upgrade.id);
-          });
-          buyBtn.on('pointerover', () => buyBtn.setStyle({ backgroundColor: '#555555' }));
-          buyBtn.on('pointerout', () => buyBtn.setStyle({ backgroundColor: buyBg }));
-        }
+          } else {
+            // Failed purchase — emit dialogue with 10s local cooldown
+            const now = Date.now();
+            if (now - this._lastFailedPurchaseTime >= 10000) {
+              this._lastFailedPurchaseTime = now;
+              const line = FAILED_PURCHASE[Math.floor(Math.random() * FAILED_PURCHASE.length)];
+              emit(EVENTS.DIALOGUE_QUEUED, { text: line });
+            }
+          }
+        });
+        buyBtn.on('pointerover', () => buyBtn.setStyle({ backgroundColor: '#555555' }));
+        buyBtn.on('pointerout', () => buyBtn.setStyle({ backgroundColor: buyBg }));
 
         this._dynamicObjects.push(buyBtn);
       } else {
