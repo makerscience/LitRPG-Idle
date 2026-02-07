@@ -2,7 +2,7 @@
 // State holds live Decimal instances; strings only exist in localStorage.
 
 import { D, fromJSON, Decimal } from './BigNum.js';
-import { PROGRESSION, ECONOMY, SAVE } from '../config.js';
+import { PROGRESSION, ECONOMY, SAVE, PRESTIGE } from '../config.js';
 import { emit, EVENTS } from '../events.js';
 
 let state = null;
@@ -29,12 +29,13 @@ function createInitialState() {
     totalKills: 0,
     currentWorld: 1,
     currentZone: 1,
+    furthestZone: 1,
     prestigeCount: 0,
     prestigeMultiplier: D(1),
     unlockedCheats: [],
     activeCheats: {},
     titles: [],
-    flags: { crackTriggered: false, firstKill: false, firstLevelUp: false, reachedZone2: false, firstEquip: false, firstFragment: false, firstMerge: false },
+    flags: { crackTriggered: false, firstKill: false, firstLevelUp: false, reachedZone2: false, firstEquip: false, firstFragment: false, firstMerge: false, firstPrestige: false },
     settings: { autoAttack: false },
     timestamps: { lastSave: 0, lastOnline: 0 },
   };
@@ -76,6 +77,7 @@ function hydrateState(saved) {
   if (saved.totalKills != null) fresh.totalKills = saved.totalKills;
   if (saved.currentWorld != null) fresh.currentWorld = saved.currentWorld;
   if (saved.currentZone != null) fresh.currentZone = saved.currentZone;
+  if (saved.furthestZone != null) fresh.furthestZone = saved.furthestZone;
   if (saved.prestigeCount != null) fresh.prestigeCount = saved.prestigeCount;
   if (saved.unlockedCheats) fresh.unlockedCheats = [...saved.unlockedCheats];
   if (saved.activeCheats) fresh.activeCheats = { ...saved.activeCheats };
@@ -169,6 +171,36 @@ const Store = {
     state.currentZone = zone;
     emit(EVENTS.WORLD_ZONE_CHANGED, { world, zone });
     emit(EVENTS.STATE_CHANGED, { changedKeys: ['currentWorld', 'currentZone'] });
+  },
+
+  setFurthestZone(zone) {
+    state.furthestZone = Math.max(state.furthestZone, zone);
+    emit(EVENTS.STATE_CHANGED, { changedKeys: ['furthestZone'] });
+  },
+
+  performPrestige() {
+    state.prestigeCount += 1;
+    state.prestigeMultiplier = D(PRESTIGE.multiplierFormula(state.prestigeCount));
+    state.gold = state.gold.times(PRESTIGE.goldRetention).floor();
+    state.currentZone = 1;
+    state.currentWorld = 1;
+    // furthestZone NOT reset — permanent high-water mark
+
+    // Reset stats to starting values
+    const stats = PROGRESSION.startingStats;
+    state.playerStats.str = stats.str;
+    state.playerStats.vit = stats.vit;
+    state.playerStats.luck = stats.luck;
+    state.playerStats.level = stats.level;
+    state.playerStats.xp = D(stats.xp);
+    state.playerStats.xpToNext = D(PROGRESSION.xpForLevel(stats.level));
+
+    state.purchasedUpgrades = {};
+    state.totalKills = 0;
+
+    // Keeps: equipped, inventoryStacks, glitchFragments, unlockedCheats, activeCheats, titles, flags
+    emit(EVENTS.WORLD_ZONE_CHANGED, { world: 1, zone: 1 });
+    emit(EVENTS.STATE_CHANGED, { changedKeys: ['all'] });
   },
 
   setFlag(key, value) {

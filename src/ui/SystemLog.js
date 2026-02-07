@@ -3,7 +3,7 @@
 
 import { on, EVENTS } from '../events.js';
 import { format } from '../systems/BigNum.js';
-import { LAYOUT, COLORS, UI, LOOT } from '../config.js';
+import { LAYOUT, COLORS, UI, LOOT, PRESTIGE } from '../config.js';
 import { getItem } from '../data/items.js';
 import { getUpgrade } from '../data/upgrades.js';
 import { getCheat } from '../data/cheats.js';
@@ -154,6 +154,17 @@ export default class SystemLog {
       const name = cheat ? cheat.name : data.cheatId;
       const status = data.active ? 'ACTIVATED' : 'DEACTIVATED';
       this.addLine(`Cheat ${name}: ${status}`, 'system');
+    }));
+
+    // Prestige available
+    this._unsubs.push(on(EVENTS.PRESTIGE_AVAILABLE, () => {
+      this.addLine('PRESTIGE available! Press [P] or click the button.', 'prestige');
+    }));
+
+    // Prestige performed
+    this._unsubs.push(on(EVENTS.PRESTIGE_PERFORMED, (data) => {
+      const mult = PRESTIGE.multiplierFormula(data.count);
+      this.addLine(`PRESTIGE #${data.count}! Multiplier: x${mult.toFixed(2)}`, 'prestige');
     }));
   }
 

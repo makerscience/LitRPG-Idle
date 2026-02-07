@@ -2,6 +2,7 @@
 // Subscribes to game events, checks Store.flags, emits DIALOGUE_QUEUED.
 
 import Store from './Store.js';
+import TimeEngine from './TimeEngine.js';
 import { on, emit, EVENTS } from '../events.js';
 import { getCheat } from '../data/cheats.js';
 
@@ -77,6 +78,32 @@ const DialogueManager = {
         const cheat = getCheat('loot_hoarder');
         emit(EVENTS.DIALOGUE_QUEUED, { text: cheat.systemDialogue.onFirstMerge });
       }
+    }));
+
+    // Prestige available — first time reaching zone 4
+    unsubs.push(on(EVENTS.PRESTIGE_AVAILABLE, () => {
+      emit(EVENTS.DIALOGUE_QUEUED, {
+        text: "You've pushed far enough. I can offer you... a reset. Same world, stronger you. It's not a bug, it's a feature.",
+      });
+    }));
+
+    // Prestige performed — count-indexed snark
+    const prestigeLines = [
+      'And so the loop begins. You think you\'re getting stronger. I think you\'re getting predictable.',
+      'Back again? I\'m starting to think you enjoy the suffering.',
+      'Three resets. Most adventurers quit by now. You\'re either brave or broken.',
+      'At this point I should just automate the welcome speech. Welcome back. Again.',
+    ];
+    unsubs.push(on(EVENTS.PRESTIGE_PERFORMED, (data) => {
+      const idx = Math.min(data.count - 1, prestigeLines.length - 1);
+      emit(EVENTS.DIALOGUE_QUEUED, { text: prestigeLines[idx] });
+
+      // Delayed post-prestige combat snark (5s)
+      TimeEngine.scheduleOnce('dialogue:prestigeSnark', () => {
+        emit(EVENTS.DIALOGUE_QUEUED, {
+          text: 'Look at you. Demolishing rats like they owe you money. Feeling powerful?',
+        });
+      }, 5000);
     }));
   },
 

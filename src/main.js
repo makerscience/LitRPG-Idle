@@ -11,6 +11,7 @@ import LootEngine from './systems/LootEngine.js';
 import InventorySystem from './systems/InventorySystem.js';
 import UpgradeManager from './systems/UpgradeManager.js';
 import CheatManager from './systems/CheatManager.js';
+import PrestigeManager from './systems/PrestigeManager.js';
 
 // ── Boot sequence ───────────────────────────────────────────────────
 Store.init();
@@ -44,4 +45,5 @@ if (import.meta.env.DEV) {
   window.InventorySystem = InventorySystem;
   window.UpgradeManager = UpgradeManager;
   window.CheatManager = CheatManager;
+  window.PrestigeManager = PrestigeManager;
 }

@@ -2,7 +2,7 @@
 // Receives Store as a parameter to init() to avoid circular imports.
 
 import { SAVE } from '../config.js';
-import { emit, EVENTS } from '../events.js';
+import { emit, on, EVENTS } from '../events.js';
 
 const PRIMARY_KEY = 'litrpg_idle_save';
 const BACKUP_KEY = 'litrpg_idle_save_backup';
@@ -10,6 +10,7 @@ const BACKUP_KEY = 'litrpg_idle_save_backup';
 let store = null;
 let autosaveTimer = null;
 let boundBeforeUnload = null;
+let saveRequestedUnsub = null;
 
 /** Migration functions keyed by target schemaVersion. */
 const migrations = {
@@ -27,6 +28,12 @@ const migrations = {
     data.unlockedCheats = data.unlockedCheats || [];
     if (data.flags) data.flags.firstMerge = data.flags.firstMerge ?? false;
     data.schemaVersion = 3;
+    return data;
+  },
+  4: (data) => {
+    data.furthestZone = data.furthestZone ?? data.currentZone ?? 1;
+    if (data.flags) data.flags.firstPrestige = data.flags.firstPrestige ?? false;
+    data.schemaVersion = 4;
     return data;
   },
 };
@@ -61,6 +68,9 @@ const SaveManager = {
     // Save on page close
     boundBeforeUnload = () => this.save();
     window.addEventListener('beforeunload', boundBeforeUnload);
+
+    // Save on explicit request (e.g. after prestige)
+    saveRequestedUnsub = on(EVENTS.SAVE_REQUESTED, () => SaveManager.save());
   },
 
   destroy() {
@@ -71,6 +81,10 @@ const SaveManager = {
     if (boundBeforeUnload) {
       window.removeEventListener('beforeunload', boundBeforeUnload);
       boundBeforeUnload = null;
+    }
+    if (saveRequestedUnsub) {
+      saveRequestedUnsub();
+      saveRequestedUnsub = null;
     }
     store = null;
   },

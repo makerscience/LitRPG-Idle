@@ -149,9 +149,13 @@ const CombatEngine = {
 
     emit(EVENTS.COMBAT_ENEMY_KILLED, { enemyId: dead.id, name: dead.name, lootTable: dead.lootTable });
 
-    const goldAmount = D(dead.goldDrop).times(UpgradeManager.getMultiplier('goldMultiplier')).floor();
+    const state = Store.getState();
+    const goldAmount = D(dead.goldDrop)
+      .times(UpgradeManager.getMultiplier('goldMultiplier'))
+      .times(state.prestigeMultiplier)
+      .floor();
     Store.addGold(goldAmount);
-    Store.addXp(dead.xpDrop);
+    Store.addXp(D(dead.xpDrop).times(state.prestigeMultiplier).floor());
 
     TimeEngine.scheduleOnce('combat:spawnDelay', () => {
       CombatEngine.spawnEnemy();

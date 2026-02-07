@@ -4,6 +4,15 @@
 
 ---
 
+## 2026-02-06 (Phase 7)
+- Prestige loop: reset at zone 4+ for permanent +25% damage/gold/XP multiplier per prestige
+- PrestigePanel modal with keeps/resets/gains display and two-click confirm safeguard
+- PrestigeManager tracks furthestZone (permanent high-water mark), eligibility, and prestige execution
+- TopBar prestige counter (P1 x1.25), SYSTEM dialogue on prestige available/performed + 5s post-prestige combat snark
+- Save migration v3→v4 for furthestZone + firstPrestige flag; SAVE_REQUESTED event for immediate saves
+
+---
+
 ## 2026-02-06 (Phase 6)
 - Loot Hoarder cheat: auto-merges 10 items into 1 higher-tier weapon (iron_dagger→steel_sword→mithril_blade→adamantine_axe→dragonbone_blade chain)
 - CheatDeck bottom bar UI: toggleable cheat cards with pulsing green glow, hidden until first cheat unlocked

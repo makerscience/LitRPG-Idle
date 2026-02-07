@@ -54,6 +54,7 @@ export const INVENTORY = {
 export const PRESTIGE = {
   multiplierFormula: (count) => 1 + count * 0.25,
   goldRetention: 0.10,
+  minZone: 4,
 };
 
 export const WORLD = {
@@ -73,7 +74,7 @@ export const CHEATS = {
 };
 
 export const SAVE = {
-  schemaVersion: 3,
+  schemaVersion: 4,
   autosaveInterval: 30_000,   // ms
   maxOfflineTime: 12 * 60 * 60 * 1000,  // 12 hours in ms
 };
@@ -97,6 +98,7 @@ export const COLORS = {
     levelUp:    '#818cf8',   // indigo
     zoneChange: '#38bdf8',   // sky blue
     loot:       '#a855f7',   // purple
+    prestige:   '#f59e0b',   // amber — prestige events
     default:    '#a1a1aa',   // zinc-400
   },
   rarity: {

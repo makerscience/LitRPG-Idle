@@ -143,9 +143,12 @@ export default class InventoryPanel {
   }
 
   _open() {
-    // Mutual exclusion — close upgrade panel if open
+    // Mutual exclusion — close other panels if open
     if (this.scene.upgradePanel?._isOpen) {
       this.scene.upgradePanel._close();
+    }
+    if (this.scene.prestigePanel?._isOpen) {
+      this.scene.prestigePanel._close();
     }
     this._isOpen = true;
     this._selectedItemId = null;

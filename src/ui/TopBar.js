@@ -4,7 +4,7 @@
 import Store from '../systems/Store.js';
 import { on, EVENTS } from '../events.js';
 import { format } from '../systems/BigNum.js';
-import { LAYOUT, COLORS } from '../config.js';
+import { LAYOUT, COLORS, PRESTIGE } from '../config.js';
 
 export default class TopBar {
   constructor(scene) {
@@ -25,6 +25,11 @@ export default class TopBar {
     this.manaText = scene.add.text(200, labelY, '', textStyle).setOrigin(0, 0.5);
     this.fragText = scene.add.text(380, labelY, '', textStyle).setOrigin(0, 0.5);
 
+    // Prestige counter — between fragments and level
+    this.prestigeText = scene.add.text(540, labelY, '', {
+      fontFamily: 'monospace', fontSize: '14px', color: '#f59e0b',
+    }).setOrigin(0, 0.5);
+
     // Level + XP bar — right side
     this.levelText = scene.add.text(w - 280, labelY, '', textStyle).setOrigin(0, 0.5);
 
@@ -44,6 +49,7 @@ export default class TopBar {
     this._refreshGold(state);
     this._refreshMana(state);
     this._refreshFragments(state);
+    this._refreshPrestige(state);
     this._refreshLevel(state);
     this._refreshXp(state);
 
@@ -63,11 +69,20 @@ export default class TopBar {
       if (data.changedKeys.includes('glitchFragments')) this._refreshFragments(Store.getState());
     }));
 
+    this._unsubs.push(on(EVENTS.PRESTIGE_PERFORMED, () => {
+      const s = Store.getState();
+      this._refreshPrestige(s);
+      this._refreshGold(s);
+      this._refreshLevel(s);
+      this._refreshXp(s);
+    }));
+
     this._unsubs.push(on(EVENTS.SAVE_LOADED, () => {
       const s = Store.getState();
       this._refreshGold(s);
       this._refreshMana(s);
       this._refreshFragments(s);
+      this._refreshPrestige(s);
       this._refreshLevel(s);
       this._refreshXp(s);
     }));
@@ -85,6 +100,16 @@ export default class TopBar {
   _refreshFragments(state, pop = false) {
     this.fragText.setText(`FRAGMENTS ${format(state.glitchFragments)}`);
     if (pop) this._popTween(this.fragText);
+  }
+
+  _refreshPrestige(state) {
+    if (state.prestigeCount === 0) {
+      this.prestigeText.setVisible(false);
+    } else {
+      const mult = PRESTIGE.multiplierFormula(state.prestigeCount);
+      this.prestigeText.setText(`P${state.prestigeCount} (x${mult.toFixed(2)})`);
+      this.prestigeText.setVisible(true);
+    }
   }
 
   _refreshLevel(state) {
