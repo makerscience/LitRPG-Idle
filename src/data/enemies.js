@@ -3,10 +3,25 @@
 
 const WORLD_1_ENEMIES = [
   // Zone 1 (HP 10–50)
-  { id: 'w1z1_rat',    name: 'Sewer Rat',       zone: 1, hp: '10',  attack: 2,  goldDrop: '5',   xpDrop: '8',   lootTable: [
+  { id: 'w1z1_rat',    name: 'Sewer Rat',       zone: 1, hp: '10',  attack: 2,  goldDrop: '5',   xpDrop: '8',
+    sprites: {
+      default:  'sewerrat001_default',
+      reaction: 'sewerrat001_reaction',
+      attack:   'sewerrat001_attack',
+      dead:     'sewerrat001_dead',
+    },
+    spriteSize: { w: 125, h: 125 },
+    lootTable: [
     { itemId: 'iron_dagger', weight: 40 }, { itemId: 'iron_helm', weight: 30 }, { itemId: 'leather_tunic', weight: 30 },
   ] },
-  { id: 'w1z1_slime',  name: 'Green Slime',     zone: 1, hp: '20',  attack: 3,  goldDrop: '10',  xpDrop: '15',  lootTable: [
+  { id: 'w1z1_slime',  name: 'Green Slime',     zone: 1, hp: '20',  attack: 3,  goldDrop: '10',  xpDrop: '15',
+    sprites: {
+      default:  'slime001_default',
+      reaction: 'slime001_reaction',
+      attack:   'slime001_attack',
+      dead:     'slime001_dead',
+    },
+    lootTable: [
     { itemId: 'iron_dagger', weight: 40 }, { itemId: 'iron_helm', weight: 30 }, { itemId: 'leather_tunic', weight: 30 },
   ] },
   { id: 'w1z1_goblin', name: 'Goblin Grunt',    zone: 1, hp: '40',  attack: 5,  goldDrop: '20',  xpDrop: '30',

@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 2026-02-07 (Sewer Rat Sprites)
+- Sewer Rat: 4 sprite poses (default, reaction, attack, dead) replacing red rectangle fallback
+- Per-enemy sprite sizing: enemies can define custom spriteSize in data (Sewer Rat: 125x125)
+
+---
+
 ## 2026-02-07 (Player Sprite + Layout Polish)
 - Player sprite: replaced blue rectangle with Player001_default.png, scaled 50% larger (300x375)
 - Moved player and enemy name labels higher above sprites

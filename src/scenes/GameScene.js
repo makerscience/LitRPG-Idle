@@ -146,12 +146,15 @@ export default class GameScene extends Phaser.Scene {
 
     const template = getEnemyById(data.enemyId);
     this._currentEnemySprites = template?.sprites || null;
+    const size = template?.spriteSize || { w: 200, h: 250 };
+    this._spriteW = size.w;
+    this._spriteH = size.h;
 
     if (this._currentEnemySprites) {
       // Show sprite with default pose
       this.enemySprite.setTexture(this._currentEnemySprites.default);
       this.enemySprite.setScale(1);  // reset from death anim before resizing
-      this.enemySprite.setDisplaySize(200, 250);
+      this.enemySprite.setDisplaySize(this._spriteW, this._spriteH);
       this.enemySprite.setVisible(true);
       this.enemySprite.setAlpha(1);
       this.enemySprite.setInteractive({ useHandCursor: true });

@@ -15,7 +15,11 @@ export default class BootScene extends Phaser.Scene {
     this.load.image('slime001_reaction',  'Images/slime001_reaction.png');
     this.load.image('slime001_attack',    'Images/slime001_attack.png');
     this.load.image('slime001_dead',      'Images/slime001_dead.png');
-    this.load.image('player001_default',  'Images/Player001_default.png');
+    this.load.image('sewerrat001_default',  'Images/sewerrat001_default.png');
+    this.load.image('sewerrat001_reaction', 'Images/sewerrat001_reaction.png');
+    this.load.image('sewerrat001_attack',   'Images/sewerrat001_attack.png');
+    this.load.image('sewerrat001_dead',     'Images/sewerrat001_dead.png');
+    this.load.image('player001_default',    'Images/Player001_default.png');
   }
 
   create() {
