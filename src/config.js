@@ -10,7 +10,7 @@ export const COMBAT = {
   critChance: 0.05,
   critMultiplier: 2,
   autoAttackInterval: 800,    // ms
-  spawnDelay: 400,            // ms after kill before next enemy
+  spawnDelay: 1000,           // ms after kill before next enemy
   enemyAttackInterval: 3000,       // ms — enemy attacks every 3 seconds
   playerHpPerVit: 10,              // max HP = vit * playerHpPerVit
   playerRegenPercent: 0.02,        // 2% of max HP per second

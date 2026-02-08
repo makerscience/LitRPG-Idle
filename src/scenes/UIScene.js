@@ -8,6 +8,7 @@ import ZoneNav from '../ui/ZoneNav.js';
 import InventoryPanel from '../ui/InventoryPanel.js';
 import UpgradePanel from '../ui/UpgradePanel.js';
 import PrestigePanel from '../ui/PrestigePanel.js';
+import SettingsPanel from '../ui/SettingsPanel.js';
 import CheatDeck from '../ui/CheatDeck.js';
 import DialogueManager from '../systems/DialogueManager.js';
 import FirstCrackDirector from '../systems/FirstCrackDirector.js';
@@ -38,6 +39,7 @@ export default class UIScene extends Phaser.Scene {
     this.inventoryPanel = new InventoryPanel(this);
     this.upgradePanel = new UpgradePanel(this);
     this.prestigePanel = new PrestigePanel(this);
+    this.settingsPanel = new SettingsPanel(this);
     this.cheatDeck = new CheatDeck(this);
 
     // Initialize dialogue triggers + First Crack director + cheat manager + prestige
@@ -58,6 +60,7 @@ export default class UIScene extends Phaser.Scene {
     if (this.inventoryPanel) { this.inventoryPanel.destroy(); this.inventoryPanel = null; }
     if (this.upgradePanel) { this.upgradePanel.destroy(); this.upgradePanel = null; }
     if (this.prestigePanel) { this.prestigePanel.destroy(); this.prestigePanel = null; }
+    if (this.settingsPanel) { this.settingsPanel.destroy(); this.settingsPanel = null; }
     if (this.cheatDeck) { this.cheatDeck.destroy(); this.cheatDeck = null; }
     DialogueManager.destroy();
     FirstCrackDirector.destroy();

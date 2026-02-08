@@ -136,6 +136,13 @@ export default class GameScene extends Phaser.Scene {
   }
 
   _onEnemySpawned(data) {
+    // Kill any lingering death-animation tweens from previous enemy
+    this.tweens.killTweensOf(this.enemySprite);
+    this.tweens.killTweensOf(this.enemyRect);
+    this.tweens.killTweensOf(this.enemyNameText);
+    this.tweens.killTweensOf(this.hpBarBg);
+    this.tweens.killTweensOf(this.hpBarFill);
+
     const template = getEnemyById(data.enemyId);
     this._currentEnemySprites = template?.sprites || null;
 

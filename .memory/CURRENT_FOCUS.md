@@ -4,17 +4,15 @@
 - Building a LitRPG idle/clicker game with a snarky SYSTEM narrator, using Phaser + Vite + break_infinity.js.
 
 ## Active Objectives (max 3)
-1. Goblin sprites + enemy attack / player HP system — IMPLEMENTED
-2. Manual playtest to verify new sprite system + combat balance
-3. Consider additional enemy sprites for other enemies
+1. All 8 phases + sprite/HP system implemented — MVP feature-complete
+2. Settings menu added (wipe save)
+3. Next: more enemy sprites, playtesting, or Itch.io packaging
 
 ## Next Actions
-- [ ] Manual playtest: verify goblin sprite poses (default, reaction on hit, attack on enemy attack, dead on kill)
-- [ ] Manual playtest: verify player HP bar drains on enemy attacks, regens between attacks
-- [ ] Manual playtest: verify player death → flash → respawn after 1.5s with full HP
-- [ ] Manual playtest: verify non-goblin enemies still render as red rectangles
-- [ ] Manual playtest: verify save/load preserves playerHp
-- [ ] Consider adding sprites for other enemies (sewer rat, slime, etc.)
+- [ ] Add sprites for other Zone 1 enemies (Sewer Rat, Green Slime) if art available
+- [ ] Manual playtest: verify balance with enemy attacks (player shouldn't die too easily in Zone 1)
+- [ ] Consider Itch.io packaging / offline progress (deferred scope)
+- [ ] Consider player sprite to replace blue rectangle
 
 ## Open Loops / Blockers
 - (none currently)
@@ -35,12 +33,11 @@
 ---
 
 ## Last Session Summary (max ~8 bullets)
-- Implemented enemy sprite system: Goblin Grunt shows 4 PNG poses (default/reaction/attack/dead) with pose-switching on combat events
-- Added enemy attack mechanic: enemies attack player every 3s via CombatEngine timer
-- Added player HP system: HP bar below player rect, HP = VIT * 10, 2% regen/sec, death/respawn cycle
-- Modified 6 files: enemies.js (sprite metadata + getEnemyById), BootScene.js (preload), config.js (combat params), Store.js (playerHp state/mutations), CombatEngine.js (enemy attack/regen/death timers), GameScene.js (sprite rendering + player HP bar + pose switching)
-- Non-sprite enemies gracefully fallback to red rectangle rendering
-- Player HP resets on level-up and prestige; persists in saves via DECIMAL_FIELDS hydration
+- Added SettingsPanel: SETTINGS button in bottom bar + ESC toggle, modal with wipe save (two-click confirm)
+- Wipe save fix: destroy SaveManager before deleting localStorage to prevent beforeunload re-saving
+- Fixed invisible enemy bug: death animation (800ms) outlasted spawn delay (400ms), tweens faded new enemy to 0 alpha
+- Fix: increased spawnDelay from 400ms → 1000ms + added killTweensOf on spawn for safety
+- Mutual exclusion wired for all 4 panels (Inventory, Upgrades, Prestige, Settings)
 
 ## Pinned References
 - Governance rules: `CLAUDE.md`

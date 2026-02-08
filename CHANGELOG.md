@@ -1,5 +1,14 @@
 # CHANGELOG
 
+## 2026-02-07 (Settings Menu + Bug Fix)
+- Settings panel: SETTINGS button in bottom bar + ESC key toggle, modal with close button and backdrop click-to-dismiss
+- Wipe Save: two-click confirmation (3s timeout) that clears localStorage and reloads for a fresh start
+- Mutual exclusion with all other panels (Inventory, Upgrades, Prestige)
+- Fixed invisible enemy bug: death animation tweens outlasted spawn delay, fading new enemy to 0 alpha
+- Increased enemy spawn delay from 400ms to 1000ms to let death animations complete
+
+---
+
 ## 2026-02-07 (Post-Phase: Goblin Sprites + Enemy Attack / Player HP)
 - Enemy sprite system: Goblin Grunt renders with 4 poses (default, reaction, attack, dead) instead of red rectangle; pose-switching on combat events
 - Enemy attack mechanic: enemies deal damage to player every 3s, triggering attack pose on sprite enemies

@@ -130,6 +130,7 @@ export default class PrestigePanel {
     // Mutual exclusion — close other panels
     if (this.scene.inventoryPanel?._isOpen) this.scene.inventoryPanel._close();
     if (this.scene.upgradePanel?._isOpen) this.scene.upgradePanel._close();
+    if (this.scene.settingsPanel?._isOpen) this.scene.settingsPanel._close();
 
     this._isOpen = true;
     this._confirmPending = false;
