@@ -11,6 +11,11 @@ export default class BootScene extends Phaser.Scene {
     this.load.image('goblin001_reaction', 'Images/goblin001_reaction.png');
     this.load.image('goblin001_attack',   'Images/goblin001_attack.png');
     this.load.image('goblin001_dead',     'Images/goblin001_dead.png');
+    this.load.image('slime001_default',   'Images/slime001_default.png');
+    this.load.image('slime001_reaction',  'Images/slime001_reaction.png');
+    this.load.image('slime001_attack',    'Images/slime001_attack.png');
+    this.load.image('slime001_dead',      'Images/slime001_dead.png');
+    this.load.image('player001_default',  'Images/Player001_default.png');
   }
 
   create() {

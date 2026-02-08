@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## 2026-02-07 (Player Sprite + Layout Polish)
+- Player sprite: replaced blue rectangle with Player001_default.png, scaled 50% larger (300x375)
+- Moved player and enemy name labels higher above sprites
+- Moved enemy HP bar below the enemy sprite
+
+---
+
 ## 2026-02-07 (Settings Menu + Bug Fix)
 - Settings panel: SETTINGS button in bottom bar + ESC key toggle, modal with close button and backdrop click-to-dismiss
 - Wipe Save: two-click confirmation (3s timeout) that clears localStorage and reloads for a fresh start

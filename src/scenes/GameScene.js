@@ -25,9 +25,10 @@ export default class GameScene extends Phaser.Scene {
     // Create parallax background first (lowest depth)
     this._createParallax(Store.getState().currentZone);
 
-    // Player placeholder — blue rect
-    this.playerRect = this.add.rectangle(playerX, this._combatY, 200, 250, 0x3b82f6);
-    this.add.text(playerX, this._combatY - 130, 'Player', {
+    // Player sprite
+    this.playerRect = this.add.image(playerX, this._combatY, 'player001_default');
+    this.playerRect.setDisplaySize(300, 375);
+    this.add.text(playerX, this._combatY - 210, 'Player', {
       fontFamily: 'monospace', fontSize: '16px', color: '#ffffff',
     }).setOrigin(0.5);
 
@@ -51,15 +52,15 @@ export default class GameScene extends Phaser.Scene {
     this._spriteH = 250;
 
     // Enemy name text
-    this.enemyNameText = this.add.text(this._enemyX, this._combatY - 140, '', {
+    this.enemyNameText = this.add.text(this._enemyX, this._combatY - 210, '', {
       fontFamily: 'monospace', fontSize: '16px', color: '#ffffff',
     }).setOrigin(0.5);
 
     // HP bar background
-    this.hpBarBg = this.add.rectangle(this._enemyX, this._combatY - 130, 200, 20, 0x374151);
+    this.hpBarBg = this.add.rectangle(this._enemyX, this._combatY + 140, 200, 20, 0x374151);
 
     // HP bar fill — anchored to left edge
-    this.hpBarFill = this.add.rectangle(this._enemyX - 100, this._combatY - 130, 200, 20, 0x22c55e);
+    this.hpBarFill = this.add.rectangle(this._enemyX - 100, this._combatY + 140, 200, 20, 0x22c55e);
     this.hpBarFill.setOrigin(0, 0.5);
 
     // Initially hide enemy elements
@@ -416,9 +417,9 @@ export default class GameScene extends Phaser.Scene {
     }
 
     // Player hit flash — brief red tint
-    this.playerRect.setFillStyle(0xef4444);
+    this.playerRect.setTint(0xef4444);
     this.time.delayedCall(120, () => {
-      if (this.playerRect) this.playerRect.setFillStyle(0x3b82f6);
+      if (this.playerRect) this.playerRect.clearTint();
     });
   }
 
