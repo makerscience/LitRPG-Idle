@@ -26,6 +26,14 @@ export default class GameScene extends Phaser.Scene {
     // Create parallax background first (lowest depth)
     this._createParallax(Store.getState().currentZone);
 
+    // Player attack pose config
+    this._playerAttackSprites = [
+      'player001_strongpunch', 'player001_jumpkick', 'player001_kick',
+      'player001_elbow', 'player001_kneestrike', 'player001_roundhousekick',
+      'player001_jab',
+    ];
+    this._playerPoseTimer = null;
+
     // Player sprite
     this.playerRect = this.add.image(playerX, this._combatY, 'player001_default');
     this.playerRect.setDisplaySize(300, 375);
@@ -230,6 +238,18 @@ export default class GameScene extends Phaser.Scene {
       color = 0xef4444;
     }
     this.hpBarFill.setFillStyle(color);
+
+    // Player attack pose — random sprite for 400ms, then revert
+    const attackKey = this._playerAttackSprites[
+      Math.floor(Math.random() * this._playerAttackSprites.length)
+    ];
+    this.playerRect.setTexture(attackKey);
+    this.playerRect.setDisplaySize(300, 375);
+    if (this._playerPoseTimer) this._playerPoseTimer.remove();
+    this._playerPoseTimer = this.time.delayedCall(400, () => {
+      this.playerRect.setTexture('player001_default');
+      this.playerRect.setDisplaySize(300, 375);
+    });
 
     // Floating damage number (magnitude-tiered)
     this._spawnDamageNumber(data.amount, data.isCrit);
@@ -455,10 +475,17 @@ export default class GameScene extends Phaser.Scene {
       });
     }
 
-    // Player hit flash — brief red tint
+    // Player hit reaction pose for 400ms, then revert
+    this.playerRect.setTexture('player001_hitreaction');
+    this.playerRect.setDisplaySize(300, 375);
     this.playerRect.setTint(0xef4444);
     this.time.delayedCall(120, () => {
       if (this.playerRect) this.playerRect.clearTint();
+    });
+    if (this._playerPoseTimer) this._playerPoseTimer.remove();
+    this._playerPoseTimer = this.time.delayedCall(400, () => {
+      this.playerRect.setTexture('player001_default');
+      this.playerRect.setDisplaySize(300, 375);
     });
   }
 

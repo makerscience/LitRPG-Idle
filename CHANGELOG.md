@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## 2026-02-08 (Player Attack Sprites)
+- Player now shows a random attack pose (7 sprites: punch, kick, elbow, jab, etc.) when hitting enemies
+- Attack pose displays for 400ms then reverts to default stance
+- Triggers on both click attacks and auto-attacks via existing COMBAT_ENEMY_DAMAGED event
+- Player shows hit reaction sprite when taking enemy damage (400ms, with red tint flash)
+
+---
+
 ## 2026-02-07 (Ground Layer + Background Overhaul)
 - Added ground section covering bottom 25% of game area using ground001 texture
 - Replaced background001 parallax images with background002 set

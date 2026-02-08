@@ -33,12 +33,10 @@
 ---
 
 ## Last Session Summary (max ~8 bullets)
-- Added ground section (bottom 25%) using ground001 texture, replacing solid color rect
-- Switched parallax images from background001 to background002 set
-- Front parallax layer overlaps ground at 88% height, depth -0.25 (above ground)
-- Rear/mid parallax layers compressed to 83% height, sitting above ground
-- Ground and front layer scroll together at same speed (0.45 px/frame)
-- Ground uses dual-image seamless wrapping like parallax layers
+- Added 7 player attack sprites (strongpunch, jumpkick, kick, elbow, kneestrike, roundhousekick, jab)
+- Player switches to a random attack pose for 400ms on every hit, then reverts to default
+- Loaded sprites in BootScene, pose logic in GameScene._onEnemyDamaged()
+- Timer-based revert with proper cancellation on rapid attacks
 
 ## Pinned References
 - Governance rules: `CLAUDE.md`
