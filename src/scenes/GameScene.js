@@ -20,7 +20,8 @@ export default class GameScene extends Phaser.Scene {
     const ga = LAYOUT.gameArea;
     const playerX = ga.x + 200;
     this._enemyX = ga.x + 700;
-    this._combatY = ga.y + ga.h / 2;
+    this._combatY = ga.y + ga.h - 220;
+    this._enemyY = this._combatY + 60;
 
     // Create parallax background first (lowest depth)
     this._createParallax(Store.getState().currentZone);
@@ -38,12 +39,12 @@ export default class GameScene extends Phaser.Scene {
     this.playerHpBarFill.setOrigin(0, 0.5);
 
     // Enemy placeholder — red rect (click target for enemies without sprites)
-    this.enemyRect = this.add.rectangle(this._enemyX, this._combatY, 200, 250, 0xef4444);
+    this.enemyRect = this.add.rectangle(this._enemyX, this._enemyY, 200, 250, 0xef4444);
     this.enemyRect.setInteractive({ useHandCursor: true });
     this.enemyRect.on('pointerdown', () => CombatEngine.playerAttack());
 
     // Enemy sprite (for enemies with sprite assets)
-    this.enemySprite = this.add.image(this._enemyX, this._combatY, 'goblin001_default');
+    this.enemySprite = this.add.image(this._enemyX, this._enemyY, 'goblin001_default');
     this.enemySprite.setVisible(false);
     this.enemySprite.on('pointerdown', () => CombatEngine.playerAttack());
     this._currentEnemySprites = null;
@@ -52,15 +53,15 @@ export default class GameScene extends Phaser.Scene {
     this._spriteH = 250;
 
     // Enemy name text
-    this.enemyNameText = this.add.text(this._enemyX, this._combatY - 210, '', {
+    this.enemyNameText = this.add.text(this._enemyX, this._enemyY - 210, '', {
       fontFamily: 'monospace', fontSize: '16px', color: '#ffffff',
     }).setOrigin(0.5);
 
     // HP bar background
-    this.hpBarBg = this.add.rectangle(this._enemyX, this._combatY + 140, 200, 20, 0x374151);
+    this.hpBarBg = this.add.rectangle(this._enemyX, this._enemyY + 80, 200, 20, 0x374151);
 
     // HP bar fill — anchored to left edge
-    this.hpBarFill = this.add.rectangle(this._enemyX - 100, this._combatY + 140, 200, 20, 0x22c55e);
+    this.hpBarFill = this.add.rectangle(this._enemyX - 100, this._enemyY + 80, 200, 20, 0x22c55e);
     this.hpBarFill.setOrigin(0, 0.5);
 
     // Initially hide enemy elements
@@ -103,16 +104,48 @@ export default class GameScene extends Phaser.Scene {
     TimeEngine.update(delta);
 
     // Scroll parallax layers
+    const ga = LAYOUT.gameArea;
     for (let i = 0; i < this._parallaxLayers.length; i++) {
       const layer = this._parallaxLayers[i];
       if (!layer || !layer.active) continue;
-      const speed = (i + 1) * 0.1; // 0.1, 0.2, 0.3 px/frame
-      const children = layer.getAll();
+      const speed = (i + 1) * 0.15; // 0.15, 0.3, 0.45 px/frame
+
+      if (layer.getData && layer.getData('isImageLayer')) {
+        // Image-based: dual-image seamless scroll
+        const children = layer.getAll();
+        const imgW = layer.getData('imgW');
+        for (const child of children) {
+          child.x -= speed;
+        }
+        // Wrap: when first image scrolls fully off-left, shift both back
+        if (children[0] && children[0].x + imgW <= ga.x) {
+          for (const child of children) {
+            child.x += imgW;
+          }
+        }
+      } else {
+        // Rectangle-based fallback
+        const children = layer.getAll();
+        for (const child of children) {
+          child.x -= speed;
+          if (child.x + child.width < 0) {
+            child.x = ga.w + Math.random() * 100;
+          }
+        }
+      }
+    }
+
+    // Scroll ground at same speed as front parallax layer (index 2)
+    if (this._groundContainer && this._groundContainer.active) {
+      const groundSpeed = 3 * 0.15;
+      const children = this._groundContainer.getAll();
+      const imgW = this._groundContainer.getData('imgW');
       for (const child of children) {
-        child.x -= speed;
-        // Wrap around when off-screen left
-        if (child.x + child.width < 0) {
-          child.x = LAYOUT.gameArea.w + Math.random() * 100;
+        child.x -= groundSpeed;
+      }
+      if (children[0] && children[0].x + imgW <= ga.x) {
+        for (const child of children) {
+          child.x += imgW;
         }
       }
     }
@@ -146,15 +179,17 @@ export default class GameScene extends Phaser.Scene {
 
     const template = getEnemyById(data.enemyId);
     this._currentEnemySprites = template?.sprites || null;
+    this._spriteOffsetY = template?.spriteOffsetY || 0;
     const size = template?.spriteSize || { w: 200, h: 250 };
     this._spriteW = size.w;
     this._spriteH = size.h;
 
     if (this._currentEnemySprites) {
-      // Show sprite with default pose
+      // Show sprite with default pose (apply Y offset for living poses)
       this.enemySprite.setTexture(this._currentEnemySprites.default);
       this.enemySprite.setScale(1);  // reset from death anim before resizing
       this.enemySprite.setDisplaySize(this._spriteW, this._spriteH);
+      this.enemySprite.y = this._enemyY + this._spriteOffsetY;
       this.enemySprite.setVisible(true);
       this.enemySprite.setAlpha(1);
       this.enemySprite.setInteractive({ useHandCursor: true });
@@ -248,9 +283,10 @@ export default class GameScene extends Phaser.Scene {
     if (this._poseRevertTimer) { this._poseRevertTimer.remove(); this._poseRevertTimer = null; }
 
     if (this._currentEnemySprites) {
-      // Show dead pose, then fade out (no scaling for sprites)
+      // Show dead pose at base position (no offset), then fade out
       this.enemySprite.setTexture(this._currentEnemySprites.dead);
       this.enemySprite.setDisplaySize(this._spriteW, this._spriteH);
+      this.enemySprite.y = this._enemyY;
       this.enemySprite.disableInteractive();
 
       this.time.delayedCall(500, () => {
@@ -289,7 +325,7 @@ export default class GameScene extends Phaser.Scene {
   _spawnDamageNumber(amount, isCrit) {
     const xOffset = (Math.random() - 0.5) * 60;
     const x = this._enemyX + xOffset;
-    const y = this._combatY - 50;
+    const y = this._enemyY - 50;
 
     // Select tier by magnitude
     const mag = amount.toNumber ? amount.toNumber() : Number(amount);
@@ -353,7 +389,7 @@ export default class GameScene extends Phaser.Scene {
 
     for (let i = 0; i < count; i++) {
       const startX = this._enemyX + (Math.random() - 0.5) * 40;
-      const startY = this._combatY + (Math.random() - 0.5) * 40;
+      const startY = this._enemyY + (Math.random() - 0.5) * 40;
       const particle = this.add.circle(startX, startY, 3, 0xeab308);
 
       // Arc offset for variety
@@ -485,24 +521,59 @@ export default class GameScene extends Phaser.Scene {
     if (!theme) return;
 
     const ga = LAYOUT.gameArea;
+    const skyH = ga.h * 0.83; // parallax covers top 83%, overlaps behind ground (bottom 25%)
 
-    for (let layerIdx = 0; layerIdx < theme.layers.length; layerIdx++) {
-      const color = theme.layers[layerIdx];
-      const container = this.add.container(0, 0);
-      container.setDepth(-3 + layerIdx); // -3, -2, -1
+    if (theme.images) {
+      // Image-based parallax: dual images per layer for seamless wrap
+      for (let layerIdx = 0; layerIdx < theme.images.length; layerIdx++) {
+        const key = theme.images[layerIdx];
+        const container = this.add.container(0, 0);
+        container.setDepth(layerIdx === 2 ? -0.25 : -3 + layerIdx);
+        container.setData('isImageLayer', true);
 
-      const rectCount = 8 + Math.floor(Math.random() * 5); // 8-12
-      for (let r = 0; r < rectCount; r++) {
-        const w = 20 + Math.random() * 60;
-        const h = 20 + Math.random() * 80;
-        const x = ga.x + Math.random() * ga.w;
-        const y = ga.y + Math.random() * ga.h;
-        const rect = this.add.rectangle(x, y, w, h, color, 0.3 + Math.random() * 0.3);
-        container.add(rect);
+        const layerH = layerIdx === 2 ? ga.h * 0.88 : skyH;
+        const img1 = this.add.image(ga.x, ga.y, key).setOrigin(0, 0);
+        img1.setDisplaySize(ga.w, layerH);
+        const img2 = this.add.image(ga.x + ga.w, ga.y, key).setOrigin(0, 0);
+        img2.setDisplaySize(ga.w, layerH);
+
+        container.setData('imgW', ga.w);
+        container.add([img1, img2]);
+        this._parallaxLayers.push(container);
       }
+    } else {
+      // Rectangle-based fallback for zones without images
+      for (let layerIdx = 0; layerIdx < theme.layers.length; layerIdx++) {
+        const color = theme.layers[layerIdx];
+        const container = this.add.container(0, 0);
+        container.setDepth(-3 + layerIdx);
 
-      this._parallaxLayers.push(container);
+        const rectCount = 8 + Math.floor(Math.random() * 5);
+        for (let r = 0; r < rectCount; r++) {
+          const w = 20 + Math.random() * 60;
+          const h = 20 + Math.random() * 80;
+          const x = ga.x + Math.random() * ga.w;
+          const y = ga.y + Math.random() * skyH;
+          const rect = this.add.rectangle(x, y, w, h, color, 0.3 + Math.random() * 0.3);
+          container.add(rect);
+        }
+
+        this._parallaxLayers.push(container);
+      }
     }
+
+    // Ground section — bottom quarter, scrolls with front parallax layer
+    const groundH = ga.h * 0.25;
+    const groundY = ga.y + ga.h - groundH;
+    const gImg1 = this.add.image(ga.x, groundY, 'ground001').setOrigin(0, 0);
+    gImg1.setDisplaySize(ga.w, groundH);
+    const gImg2 = this.add.image(ga.x + ga.w, groundY, 'ground001').setOrigin(0, 0);
+    gImg2.setDisplaySize(ga.w, groundH);
+    this._groundContainer = this.add.container(0, 0);
+    this._groundContainer.setDepth(-0.5);
+    this._groundContainer.setData('isImageLayer', true);
+    this._groundContainer.setData('imgW', ga.w);
+    this._groundContainer.add([gImg1, gImg2]);
   }
 
   _destroyParallax() {
@@ -510,6 +581,10 @@ export default class GameScene extends Phaser.Scene {
       if (layer) layer.destroy(true);
     }
     this._parallaxLayers = [];
+    if (this._groundContainer) {
+      this._groundContainer.destroy(true);
+      this._groundContainer = null;
+    }
   }
 
   _shutdown() {

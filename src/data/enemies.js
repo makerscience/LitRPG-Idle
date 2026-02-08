@@ -25,6 +25,7 @@ const WORLD_1_ENEMIES = [
     { itemId: 'iron_dagger', weight: 40 }, { itemId: 'iron_helm', weight: 30 }, { itemId: 'leather_tunic', weight: 30 },
   ] },
   { id: 'w1z1_goblin', name: 'Goblin Grunt',    zone: 1, hp: '40',  attack: 5,  goldDrop: '20',  xpDrop: '30',
+    spriteOffsetY: -40,
     sprites: {
       default:  'goblin001_default',
       reaction: 'goblin001_reaction',

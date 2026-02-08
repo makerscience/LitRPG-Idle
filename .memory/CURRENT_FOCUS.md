@@ -5,14 +5,14 @@
 
 ## Active Objectives (max 3)
 1. All 8 phases + sprite/HP system implemented — MVP feature-complete
-2. Settings menu added (wipe save)
+2. Ground layer + background002 parallax overhaul done
 3. Next: more enemy sprites, playtesting, or Itch.io packaging
 
 ## Next Actions
-- [ ] Add sprites for other Zone 1 enemies (Sewer Rat, Green Slime) if art available
+- [ ] Add sprites for other Zone 1 enemies (Green Slime) if art available
 - [ ] Manual playtest: verify balance with enemy attacks (player shouldn't die too easily in Zone 1)
 - [ ] Consider Itch.io packaging / offline progress (deferred scope)
-- [ ] Consider player sprite to replace blue rectangle
+- [ ] Add background images for other zones (currently only Zone 1 has image-based parallax)
 
 ## Open Loops / Blockers
 - (none currently)
@@ -33,11 +33,12 @@
 ---
 
 ## Last Session Summary (max ~8 bullets)
-- Added SettingsPanel: SETTINGS button in bottom bar + ESC toggle, modal with wipe save (two-click confirm)
-- Wipe save fix: destroy SaveManager before deleting localStorage to prevent beforeunload re-saving
-- Fixed invisible enemy bug: death animation (800ms) outlasted spawn delay (400ms), tweens faded new enemy to 0 alpha
-- Fix: increased spawnDelay from 400ms → 1000ms + added killTweensOf on spawn for safety
-- Mutual exclusion wired for all 4 panels (Inventory, Upgrades, Prestige, Settings)
+- Added ground section (bottom 25%) using ground001 texture, replacing solid color rect
+- Switched parallax images from background001 to background002 set
+- Front parallax layer overlaps ground at 88% height, depth -0.25 (above ground)
+- Rear/mid parallax layers compressed to 83% height, sitting above ground
+- Ground and front layer scroll together at same speed (0.45 px/frame)
+- Ground uses dual-image seamless wrapping like parallax layers
 
 ## Pinned References
 - Governance rules: `CLAUDE.md`

@@ -1,5 +1,14 @@
 # CHANGELOG
 
+## 2026-02-07 (Ground Layer + Background Overhaul)
+- Added ground section covering bottom 25% of game area using ground001 texture
+- Replaced background001 parallax images with background002 set
+- Front parallax layer overlaps ground and scrolls together with it
+- Rear and mid parallax layers sized to 83% height, sitting above the ground
+- Ground and front layer scroll in sync at the same speed
+
+---
+
 ## 2026-02-07 (Sewer Rat Sprites)
 - Sewer Rat: 4 sprite poses (default, reaction, attack, dead) replacing red rectangle fallback
 - Per-enemy sprite sizing: enemies can define custom spriteSize in data (Sewer Rat: 125x125)
