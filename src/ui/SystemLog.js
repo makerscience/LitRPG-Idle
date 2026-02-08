@@ -33,12 +33,23 @@ export default class SystemLog {
     // Vertical separator on left edge
     this.separator = scene.add.rectangle(x, y + h / 2, 1, h, COLORS.separator);
 
+    // "SYSTEM LOG" header label
+    this._header = scene.add.text(x + this._padding, y + 4, 'SYSTEM LOG', {
+      fontFamily: 'monospace',
+      fontSize: '9px',
+      color: '#ffffff',
+    });
+
+    // Offset content below header
+    this._contentY = y + 18;
+    this._contentH = h - 18;
+
     // Container for log text (clipped) — added after bg so text renders on top
     this.container = scene.add.container(0, 0);
 
     // GeometryMask for overflow clipping
     const maskShape = scene.make.graphics({ x: 0, y: 0, add: false });
-    maskShape.fillRect(x, y, w, h);
+    maskShape.fillRect(x, this._contentY, w, this._contentH);
     this._mask = maskShape.createGeometryMask();
     this.container.setMask(this._mask);
 
@@ -88,10 +99,6 @@ export default class SystemLog {
 
     this._unsubs.push(on(EVENTS.WORLD_ZONE_CHANGED, (data) => {
       this.addLine(`Entered Zone ${data.zone}`, 'zoneChange');
-    }));
-
-    this._unsubs.push(on(EVENTS.DIALOGUE_QUEUED, (data) => {
-      this.addLine(`SYSTEM: ${data.text}`, 'system');
     }));
 
     // Loot / Inventory events
@@ -172,7 +179,7 @@ export default class SystemLog {
   _flushKill() {
     const k = this._pendingKill;
     if (!k || !k.gold || !k.xp) return;
-    this.addLine(`${k.name} defeated! +${k.gold} Gold, +${k.xp} XP`, 'gold');
+    this.addLine(`${k.name} defeated! +${k.gold} Gold, +${k.xp} XP`, 'defeat');
     this._pendingKill = null;
   }
 
@@ -226,7 +233,7 @@ export default class SystemLog {
   }
 
   _scrollToBottom() {
-    const visibleHeight = this._panelH - this._padding * 2;
+    const visibleHeight = this._contentH - this._padding;
     if (this._totalContentHeight > visibleHeight) {
       this._scrollOffset = -(this._totalContentHeight - visibleHeight);
     } else {
@@ -236,7 +243,7 @@ export default class SystemLog {
   }
 
   _scroll(dy) {
-    const visibleHeight = this._panelH - this._padding * 2;
+    const visibleHeight = this._contentH - this._padding;
     const maxScroll = 0;
     const minScroll = -(Math.max(0, this._totalContentHeight - visibleHeight));
 
@@ -246,7 +253,7 @@ export default class SystemLog {
   }
 
   _updatePositions() {
-    const startY = this._panelY + this._padding + this._scrollOffset;
+    const startY = this._contentY + this._scrollOffset;
     for (let i = 0; i < this._lineObjects.length; i++) {
       this._lineObjects[i].setY(startY + this._lineYOffsets[i]);
     }
@@ -264,6 +271,10 @@ export default class SystemLog {
     if (this._mask) {
       this._mask.destroy();
       this._mask = null;
+    }
+    if (this._header) {
+      this._header.destroy();
+      this._header = null;
     }
   }
 }

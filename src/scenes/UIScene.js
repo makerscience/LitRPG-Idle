@@ -3,6 +3,7 @@
 
 import Phaser from 'phaser';
 import TopBar from '../ui/TopBar.js';
+import SystemDialogue from '../ui/SystemDialogue.js';
 import SystemLog from '../ui/SystemLog.js';
 import ZoneNav from '../ui/ZoneNav.js';
 import InventoryPanel from '../ui/InventoryPanel.js';
@@ -34,6 +35,12 @@ export default class UIScene extends Phaser.Scene {
 
     // Initialize UI components
     this.topBar = new TopBar(this);
+    this.systemDialogue = new SystemDialogue(this);
+
+    // Separator between dialogue panel and system log
+    const dp = LAYOUT.dialoguePanel;
+    this.add.rectangle(dp.x + dp.w / 2, dp.y + dp.h, dp.w, 1, COLORS.separator);
+
     this.systemLog = new SystemLog(this);
     this.zoneNav = new ZoneNav(this);
     this.inventoryPanel = new InventoryPanel(this);
@@ -55,6 +62,7 @@ export default class UIScene extends Phaser.Scene {
 
   _shutdown() {
     if (this.topBar) { this.topBar.destroy(); this.topBar = null; }
+    if (this.systemDialogue) { this.systemDialogue.destroy(); this.systemDialogue = null; }
     if (this.systemLog) { this.systemLog.destroy(); this.systemLog = null; }
     if (this.zoneNav) { this.zoneNav.destroy(); this.zoneNav = null; }
     if (this.inventoryPanel) { this.inventoryPanel.destroy(); this.inventoryPanel = null; }

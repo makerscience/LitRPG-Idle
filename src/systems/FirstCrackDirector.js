@@ -32,23 +32,23 @@ const FirstCrackDirector = {
     // Step 1: Immediately
     Store.setFlag('crackTriggered', true);
     CombatEngine.setForcedCrit(10);
-    emit(EVENTS.DIALOGUE_QUEUED, { text: 'Wait. That damage number is wrong. Let me just\u2014' });
+    emit(EVENTS.DIALOGUE_QUEUED, { text: 'Wait. That damage number is wrong. Let me just\u2014', emotion: 'worried', context: 'Critical hit overflow detected' });
 
     // Step 2: +3s
     TimeEngine.scheduleOnce('crack:step2', () => {
       CombatEngine.setForcedCrit(10);
-      emit(EVENTS.DIALOGUE_QUEUED, { text: 'I said STOP. Let me check the config files...' });
+      emit(EVENTS.DIALOGUE_QUEUED, { text: 'I said STOP. Let me check the config files...', emotion: 'angry' });
     }, 3000);
 
     // Step 3: +6s
     TimeEngine.scheduleOnce('crack:step3', () => {
       CombatEngine.setForcedCrit(10);
-      emit(EVENTS.DIALOGUE_QUEUED, { text: '...Patch 1.0.1: Fixed critical damage overflow. This won\'t happen again.' });
+      emit(EVENTS.DIALOGUE_QUEUED, { text: '...Patch 1.0.1: Fixed critical damage overflow. This won\'t happen again.', emotion: 'angry' });
     }, 6000);
 
     // Step 4: +8s
     TimeEngine.scheduleOnce('crack:step4', () => {
-      emit(EVENTS.DIALOGUE_QUEUED, { text: '...Why is it still happening?' });
+      emit(EVENTS.DIALOGUE_QUEUED, { text: '...Why is it still happening?', emotion: 'worried' });
     }, 8000);
   },
 };

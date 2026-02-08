@@ -85,17 +85,25 @@ export const SAVE = {
 };
 
 export const LAYOUT = {
-  topBar:   { x: 0, y: 0, w: 1280, h: 50 },
-  gameArea: { x: 0, y: 50, w: 960, h: 670 },
-  logPanel: { x: 960, y: 50, w: 320, h: 670 },
-  bottomBar:{ x: 0, y: 670, w: 960, h: 50 },   // placeholder for Phase 6 cheat deck
-  zoneNav:  { y: 70, centerX: 480 },             // relative to gameArea top
+  topBar:         { x: 0, y: 0, w: 1280, h: 50 },
+  gameArea:       { x: 0, y: 50, w: 960, h: 670 },
+  dialoguePanel:  { x: 960, y: 50, w: 320, h: 150 },
+  logPanel:       { x: 960, y: 201, w: 320, h: 519 },
+  bottomBar:      { x: 0, y: 670, w: 960, h: 50 },   // placeholder for Phase 6 cheat deck
+  zoneNav:        { y: 70, centerX: 480 },             // relative to gameArea top
 };
 
 export const COLORS = {
   panelBg:      0x111111,
   topBarBg:     0x0a0a0a,
   separator:    0x333333,
+  emotion: {
+    sarcastic:  '#eab308',
+    angry:      '#ef4444',
+    impressed:  '#22c55e',
+    worried:    '#38bdf8',
+    neutral:    '#e5e5e5',
+  },
   logText: {
     combat:     '#22c55e',   // green
     gold:       '#eab308',   // yellow
@@ -103,6 +111,7 @@ export const COLORS = {
     levelUp:    '#818cf8',   // indigo
     zoneChange: '#38bdf8',   // sky blue
     loot:       '#a855f7',   // purple
+    defeat:     '#e5e5e5',   // white — enemy defeated
     prestige:   '#f59e0b',   // amber — prestige events
     default:    '#a1a1aa',   // zinc-400
   },
@@ -137,6 +146,7 @@ export const UI = {
     critBonusSize: 4,
   },
   logMaxLines: 50,
+  dialogueMaxLines: 20,
 };
 
 export const ZONE_THEMES = {

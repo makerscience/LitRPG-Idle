@@ -5,7 +5,7 @@
 
 ## Active Objectives (max 3)
 1. All 8 phases + sprite/HP system implemented — MVP feature-complete
-2. Ground layer + background002 parallax overhaul done
+2. SYSTEM dialogue window with emotion-based styling implemented
 3. Next: more enemy sprites, playtesting, or Itch.io packaging
 
 ## Next Actions
@@ -33,10 +33,14 @@
 ---
 
 ## Last Session Summary (max ~8 bullets)
-- Added 7 player attack sprites (strongpunch, jumpkick, kick, elbow, kneestrike, roundhousekick, jab)
-- Player switches to a random attack pose for 400ms on every hit, then reverts to default
-- Loaded sprites in BootScene, pose logic in GameScene._onEnemyDamaged()
-- Timer-based revert with proper cancellation on rapid attacks
+- Defeat lines in system log now white (new `defeat` color in COLORS.logText) instead of yellow
+- SYSTEM dialogue window shows dim context lines (`> Sewer Rat defeated!`) above SYSTEM responses
+- `say()` in DialogueManager accepts optional 3rd `context` param; emits via DIALOGUE_QUEUED
+- Updated ~15 call sites with context strings (first kill, level up, zone entrance, cheats, etc.)
+- Direct DIALOGUE_QUEUED emitters (FirstCrackDirector, CheatManager, UpgradePanel) also carry context
+- Ambient/delayed lines (COMBAT_COMMENTARY, AMBIENT_SNARK, POST_PRESTIGE_COMBAT, PRESTIGE_AVAILABLE) intentionally have no context
+- Context lines render at 10px/#a1a1aa, 2px gap; dialogue lines keep existing emotion styling, 4px gap
+- Dialogue panel header: "SYSTEM'S LOG" bold green 18px; system log header: "SYSTEM LOG" white 9px
 
 ## Pinned References
 - Governance rules: `CLAUDE.md`

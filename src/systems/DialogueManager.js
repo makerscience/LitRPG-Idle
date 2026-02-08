@@ -31,8 +31,8 @@ function pick(arr) {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-function say(text) {
-  emit(EVENTS.DIALOGUE_QUEUED, { text });
+function say(text, emotion = 'sarcastic', context) {
+  emit(EVENTS.DIALOGUE_QUEUED, { text, emotion, context });
 }
 
 const DialogueManager = {
@@ -41,11 +41,11 @@ const DialogueManager = {
     for (const k in cooldowns) delete cooldowns[k];
 
     // ── First kill (one-shot) ────────────────────────────────────
-    unsubs.push(on(EVENTS.COMBAT_ENEMY_KILLED, () => {
+    unsubs.push(on(EVENTS.COMBAT_ENEMY_KILLED, (data) => {
       const state = Store.getState();
       if (!state.flags.firstKill) {
         Store.setFlag('firstKill', true);
-        say(pick(FIRST_KILL));
+        say(pick(FIRST_KILL), 'sarcastic', `${data.name} defeated!`);
       }
     }));
 
@@ -61,7 +61,7 @@ const DialogueManager = {
         const flagKey = `kills${t}`;
         if (kills >= t && !state.flags[flagKey]) {
           Store.setFlag(flagKey, true);
-          say(line);
+          say(line, 'impressed', `Kill #${kills}`);
           milestoneHit = true;
           break; // one milestone per kill
         }
@@ -73,17 +73,17 @@ const DialogueManager = {
         const lines = COMBAT_COMMENTARY[zone];
         if (lines && lines.length > 0) {
           setCooldown('combatCommentary');
-          say(pick(lines));
+          say(pick(lines), 'sarcastic');
         }
       }
     }));
 
     // ── First level up (one-shot) ────────────────────────────────
-    unsubs.push(on(EVENTS.PROG_LEVEL_UP, () => {
+    unsubs.push(on(EVENTS.PROG_LEVEL_UP, (data) => {
       const state = Store.getState();
       if (!state.flags.firstLevelUp) {
         Store.setFlag('firstLevelUp', true);
-        say(pick(FIRST_LEVEL_UP));
+        say(pick(FIRST_LEVEL_UP), 'sarcastic', `Reached Level ${data.level}`);
       }
     }));
 
@@ -95,7 +95,7 @@ const DialogueManager = {
         const flagKey = `reachedZone${zone}`;
         if (!state.flags[flagKey] && ZONE_ENTRANCE[zone]) {
           Store.setFlag(flagKey, true);
-          say(ZONE_ENTRANCE[zone]);
+          say(ZONE_ENTRANCE[zone], 'neutral', `Entered Zone ${zone}`);
         }
       }
     }));
@@ -105,7 +105,7 @@ const DialogueManager = {
       const state = Store.getState();
       if (!state.flags.firstEquip) {
         Store.setFlag('firstEquip', true);
-        say(pick(FIRST_EQUIP));
+        say(pick(FIRST_EQUIP), 'sarcastic', 'Item equipped');
       }
     }));
 
@@ -114,13 +114,13 @@ const DialogueManager = {
       const state = Store.getState();
       if (!state.flags.firstSell) {
         Store.setFlag('firstSell', true);
-        say(pick(FIRST_SELL));
+        say(pick(FIRST_SELL), 'sarcastic', 'Item sold');
       }
     }));
 
     // ── Inventory full (repeatable) ──────────────────────────────
     unsubs.push(on(EVENTS.INV_FULL, () => {
-      say(pick(INVENTORY_FULL));
+      say(pick(INVENTORY_FULL), 'sarcastic', 'Inventory full');
     }));
 
     // ── First glitch fragment (one-shot) ─────────────────────────
@@ -128,7 +128,7 @@ const DialogueManager = {
       const state = Store.getState();
       if (!state.flags.firstFragment) {
         Store.setFlag('firstFragment', true);
-        say(pick(FIRST_FRAGMENT));
+        say(pick(FIRST_FRAGMENT), 'worried', 'Glitch Fragment acquired');
       }
     }));
 
@@ -138,39 +138,39 @@ const DialogueManager = {
       if (!state.flags.firstMerge) {
         Store.setFlag('firstMerge', true);
         const cheat = getCheat('loot_hoarder');
-        say(cheat.systemDialogue.onFirstMerge);
+        say(cheat.systemDialogue.onFirstMerge, 'worried', 'Items merged');
       }
     }));
 
     // ── Exploit upgrade snark ────────────────────────────────────
     unsubs.push(on(EVENTS.UPG_PURCHASED, (data) => {
       if (data.category === 'exploit') {
-        say(pick(EXPLOIT_UPGRADE));
+        say(pick(EXPLOIT_UPGRADE), 'angry', 'Exploit upgrade purchased');
       }
     }));
 
     // ── Cheat toggle snark ───────────────────────────────────────
     unsubs.push(on(EVENTS.CHEAT_TOGGLED, (data) => {
       if (data.active) {
-        say(pick(CHEAT_TOGGLE_ON));
+        say(pick(CHEAT_TOGGLE_ON), 'angry', 'Cheat activated');
       } else {
-        say(pick(CHEAT_TOGGLE_OFF));
+        say(pick(CHEAT_TOGGLE_OFF), 'sarcastic', 'Cheat deactivated');
       }
     }));
 
     // ── Prestige available (one-shot) ────────────────────────────
     unsubs.push(on(EVENTS.PRESTIGE_AVAILABLE, () => {
-      say(pick(PRESTIGE_AVAILABLE));
+      say(pick(PRESTIGE_AVAILABLE), 'neutral');
     }));
 
     // ── Prestige performed (count-indexed) ───────────────────────
     unsubs.push(on(EVENTS.PRESTIGE_PERFORMED, (data) => {
       const line = PRESTIGE_PERFORMED[data.count] || PRESTIGE_PERFORMED_DEFAULT;
-      say(line);
+      say(line, 'impressed', `Prestige #${data.count}`);
 
       // Delayed post-prestige combat snark (5s)
       TimeEngine.scheduleOnce('dialogue:prestigeSnark', () => {
-        say(pick(POST_PRESTIGE_COMBAT));
+        say(pick(POST_PRESTIGE_COMBAT), 'sarcastic');
       }, 5000);
     }));
 
@@ -178,13 +178,13 @@ const DialogueManager = {
     unsubs.push(on(EVENTS.COMBAT_ENEMY_DAMAGED, (data) => {
       if (data.amount.gte && data.amount.gte(1e6) && !isOnCooldown('bigDamage', 15000)) {
         setCooldown('bigDamage');
-        say(pick(BIG_DAMAGE));
+        say(pick(BIG_DAMAGE), 'impressed', 'Massive hit!');
       }
     }));
 
     // ── Ambient snark (every ~120s, starts after 180s uptime) ────
     TimeEngine.register('dialogue:ambient', () => {
-      say(pick(AMBIENT_SNARK));
+      say(pick(AMBIENT_SNARK), 'sarcastic');
     }, 120000, false); // starts disabled
 
     TimeEngine.scheduleOnce('dialogue:ambientEnable', () => {

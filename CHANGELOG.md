@@ -1,5 +1,22 @@
 # CHANGELOG
 
+## 2026-02-08 (White Defeat Lines + Context Lines + Panel Headers)
+- Defeat lines in system log now render white instead of yellow (new `defeat` color type)
+- SYSTEM dialogue window shows context lines above responses (muted `> Sewer Rat defeated!` style) so player knows what triggered the comment
+- Context strings added to 15+ dialogue triggers; ambient/delayed lines intentionally omit context
+- Direct DIALOGUE_QUEUED emitters (FirstCrackDirector, CheatManager, UpgradePanel) also carry context
+- Dialogue panel header: "SYSTEM'S LOG" in bold bright green (18px); system log header: "SYSTEM LOG" in white (9px)
+
+---
+
+## 2026-02-08 (SYSTEM Dialogue Window)
+- New SYSTEM dialogue panel above the system log (top 150px of right sidebar)
+- Emotion-based text styling: sarcastic (yellow), angry (red/bold), impressed (green/bold), worried (blue/italic), neutral (white)
+- Each `say()` call in DialogueManager now carries an emotion tag; FAILED_PURCHASE in UpgradePanel also tagged
+- System log pushed down to y=201 (auto-adjusts via LAYOUT.logPanel); both panels scroll independently
+
+---
+
 ## 2026-02-08 (Player Attack Sprites)
 - Player now shows a random attack pose (7 sprites: punch, kick, elbow, jab, etc.) when hitting enemies
 - Attack pose displays for 400ms then reverts to default stance

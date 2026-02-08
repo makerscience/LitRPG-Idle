@@ -38,7 +38,7 @@ const CheatManager = {
     if (state.glitchFragments.gte(CHEATS.lootHoarder.fragmentsRequired)) {
       Store.unlockCheat(CHEATS.lootHoarder.id);
       const cheat = getCheat(CHEATS.lootHoarder.id);
-      emit(EVENTS.DIALOGUE_QUEUED, { text: cheat.systemDialogue.onUnlock });
+      emit(EVENTS.DIALOGUE_QUEUED, { text: cheat.systemDialogue.onUnlock, emotion: 'worried', context: 'Fragment threshold reached' });
     }
   },
 };

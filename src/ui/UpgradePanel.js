@@ -227,7 +227,7 @@ export default class UpgradePanel {
             if (now - this._lastFailedPurchaseTime >= 10000) {
               this._lastFailedPurchaseTime = now;
               const line = FAILED_PURCHASE[Math.floor(Math.random() * FAILED_PURCHASE.length)];
-              emit(EVENTS.DIALOGUE_QUEUED, { text: line });
+              emit(EVENTS.DIALOGUE_QUEUED, { text: line, emotion: 'sarcastic', context: 'Insufficient funds' });
             }
           }
         });
