@@ -34,16 +34,21 @@ export default class GameScene extends Phaser.Scene {
     ];
     this._playerPoseTimer = null;
 
+    // Bottom-anchored HP bar Y positions
+    this._hpBarY = ga.y + ga.h - 60;
+    this._nameLabelY = this._hpBarY - 18;
+
     // Player sprite
     this.playerRect = this.add.image(playerX, this._combatY, 'player001_default');
     this.playerRect.setDisplaySize(300, 375);
-    this.add.text(playerX, this._combatY - 210, 'Player', {
+    this.playerNameText = this.add.text(playerX, this._nameLabelY, 'Player', {
       fontFamily: 'monospace', fontSize: '16px', color: '#ffffff',
+      stroke: '#000000', strokeThickness: 4,
     }).setOrigin(0.5);
 
     // Player HP bar
-    this.playerHpBarBg = this.add.rectangle(playerX, this._combatY + 140, 200, 16, 0x374151);
-    this.playerHpBarFill = this.add.rectangle(playerX - 100, this._combatY + 140, 200, 16, 0x22c55e);
+    this.playerHpBarBg = this.add.rectangle(playerX, this._hpBarY, 200, 16, 0x374151);
+    this.playerHpBarFill = this.add.rectangle(playerX - 100, this._hpBarY, 200, 16, 0x22c55e);
     this.playerHpBarFill.setOrigin(0, 0.5);
 
     // Enemy placeholder — red rect (click target for enemies without sprites)
@@ -61,15 +66,16 @@ export default class GameScene extends Phaser.Scene {
     this._spriteH = 250;
 
     // Enemy name text
-    this.enemyNameText = this.add.text(this._enemyX, this._enemyY - 210, '', {
+    this.enemyNameText = this.add.text(this._enemyX, this._nameLabelY, '', {
       fontFamily: 'monospace', fontSize: '16px', color: '#ffffff',
+      stroke: '#000000', strokeThickness: 4,
     }).setOrigin(0.5);
 
     // HP bar background
-    this.hpBarBg = this.add.rectangle(this._enemyX, this._enemyY + 80, 200, 20, 0x374151);
+    this.hpBarBg = this.add.rectangle(this._enemyX, this._hpBarY, 200, 20, 0x374151);
 
     // HP bar fill — anchored to left edge
-    this.hpBarFill = this.add.rectangle(this._enemyX - 100, this._enemyY + 80, 200, 20, 0x22c55e);
+    this.hpBarFill = this.add.rectangle(this._enemyX - 100, this._hpBarY, 200, 20, 0x22c55e);
     this.hpBarFill.setOrigin(0, 0.5);
 
     // Initially hide enemy elements
@@ -366,10 +372,10 @@ export default class GameScene extends Phaser.Scene {
     const textStyle = {
       fontFamily: 'monospace',
       fontSize: `${fontSize}px`,
-      color: isCrit ? '#eab308' : tier.color,
+      color: isCrit ? '#fde047' : tier.color,
       fontStyle: tier.style,
       stroke: '#000000',
-      strokeThickness: 2,
+      strokeThickness: 4,
     };
 
     // 1M+ tier gets glow shadow
@@ -390,12 +396,23 @@ export default class GameScene extends Phaser.Scene {
       this.cameras.main.shake(100, tier.shake);
     }
 
+    const dur = UI.damageNumbers.duration;
+
+    // Float upward at full opacity
     this.tweens.add({
       targets: text,
       y: y - UI.damageNumbers.floatDistance,
-      alpha: 0,
-      duration: UI.damageNumbers.duration,
+      duration: dur,
       ease: 'Power2',
+    });
+
+    // Quick fade only in the last 30%
+    this.tweens.add({
+      targets: text,
+      alpha: 0,
+      delay: dur * 0.7,
+      duration: dur * 0.3,
+      ease: 'Linear',
       onComplete: () => text.destroy(),
     });
   }

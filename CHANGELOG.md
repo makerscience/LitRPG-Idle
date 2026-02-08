@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## 2026-02-08 (Combat UI Polish)
+- Damage numbers: larger font sizes (+6-10px per tier), all bold, 4px black stroke, brighter yellows
+- Damage numbers stay fully opaque for 70% of lifetime, fade only in the last 30%
+- HP bars moved to bottom of battle window (60px from edge); name labels sit just above them
+- Name labels (Player + enemy) have 4px black stroke outline for readability
+
+---
+
 ## 2026-02-08 (White Defeat Lines + Context Lines + Panel Headers)
 - Defeat lines in system log now render white instead of yellow (new `defeat` color type)
 - SYSTEM dialogue window shows context lines above responses (muted `> Sewer Rat defeated!` style) so player knows what triggered the comment
