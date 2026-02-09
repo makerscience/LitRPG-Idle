@@ -1,5 +1,38 @@
 # CHANGELOG
 
+## 2026-02-08 (Tree & Fern Parallax Overhaul)
+- Replaced front layer strip system with individual tree sprites scrolling diagonally (upper-right → lower-left)
+- Trees render as normal sprites with PNG transparency — no blend mode tricks needed
+- Added fern rows (3 depth layers) and bare ground overlay (foreground001_bare) between foreground and ferns/trees
+- Configurable diagonal slope via `treeDiagRatio` and `fernDiagRatio` in PARALLAX
+- Mid fern row depth adjusted to render in front of near tree row
+
+---
+
+## 2026-02-08 (Diagonal Scroll Fix)
+- Front layer strips now tile in a 2×2 grid (4 images per strip) for seamless vertical + horizontal wrapping
+- Per-strip diagonal Y offset: rightmost strip (VP) sits 200px above leftmost, creating a diagonal top edge
+- Vertical drift no longer pops — modulo wraps at tile height instead of fixed yDriftRange
+- Config: added `frontDiagPx`, removed `yDriftRange`
+
+---
+
+## 2026-02-08 (Vertical-Strip Pseudo-3D)
+- Front layer strips switched from horizontal bands to vertical columns for upper-right VP convergence
+- Right strips (VP) are narrow + slow; left strips (camera) are wide + fast — perspective width variation
+- Horizontal features (bricks, pipes) now bend/slant toward VP instead of vertical features bending
+- Texture frames slice source image into vertical columns with integer-quantized widths (no seams)
+- Removed unused `diagonalOffsetPx` config; convergence is now inherent in strip width distribution
+
+## 2026-02-08 (Pseudo-3D Scanline Parallax)
+- Zone 1 bg layers now use strip-based perspective scrolling (10 strips per layer)
+- Per-strip scroll speed creates OutRun-style perspective depth within each layer
+- Custom texture frames with integer-quantized sizes prevent sub-pixel seams
+- Parallax and ground scroll converted to delta-based timing (FPS-independent)
+- New `PARALLAX` config: `strips`, `perspectivePow`, `baseSpeedPxPerSec`
+
+---
+
 ## 2026-02-08 (Combat UI Polish)
 - Damage numbers: larger font sizes (+6-10px per tier), all bold, 4px black stroke, brighter yellows
 - Damage numbers stay fully opaque for 70% of lifetime, fade only in the last 30%

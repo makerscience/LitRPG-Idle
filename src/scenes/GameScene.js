@@ -1,4 +1,4 @@
-// GameScene — Phaser scene rendering combat. Layout on 1280x720 canvas.
+﻿// GameScene â€” Phaser scene rendering combat. Layout on 1280x720 canvas.
 
 import Phaser from 'phaser';
 import CombatEngine from '../systems/CombatEngine.js';
@@ -6,7 +6,7 @@ import TimeEngine from '../systems/TimeEngine.js';
 import Store from '../systems/Store.js';
 import { on, EVENTS } from '../events.js';
 import { format } from '../systems/BigNum.js';
-import { UI, LAYOUT, ZONE_THEMES, COMBAT } from '../config.js';
+import { UI, LAYOUT, ZONE_THEMES, COMBAT, PARALLAX, TREE_ROWS, FERN_ROWS } from '../config.js';
 import { getEnemyById } from '../data/enemies.js';
 
 export default class GameScene extends Phaser.Scene {
@@ -14,6 +14,8 @@ export default class GameScene extends Phaser.Scene {
     super('GameScene');
     this._unsubs = [];
     this._parallaxLayers = [];
+    this._treeLayers = [];
+    this._fernLayers = [];
   }
 
   create() {
@@ -51,7 +53,7 @@ export default class GameScene extends Phaser.Scene {
     this.playerHpBarFill = this.add.rectangle(playerX - 100, this._hpBarY, 200, 16, 0x22c55e);
     this.playerHpBarFill.setOrigin(0, 0.5);
 
-    // Enemy placeholder — red rect (click target for enemies without sprites)
+    // Enemy placeholder â€” red rect (click target for enemies without sprites)
     this.enemyRect = this.add.rectangle(this._enemyX, this._enemyY, 200, 250, 0xef4444);
     this.enemyRect.setInteractive({ useHandCursor: true });
     this.enemyRect.on('pointerdown', () => CombatEngine.playerAttack());
@@ -74,7 +76,7 @@ export default class GameScene extends Phaser.Scene {
     // HP bar background
     this.hpBarBg = this.add.rectangle(this._enemyX, this._hpBarY, 200, 20, 0x374151);
 
-    // HP bar fill — anchored to left edge
+    // HP bar fill â€” anchored to left edge
     this.hpBarFill = this.add.rectangle(this._enemyX - 100, this._hpBarY, 200, 20, 0x22c55e);
     this.hpBarFill.setOrigin(0, 0.5);
 
@@ -111,34 +113,38 @@ export default class GameScene extends Phaser.Scene {
     // Launch UI overlay scene (parallel, not replacing this scene)
     this.scene.launch('UIScene');
 
-    console.log('[GameScene] create — combat initialized');
+    console.log('[GameScene] create â€” combat initialized');
   }
 
   update(_time, delta) {
     TimeEngine.update(delta);
 
-    // Scroll parallax layers
+    const dt = delta / 1000;
     const ga = LAYOUT.gameArea;
+
+    // Scroll parallax layers
     for (let i = 0; i < this._parallaxLayers.length; i++) {
       const layer = this._parallaxLayers[i];
       if (!layer || !layer.active) continue;
-      const speed = (i + 1) * 0.15; // 0.15, 0.3, 0.45 px/frame
 
-      if (layer.getData && layer.getData('isImageLayer')) {
-        // Image-based: dual-image seamless scroll
+      if (layer.getData('isStatic')) {
+        continue;
+      } else if (layer.getData('isImageLayer')) {
+        // Dual-image horizontal scroll (delta-based)
         const children = layer.getAll();
         const imgW = layer.getData('imgW');
+        const speed = PARALLAX.baseSpeedPxPerSec * (i + 1) * dt;
         for (const child of children) {
           child.x -= speed;
         }
-        // Wrap: when first image scrolls fully off-left, shift both back
         if (children[0] && children[0].x + imgW <= ga.x) {
           for (const child of children) {
             child.x += imgW;
           }
         }
       } else {
-        // Rectangle-based fallback
+        // Rectangle-based fallback (unchanged, frame-based)
+        const speed = (i + 1) * 0.15;
         const children = layer.getAll();
         for (const child of children) {
           child.x -= speed;
@@ -149,9 +155,9 @@ export default class GameScene extends Phaser.Scene {
       }
     }
 
-    // Scroll ground at same speed as front parallax layer (index 2)
+    // Scroll ground (delta-based, equivalent to front layer rate)
     if (this._groundContainer && this._groundContainer.active) {
-      const groundSpeed = 3 * 0.15;
+      const groundSpeed = PARALLAX.baseSpeedPxPerSec * 3 * dt;
       const children = this._groundContainer.getAll();
       const imgW = this._groundContainer.getData('imgW');
       for (const child of children) {
@@ -160,6 +166,61 @@ export default class GameScene extends Phaser.Scene {
       if (children[0] && children[0].x + imgW <= ga.x) {
         for (const child of children) {
           child.x += imgW;
+        }
+      }
+    }
+
+    // Scroll bare ground overlay (same speed as ground)
+    if (this._bareGroundContainer && this._bareGroundContainer.active) {
+      const bareSpeed = PARALLAX.baseSpeedPxPerSec * 3 * dt;
+      const children = this._bareGroundContainer.getAll();
+      const imgW = this._bareGroundContainer.getData('imgW');
+      for (const child of children) {
+        child.x -= bareSpeed;
+      }
+      if (children[0] && children[0].x + imgW <= ga.x) {
+        for (const child of children) {
+          child.x += imgW;
+        }
+      }
+    }
+
+    // Scroll tree layers (diagonal: upper-right â†’ lower-left)
+    if (this._treeLayers.length > 0) {
+      const frontSpeed = PARALLAX.baseSpeedPxPerSec * 3;
+      const diagRatio = PARALLAX.treeDiagRatio;
+      for (const { row, trees } of this._treeLayers) {
+        const xSpeed = frontSpeed * row.speedMult * dt;
+        const ySpeed = xSpeed * diagRatio;
+        for (const tree of trees) {
+          tree.img.x -= xSpeed;
+          tree.img.y += ySpeed;
+          // Wrap: past left edge or below game area â†’ reset to upper-right off-screen
+          const topY = tree.img.y - tree.displayH;
+          if (tree.img.x + tree.displayW * 0.5 < ga.x || topY > ga.y + ga.h + 50) {
+            tree.img.x = ga.x + ga.w + tree.displayW * 0.5 + 20 + Math.random() * 100;
+            tree.img.y = ga.y + ga.h * row.yRange[0] + Math.random() * 30;
+          }
+        }
+      }
+    }
+
+    // Scroll fern layers (dense diagonal band)
+    if (this._fernLayers.length > 0) {
+      const frontSpeed = PARALLAX.baseSpeedPxPerSec * 3;
+      const diagRatio = PARALLAX.fernDiagRatio;
+      for (const { row, ferns, yMin, yMax } of this._fernLayers) {
+        const xSpeed = frontSpeed * row.speedMult * dt;
+        const ySpeed = xSpeed * diagRatio;
+        for (const fern of ferns) {
+          fern.img.x -= xSpeed;
+          fern.img.y += ySpeed;
+
+          const topY = fern.img.y - fern.displayH;
+          if (fern.img.x + fern.displayW * 0.5 < ga.x - 60 || topY > ga.y + ga.h + 80) {
+            fern.img.x = ga.x + ga.w + fern.displayW * 0.5 + 20 + Math.random() * 120;
+            fern.img.y = yMin + Math.random() * Math.max(1, yMax - yMin);
+          }
         }
       }
     }
@@ -211,7 +272,7 @@ export default class GameScene extends Phaser.Scene {
       this.enemyRect.setAlpha(0);
       this.enemyRect.disableInteractive();
     } else {
-      // No sprites — use rect (existing behavior)
+      // No sprites â€” use rect (existing behavior)
       this.enemySprite.setVisible(false);
       this.enemyRect.setFillStyle(0xef4444);
       this.enemyRect.setAlpha(1);
@@ -234,7 +295,7 @@ export default class GameScene extends Phaser.Scene {
     const barWidth = Math.max(0, ratio * 200);
     this.hpBarFill.setDisplaySize(barWidth, 20);
 
-    // Color: green → yellow → red
+    // Color: green â†’ yellow â†’ red
     let color;
     if (ratio > 0.5) {
       color = 0x22c55e;
@@ -245,7 +306,7 @@ export default class GameScene extends Phaser.Scene {
     }
     this.hpBarFill.setFillStyle(color);
 
-    // Player attack pose — random sprite for 400ms, then revert
+    // Player attack pose â€” random sprite for 400ms, then revert
     const attackKey = this._playerAttackSprites[
       Math.floor(Math.random() * this._playerAttackSprites.length)
     ];
@@ -285,7 +346,7 @@ export default class GameScene extends Phaser.Scene {
       });
     }
 
-    // Hit reaction — squish + knockback (rects only; sprites skip to avoid display size warping)
+    // Hit reaction â€” squish + knockback (rects only; sprites skip to avoid display size warping)
     if (!this._currentEnemySprites) {
       if (this._hitReactionTween) this._hitReactionTween.stop();
       target.setScale(1);
@@ -346,7 +407,7 @@ export default class GameScene extends Phaser.Scene {
     this._spawnGoldParticles();
   }
 
-  // ── Damage numbers (magnitude-tiered) ─────────────────────────
+  // â”€â”€ Damage numbers (magnitude-tiered) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   _spawnDamageNumber(amount, isCrit) {
     const xOffset = (Math.random() - 0.5) * 60;
@@ -417,7 +478,7 @@ export default class GameScene extends Phaser.Scene {
     });
   }
 
-  // ── Visual juice ──────────────────────────────────────────────
+  // â”€â”€ Visual juice â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   _spawnGoldParticles() {
     const count = 5 + Math.floor(Math.random() * 4); // 5-8
@@ -558,35 +619,61 @@ export default class GameScene extends Phaser.Scene {
     });
   }
 
-  // ── Parallax backgrounds ──────────────────────────────────────
+  // â”€â”€ Parallax backgrounds â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   _createParallax(zone) {
     const theme = ZONE_THEMES[zone];
     if (!theme) return;
 
     const ga = LAYOUT.gameArea;
-    const skyH = ga.h * 0.83; // parallax covers top 83%, overlaps behind ground (bottom 25%)
+    const skyH = Math.floor(ga.h * 0.83);
+    const battleBottomY = ga.y + ga.h;
+    const midLayerBottomTargetY = 330;
+    const foregroundTopTargetY = 270;
 
     if (theme.images) {
-      // Image-based parallax: dual images per layer for seamless wrap
       for (let layerIdx = 0; layerIdx < theme.images.length; layerIdx++) {
         const key = theme.images[layerIdx];
-        const container = this.add.container(0, 0);
-        container.setDepth(layerIdx === 2 ? -0.25 : -3 + layerIdx);
-        container.setData('isImageLayer', true);
+        const layerH = skyH;
 
-        const layerH = layerIdx === 2 ? ga.h * 0.88 : skyH;
-        const img1 = this.add.image(ga.x, ga.y, key).setOrigin(0, 0);
-        img1.setDisplaySize(ga.w, layerH);
-        const img2 = this.add.image(ga.x + ga.w, ga.y, key).setOrigin(0, 0);
-        img2.setDisplaySize(ga.w, layerH);
+        // Rear layer (sky): static full-screen image, no scrolling
+        if (layerIdx === 0) {
+          const container = this.add.container(0, 0);
+          container.setDepth(-3);
+          container.setData('isStatic', true);
+          const img = this.add.image(ga.x, ga.y, key).setOrigin(0, 0);
+          img.setDisplaySize(ga.w, layerH);
+          container.add(img);
+          this._parallaxLayers.push(container);
+          continue;
+        }
 
-        container.setData('imgW', ga.w);
-        container.add([img1, img2]);
-        this._parallaxLayers.push(container);
+        // Mid layer: dual-image horizontal scroll
+        if (layerIdx === 1) {
+          const container = this.add.container(0, 0);
+          container.setDepth(-2);
+          container.setData('isImageLayer', true);
+          const midLayerY = midLayerBottomTargetY - layerH;
+          const img1 = this.add.image(ga.x, midLayerY, key).setOrigin(0, 0);
+          img1.setDisplaySize(ga.w, layerH);
+          const img2 = this.add.image(ga.x + ga.w, midLayerY, key).setOrigin(0, 0);
+          img2.setDisplaySize(ga.w, layerH);
+          container.setData('imgW', ga.w);
+          container.add([img1, img2]);
+          this._parallaxLayers.push(container);
+          continue;
+        }
+      }
+
+      // Tree rows (replaces front strip layer)
+      if (theme.trees) {
+        this._createTreeRows(theme.trees, ga);
+      }
+      if (theme.ferns) {
+        this._createFernRows(theme.ferns, ga);
       }
     } else {
-      // Rectangle-based fallback for zones without images
+      // Rectangle-based fallback for zones without images (unchanged)
       for (let layerIdx = 0; layerIdx < theme.layers.length; layerIdx++) {
         const color = theme.layers[layerIdx];
         const container = this.add.container(0, 0);
@@ -606,28 +693,180 @@ export default class GameScene extends Phaser.Scene {
       }
     }
 
-    // Ground section — bottom quarter, scrolls with front parallax layer
-    const groundH = ga.h * 0.25;
-    const groundY = ga.y + ga.h - groundH;
-    const gImg1 = this.add.image(ga.x, groundY, 'ground001').setOrigin(0, 0);
+    // Foreground band: fixed top edge, down to bottom of battle window
+    const groundY = Math.max(ga.y, Math.min(battleBottomY - 1, foregroundTopTargetY));
+    const groundH = Math.max(1, battleBottomY - groundY);
+    const gImg1 = this.add.image(ga.x, groundY, 'foreground002').setOrigin(0, 0);
     gImg1.setDisplaySize(ga.w, groundH);
-    const gImg2 = this.add.image(ga.x + ga.w, groundY, 'ground001').setOrigin(0, 0);
+    const gImg2 = this.add.image(ga.x + ga.w, groundY, 'foreground002').setOrigin(0, 0);
     gImg2.setDisplaySize(ga.w, groundH);
     this._groundContainer = this.add.container(0, 0);
-    this._groundContainer.setDepth(-0.5);
-    this._groundContainer.setData('isImageLayer', true);
+    this._groundContainer.setDepth(-2.5);
     this._groundContainer.setData('imgW', ga.w);
     this._groundContainer.add([gImg1, gImg2]);
+
+    // Bare ground overlay — sits above foreground002 but behind trees/ferns
+    // Top aligns with mid fern row start (Y=445), bottom at game area bottom
+    if (theme.images && this.textures.exists('fg_bare')) {
+      const bareY = 445;
+      const bareH = battleBottomY - bareY;
+      const bImg1 = this.add.image(ga.x, bareY, 'fg_bare').setOrigin(0, 0);
+      bImg1.setDisplaySize(ga.w, bareH);
+      const bImg2 = this.add.image(ga.x + ga.w, bareY, 'fg_bare').setOrigin(0, 0);
+      bImg2.setDisplaySize(ga.w, bareH);
+      this._bareGroundContainer = this.add.container(0, 0);
+      this._bareGroundContainer.setDepth(-0.48);
+      this._bareGroundContainer.setData('imgW', ga.w);
+      this._bareGroundContainer.add([bImg1, bImg2]);
+    }
+  }
+
+  _createTreeRows(treeKeys, ga) {
+    const diagRatio = PARALLAX.treeDiagRatio;
+
+    for (const row of TREE_ROWS) {
+      const container = this.add.container(0, 0);
+      container.setDepth(row.depth);
+
+      // Geometry mask â€” clip to game area
+      const maskGfx = this.make.graphics({ x: 0, y: 0, add: false });
+      maskGfx.fillRect(ga.x, ga.y, ga.w, ga.h);
+      const mask = maskGfx.createGeometryMask();
+      container.setMask(mask);
+      container.setData('maskGfx', maskGfx);
+      container.setData('mask', mask);
+      container.setData('isTreeLayer', true);
+
+      const trees = [];
+      const yStart = ga.y + ga.h * row.yRange[0];   // top of Y band (spawn Y at right edge)
+      const diagDrop = ga.w * diagRatio;              // total Y drop across full width
+      const rowKeys = Array.isArray(row.keys) && row.keys.length > 0 ? row.keys : treeKeys;
+
+      for (let i = 0; i < row.count; i++) {
+        const key = rowKeys[Math.floor(Math.random() * rowKeys.length)];
+        const scale = row.scaleRange[0] + Math.random() * (row.scaleRange[1] - row.scaleRange[0]);
+        const displayW = 1024 * scale;
+        const displayH = 1536 * scale;
+
+        // Distribute trees along the diagonal path with random progress
+        const progress = i / row.count + (Math.random() * 0.5) / row.count;
+        const x = ga.x + ga.w * (1 - progress);
+        const y = yStart + diagDrop * progress;
+
+        const img = this.add.image(x, y, key).setOrigin(0.5, 1);
+        img.setDisplaySize(displayW, displayH);
+
+        container.add(img);
+        trees.push({ img, displayW, displayH });
+      }
+
+      this._treeLayers.push({ container, row, trees });
+    }
+  }
+
+  _createFernRows(fernKeys, ga) {
+    if (!fernKeys || fernKeys.length === 0) return;
+
+    // Fern band starts around the middle of the battle window.
+    const bandTop = ga.y + Math.floor(ga.h * 0.5);
+    const bandBottom = ga.y + ga.h;
+    const bandHeight = Math.max(40, bandBottom - bandTop);
+    const sliceH = bandHeight / FERN_ROWS.length;
+
+    for (let rowIdx = 0; rowIdx < FERN_ROWS.length; rowIdx++) {
+      const row = FERN_ROWS[rowIdx];
+      const container = this.add.container(0, 0);
+      container.setDepth(row.depth);
+
+      const maskGfx = this.make.graphics({ x: 0, y: 0, add: false });
+      maskGfx.fillRect(ga.x, ga.y, ga.w, ga.h);
+      const mask = maskGfx.createGeometryMask();
+      container.setMask(mask);
+      container.setData('maskGfx', maskGfx);
+      container.setData('mask', mask);
+      container.setData('isFernLayer', true);
+
+      const yMin = rowIdx === 0 ? 375 : rowIdx === 1 ? 445 : rowIdx === 2 ? 500 : bandTop + rowIdx * sliceH;
+      const yMax = rowIdx === 0 ? 380 : rowIdx === 1 ? 490 : rowIdx === 2 ? 550 : bandTop + (rowIdx + 1) * sliceH + sliceH * 0.35;
+      const sampleScale = (row.scaleRange[0] + row.scaleRange[1]) * 0.5;
+      const sampleTex = this.textures.get(fernKeys[0]).getSourceImage();
+      const sampleW = sampleTex.width * sampleScale;
+      const step = Math.max(24, sampleW * row.xSpacingMult);
+      const spawnStartX = ga.x - 220;
+      const spawnEndX = ga.x + ga.w + 220;
+      const count = Math.ceil((spawnEndX - spawnStartX) / step);
+      const ferns = [];
+
+      for (let i = 0; i < count; i++) {
+        const key = fernKeys[Math.floor(Math.random() * fernKeys.length)];
+        const scale = row.scaleRange[0] + Math.random() * (row.scaleRange[1] - row.scaleRange[0]);
+        const tex = this.textures.get(key);
+        const source = tex.getSourceImage();
+        const displayW = source.width * scale;
+        const displayH = source.height * scale;
+        const jitter = (Math.random() - 0.5) * step * 0.4;
+        const x = spawnStartX + i * step + jitter;
+        const y = yMin + Math.random() * Math.max(1, yMax - yMin);
+        const img = this.add.image(x, y, key).setOrigin(0.5, 1);
+        img.setDisplaySize(displayW, displayH);
+        img.setAlpha(row.alpha);
+        container.add(img);
+        ferns.push({ img, displayW, displayH });
+      }
+
+      this._fernLayers.push({ container, row, ferns, yMin, yMax });
+    }
   }
 
   _destroyParallax() {
     for (const layer of this._parallaxLayers) {
-      if (layer) layer.destroy(true);
+      if (!layer) continue;
+
+      // Remove custom texture frames
+      const textureKey = layer.getData && layer.getData('textureKey');
+      const frameNames = layer.getData && layer.getData('frameNames');
+      if (textureKey && frameNames) {
+        const texture = this.textures.get(textureKey);
+        for (const name of frameNames) {
+          if (texture.has(name)) texture.remove(name);
+        }
+      }
+
+      // Clean up geometry mask
+      const maskRef = layer.getData && layer.getData('mask');
+      const maskGfx = layer.getData && layer.getData('maskGfx');
+      if (maskRef) layer.clearMask();
+      if (maskRef) maskRef.destroy();
+      if (maskGfx) maskGfx.destroy();
+
+      layer.destroy(true);
     }
     this._parallaxLayers = [];
+    for (const { container } of this._treeLayers) {
+      const maskRef = container.getData && container.getData('mask');
+      const maskGfx = container.getData && container.getData('maskGfx');
+      if (maskRef) container.clearMask();
+      if (maskRef) maskRef.destroy();
+      if (maskGfx) maskGfx.destroy();
+      container.destroy(true);
+    }
+    this._treeLayers = [];
+    for (const { container } of this._fernLayers) {
+      const maskRef = container.getData && container.getData('mask');
+      const maskGfx = container.getData && container.getData('maskGfx');
+      if (maskRef) container.clearMask();
+      if (maskRef) maskRef.destroy();
+      if (maskGfx) maskGfx.destroy();
+      container.destroy(true);
+    }
+    this._fernLayers = [];
     if (this._groundContainer) {
       this._groundContainer.destroy(true);
       this._groundContainer = null;
+    }
+    if (this._bareGroundContainer) {
+      this._bareGroundContainer.destroy(true);
+      this._bareGroundContainer = null;
     }
   }
 
@@ -637,6 +876,7 @@ export default class GameScene extends Phaser.Scene {
     this._unsubs = [];
     this._destroyParallax();
     CombatEngine.destroy();
-    console.log('[GameScene] shutdown — cleaned up');
+    console.log('[GameScene] shutdown â€” cleaned up');
   }
 }
+

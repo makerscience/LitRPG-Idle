@@ -9,9 +9,11 @@
 3. Next: more enemy sprites, playtesting, or Itch.io packaging
 
 ## Next Actions
+- [ ] Playtest tree scrolling: verify 3 depth rows visible, no clumping, correct blend modes
+- [ ] Verify tree003 (white bg) renders without visible white rectangle (MULTIPLY blend)
+- [ ] Verify zone switching (1→2→1 cycles): trees destroyed and recreated cleanly
+- [ ] Consider adding trees config for other zones (currently only Zone 1 has tree-based parallax)
 - [ ] Add sprites for other Zone 1 enemies (Green Slime) if art available
-- [ ] Manual playtest: verify balance with enemy attacks (player shouldn't die too easily in Zone 1)
-- [ ] Consider Itch.io packaging / offline progress (deferred scope)
 - [ ] Add background images for other zones (currently only Zone 1 has image-based parallax)
 
 ## Open Loops / Blockers
@@ -33,14 +35,14 @@
 ---
 
 ## Last Session Summary (max ~8 bullets)
-- Defeat lines in system log now white (new `defeat` color in COLORS.logText) instead of yellow
-- SYSTEM dialogue window shows dim context lines (`> Sewer Rat defeated!`) above SYSTEM responses
-- `say()` in DialogueManager accepts optional 3rd `context` param; emits via DIALOGUE_QUEUED
-- Updated ~15 call sites with context strings (first kill, level up, zone entrance, cheats, etc.)
-- Direct DIALOGUE_QUEUED emitters (FirstCrackDirector, CheatManager, UpgradePanel) also carry context
-- Ambient/delayed lines (COMBAT_COMMENTARY, AMBIENT_SNARK, POST_PRESTIGE_COMBAT, PRESTIGE_AVAILABLE) intentionally have no context
-- Context lines render at 10px/#a1a1aa, 2px gap; dialogue lines keep existing emotion styling, 4px gap
-- Dialogue panel header: "SYSTEM'S LOG" bold green 18px; system log header: "SYSTEM LOG" white 9px
+- Replaced front layer strip system (10 strips × 4 images = 40 objects) with scrolling tree sprites (13 objects)
+- 4 tree textures loaded in BootScene: fg_tree001–004
+- TREE_ROWS config: 3 depth rows (far=6 trees, mid=4, near=3) with per-row speed, scale, Y range, alpha
+- Per-key blend modes: ADD for dark-bg trees (001/002/004), MULTIPLY for white-bg tree003
+- Trees wrap from left edge to right edge with random Y repositioning each cycle
+- Geometry mask clips each tree row container to game area
+- Removed PARALLAX strip config (strips, perspectivePow, yDriftFactor, frontDiagPx)
+- Rear (static) and mid (horizontal scroll) background layers unchanged
 
 ## Pinned References
 - Governance rules: `CLAUDE.md`

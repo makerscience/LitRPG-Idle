@@ -1,4 +1,4 @@
-// Game balance constants — all tuning numbers live here.
+﻿// Game balance constants â€” all tuning numbers live here.
 
 export const DAMAGE_FORMULAS = {
   mortal:   (str, wpn) => str * 1.2 + wpn,
@@ -11,7 +11,7 @@ export const COMBAT = {
   critMultiplier: 2,
   autoAttackInterval: 800,    // ms
   spawnDelay: 1000,           // ms after kill before next enemy
-  enemyAttackInterval: 3000,       // ms — enemy attacks every 3 seconds
+  enemyAttackInterval: 3000,       // ms â€” enemy attacks every 3 seconds
   playerHpPerVit: 10,              // max HP = vit * playerHpPerVit
   playerRegenPercent: 0.02,        // 2% of max HP per second
   playerRegenInterval: 1000,       // regen tick every 1s
@@ -93,6 +93,54 @@ export const LAYOUT = {
   zoneNav:        { y: 70, centerX: 480 },             // relative to gameArea top
 };
 
+export const PARALLAX = {
+  baseSpeedPxPerSec: 9,    // equivalent to 0.15 px/frame at 60fps
+  treeDiagRatio: 0.1,      // Y speed as fraction of X speed (diagonal slope)
+  fernDiagRatio: 0.04,     // keep fern drift subtle so the band remains stable
+};
+
+export const TREE_ROWS = [
+  // Far row: small, slow, behind ground â€” highest start band
+  {
+    count: 24,
+    speedMult: 0.4,
+    scaleRange: [0.15, 0.22],
+    yRange: [0.40, 0.50],
+    depth: -0.45,
+    alpha: 0.5,
+    keys: ['fg_tree003', 'fg_tree004'],
+  },
+  // Mid row: medium, in front of ground â€” middle start band
+  {
+    count: 16,
+    speedMult: 0.7,
+    scaleRange: [0.22, 0.32],
+    yRange: [0.48, 0.58],
+    depth: -0.35,
+    alpha: 0.7,
+    keys: ['fg_tree003', 'fg_tree004'],
+  },
+  // Near row: large, fast, just behind characters â€” lowest start band, only tree003/004 at 4x density
+  {
+    count: 12,
+    speedMult: 1.0,
+    scaleRange: [0.35, 0.45],
+    yRange: [0.56, 0.66],
+    depth: -0.15,
+    alpha: 0.9,
+    keys: ['fg_tree003', 'fg_tree004'],
+  },
+];
+
+export const FERN_ROWS = [
+  // Back fern row (closest to tree backdrop)
+  { speedMult: 0.45, scaleRange: [0.084, 0.112], depth: -0.4, alpha: 0.65, xSpacingMult: 0.6 },
+  // Mid fern row (in front of near tree row at -0.15)
+  { speedMult: 0.65, scaleRange: [0.15, 0.2], depth: -0.14, alpha: 1.0, xSpacingMult: 0.58 },
+  // Front fern row
+  { speedMult: 0.85, scaleRange: [0.18, 0.24], depth: -0.12, alpha: 0.9, xSpacingMult: 0.28 },
+];
+
 export const COLORS = {
   panelBg:      0x111111,
   topBarBg:     0x0a0a0a,
@@ -111,8 +159,8 @@ export const COLORS = {
     levelUp:    '#818cf8',   // indigo
     zoneChange: '#38bdf8',   // sky blue
     loot:       '#a855f7',   // purple
-    defeat:     '#e5e5e5',   // white — enemy defeated
-    prestige:   '#f59e0b',   // amber — prestige events
+    defeat:     '#e5e5e5',   // white â€” enemy defeated
+    prestige:   '#f59e0b',   // amber â€” prestige events
     default:    '#a1a1aa',   // zinc-400
   },
   rarity: {
@@ -150,9 +198,16 @@ export const UI = {
 };
 
 export const ZONE_THEMES = {
-  1: { name: 'Sewers',         layers: [0x1a2a1a, 0x0d1f0d, 0x0a1a0a], images: ['bg002_rear', 'bg002_mid', 'bg002_front'] },
+  1: {
+    name: 'Sewers',
+    layers: [0x1a2a1a, 0x0d1f0d, 0x0a1a0a],
+    images: ['bg002_rear', 'bg002_mid'],
+    trees: ['fg_tree003', 'fg_tree004'],
+    ferns: ['fern', 'fern002'],
+  },
   2: { name: 'Wilderness',     layers: [0x1a2e1a, 0x152815, 0x0d1f0d] },
   3: { name: 'Deep Caverns',   layers: [0x1a1a2e, 0x15152b, 0x0d0d1f] },
   4: { name: 'Volcanic Ruins', layers: [0x2e1a1a, 0x2b1515, 0x1f0d0d] },
   5: { name: "Dragon's Lair",  layers: [0x2e2a1a, 0x2b2515, 0x1f1d0d] },
 };
+
