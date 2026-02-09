@@ -196,10 +196,11 @@ export default class GameScene extends Phaser.Scene {
           tree.img.x -= xSpeed;
           tree.img.y += ySpeed;
 
-          // Perspective growth: scale from spawn (off-screen right) to despawn (left edge)
+          // Perspective growth: scale continuously from spawn to despawn (no clamping)
           if (row.growRange) {
             const spawnX = ga.x + ga.w * 1.5;
-            const progress = 1 - Math.max(0, Math.min(1, (tree.img.x - ga.x) / (spawnX - ga.x)));
+            const despawnX = ga.x - tree.displayW * 0.5;
+            const progress = Math.max(0, (spawnX - tree.img.x) / (spawnX - despawnX));
             const growMult = row.growRange[0] + progress * (row.growRange[1] - row.growRange[0]);
             tree.img.setDisplaySize(tree.displayW * growMult, tree.displayH * growMult);
           }
@@ -221,6 +222,17 @@ export default class GameScene extends Phaser.Scene {
       for (const { row, ferns, yMin, yMax } of this._fernLayers) {
         const xSpeed = frontSpeed * row.speedMult * dt;
         const ySpeed = xSpeed * diagRatio;
+
+        // Find rightmost fern for spacing-aware respawn
+        let rightmostX = ga.x + ga.w;
+        for (const fern of ferns) {
+          if (fern.img.x > rightmostX) rightmostX = fern.img.x;
+        }
+
+        // Compute step from sample fern width + spacing multiplier
+        const sampleW = ferns[0] ? ferns[0].displayW : 40;
+        const step = Math.max(24, sampleW * row.xSpacingMult);
+
         for (const fern of ferns) {
           fern.img.x -= xSpeed;
           fern.img.y += ySpeed;
@@ -234,7 +246,9 @@ export default class GameScene extends Phaser.Scene {
 
           const topY = fern.img.y - fern.displayH;
           if (fern.img.x + fern.displayW * 0.5 < ga.x - 60 || topY > ga.y + ga.h + 80) {
-            fern.img.x = ga.x + ga.w + fern.displayW * 0.5 + 20 + Math.random() * 120;
+            // Place one step after the current rightmost fern with slight jitter
+            fern.img.x = rightmostX + step + (Math.random() - 0.5) * step * 0.3;
+            rightmostX = fern.img.x;
             fern.img.y = yMin + Math.random() * Math.max(1, yMax - yMin);
           }
         }
@@ -803,8 +817,8 @@ export default class GameScene extends Phaser.Scene {
       container.setData('mask', mask);
       container.setData('isFernLayer', true);
 
-      const yMin = rowIdx === 0 ? 380 : rowIdx === 1 ? 415 : rowIdx === 2 ? 445 : rowIdx === 3 ? 500 : bandTop + rowIdx * sliceH;
-      const yMax = rowIdx === 0 ? 380 : rowIdx === 1 ? 450 : rowIdx === 2 ? 490 : rowIdx === 3 ? 550 : bandTop + (rowIdx + 1) * sliceH + sliceH * 0.35;
+      const yMin = rowIdx === 0 ? 375 : rowIdx === 1 ? 415 : rowIdx === 2 ? 445 : rowIdx === 3 ? 540 : bandTop + rowIdx * sliceH;
+      const yMax = rowIdx === 0 ? 380 : rowIdx === 1 ? 450 : rowIdx === 2 ? 490 : rowIdx === 3 ? 560 : bandTop + (rowIdx + 1) * sliceH + sliceH * 0.35;
       const sampleScale = (row.scaleRange[0] + row.scaleRange[1]) * 0.5;
       const sampleTex = this.textures.get(fernKeys[0]).getSourceImage();
       const sampleW = sampleTex.width * sampleScale;
@@ -814,6 +828,7 @@ export default class GameScene extends Phaser.Scene {
       const count = Math.ceil((spawnEndX - spawnStartX) / step);
       const ferns = [];
 
+      let lastX = spawnStartX - step;
       for (let i = 0; i < count; i++) {
         const key = fernKeys[Math.floor(Math.random() * fernKeys.length)];
         const scale = row.scaleRange[0] + Math.random() * (row.scaleRange[1] - row.scaleRange[0]);
@@ -821,8 +836,9 @@ export default class GameScene extends Phaser.Scene {
         const source = tex.getSourceImage();
         const displayW = source.width * scale;
         const displayH = source.height * scale;
-        const jitter = (Math.random() - 0.5) * step * 0.4;
-        const x = spawnStartX + i * step + jitter;
+        // Place at least one step from the previous fern, with slight forward jitter
+        const x = lastX + step + Math.random() * step * 0.15;
+        lastX = x;
         const y = yMin + Math.random() * Math.max(1, yMax - yMin);
         const img = this.add.image(x, y, key).setOrigin(0.5, 1);
         img.setDisplaySize(displayW, displayH);

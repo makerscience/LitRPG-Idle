@@ -1,5 +1,14 @@
 # CHANGELOG
 
+## 2026-02-08 (Parallax Spacing & Growth Tuning)
+- Fixed fern clumping: spacing-aware respawn places each fern one step after the rightmost in its row
+- Initial fern spawn enforces minimum step spacing with small forward jitter (no more overlaps)
+- All tree rows now grow [0.8, 1.5] — continuous scaling from spawn to despawn with no plateau
+- Front fern row moved down (yMin 540, yMax 560); back fern row raised 5px and sped up 20%
+- Mid fern row speed matched to near tree row (speedMult 1.0)
+
+---
+
 ## 2026-02-08 (Parallax Polish Pass)
 - Added dense fern row between mid and near tree rows (depth -0.25, tight spacing)
 - Tree perspective growth now spans full off-screen-to-despawn range (no flat spots)
