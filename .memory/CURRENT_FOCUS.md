@@ -9,12 +9,11 @@
 3. Next: more enemy sprites, playtesting, or Itch.io packaging
 
 ## Next Actions
-- [ ] Playtest full parallax stack: trees, ferns, bare ground, foreground002 — verify depth ordering
 - [ ] Verify zone switching (1→2→1 cycles): all layers destroyed and recreated cleanly
 - [ ] Consider adding trees/ferns config for other zones (currently only Zone 1 has sprite parallax)
 - [ ] Add sprites for other Zone 1 enemies (Green Slime) if art available
 - [ ] Add background images for other zones (currently only Zone 1 has image-based parallax)
-- [ ] Tune treeDiagRatio / fernDiagRatio for best visual feel
+- [ ] Playtest perspective growth effect — verify no jarring size pops on wrap
 
 ## Open Loops / Blockers
 - (none currently)
@@ -35,14 +34,14 @@
 ---
 
 ## Last Session Summary (max ~8 bullets)
-- Replaced strip system with individual tree sprites scrolling diagonally (upper-right → lower-left)
-- Trees use normal PNG transparency — ADD/MULTIPLY/SCREEN blend modes all produced ghost artifacts
-- Added 3 fern depth rows for undergrowth + bare ground overlay (foreground001_bare) between foreground and ferns
-- Tree containers separated from `_parallaxLayers` to avoid main loop interference — scrolled via `_treeLayers` only
-- Bare ground layer at depth -0.48, scrolls at ground speed, top edge at mid fern Y=445
-- Mid fern row depth adjusted to -0.14 (in front of near tree row at -0.15)
-- Config: TREE_ROWS has per-row `keys`, FERN_ROWS for undergrowth, `treeDiagRatio`/`fernDiagRatio` in PARALLAX
-- 8 new image assets committed: 4 trees, 2 ferns, foreground002, foreground001_bare
+- Added perspective growth (`growRange`) to all tree and fern rows — sprites scale up as they travel right → left
+- Trees grow [0.9, 1.3], ferns grow [0.9, 1.1] — creates depth illusion as sprites approach camera
+- Per-row `diagMult: 0.65` controls downward drift independently from global `treeDiagRatio`
+- Tree spawn Y ranges tightened 50% (start closer to end position) for subtler vertical travel
+- Added bare ground overlay (foreground001_bare) at depth -0.48 between foreground and ferns/trees
+- Mid background layer shifted down 30px (midLayerBottomTargetY 330 → 360)
+- Mid fern row opacity increased from 0.7 → 0.85
+- Near tree row growRange end bumped to 1.3, then applied to all rows
 
 ## Pinned References
 - Governance rules: `CLAUDE.md`

@@ -143,8 +143,8 @@ export const FERN_ROWS = [
   { speedMult: 0.45, scaleRange: [0.084, 0.112], depth: -0.4, alpha: 0.65, xSpacingMult: 0.6, growRange: [0.9, 1.1] },
   // Mid fern row (in front of near tree row at -0.15)
   { speedMult: 0.65, scaleRange: [0.135, 0.18], depth: -0.14, alpha: 0.85, xSpacingMult: 0.58, growRange: [0.9, 1.1] },
-  // Front fern row
-  { speedMult: 0.85, scaleRange: [0.18, 0.24], depth: -0.12, alpha: 0.9, xSpacingMult: 0.28, growRange: [0.9, 1.1] },
+  // Front fern row (matches foreground scroll speed)
+  { speedMult: 1.0, scaleRange: [0.18, 0.24], depth: -0.12, alpha: 0.9, xSpacingMult: 0.28, growRange: [0.9, 1.1] },
 ];
 
 export const COLORS = {
