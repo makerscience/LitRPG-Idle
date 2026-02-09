@@ -13,7 +13,6 @@
 - [ ] Consider adding trees/ferns config for other zones (currently only Zone 1 has sprite parallax)
 - [ ] Add sprites for other Zone 1 enemies (Green Slime) if art available
 - [ ] Add background images for other zones (currently only Zone 1 has image-based parallax)
-- [ ] Playtest perspective growth effect — verify no jarring size pops on wrap
 
 ## Open Loops / Blockers
 - (none currently)
@@ -34,14 +33,14 @@
 ---
 
 ## Last Session Summary (max ~8 bullets)
-- Added perspective growth (`growRange`) to all tree and fern rows — sprites scale up as they travel right → left
-- Trees grow [0.9, 1.3], ferns grow [0.9, 1.1] — creates depth illusion as sprites approach camera
-- Per-row `diagMult: 0.65` controls downward drift independently from global `treeDiagRatio`
-- Tree spawn Y ranges tightened 50% (start closer to end position) for subtler vertical travel
-- Added bare ground overlay (foreground001_bare) at depth -0.48 between foreground and ferns/trees
-- Mid background layer shifted down 30px (midLayerBottomTargetY 330 → 360)
-- Mid fern row opacity increased from 0.7 → 0.85
-- Near tree row growRange end bumped to 1.3, then applied to all rows
+- Fixed fern clumping: spacing-aware respawn + initial spawn enforce min step between ferns
+- All tree rows unified to growRange [0.8, 1.5] — continuous scaling from off-screen spawn to despawn
+- Tree growth no longer plateaus at screen edge — scales through full travel range including off-screen
+- 4th dense fern row added between mid/near trees (depth -0.25, tight xSpacingMult 0.3)
+- Near tree row diagMult raised to 1.2; far tree speedMult raised to 0.48
+- Mid bg scroll slowed to 0.4× front speed and shifted down to Y=380
+- Front fern row repositioned (yMin 540, yMax 560); back fern row raised to 375 and sped up 20%
+- Tree spawn extended to 1.5× screen width with tighter wrap padding to eliminate gaps
 
 ## Pinned References
 - Governance rules: `CLAUDE.md`
