@@ -22,7 +22,7 @@ export default class GameScene extends Phaser.Scene {
     const ga = LAYOUT.gameArea;
     const playerX = ga.x + 200;
     this._enemyX = ga.x + 700;
-    this._combatY = ga.y + ga.h - 220;
+    this._combatY = ga.y + ga.h - 225;
     this._enemyY = this._combatY + 60;
 
     // Create parallax background first (lowest depth)
@@ -40,9 +40,26 @@ export default class GameScene extends Phaser.Scene {
     this._hpBarY = ga.y + ga.h - 60;
     this._nameLabelY = this._hpBarY - 18;
 
-    // Player sprite
-    this.playerRect = this.add.image(playerX, this._combatY, 'player001_default');
+    // Player walk animation
+    this._walkFrames = ['player001_walk1', 'player001_walk3'];
+    this._walkIndex = 0;
+
+    // Player sprite — start with first walk frame
+    this.playerRect = this.add.image(playerX, this._combatY, 'player001_walk1');
     this.playerRect.setDisplaySize(300, 375);
+
+    // Looping walk cycle timer (~150ms per frame)
+    this._walkTimer = this.time.addEvent({
+      delay: 450,
+      loop: true,
+      callback: () => {
+        this._walkIndex = (this._walkIndex + 1) % this._walkFrames.length;
+        const key = this._walkFrames[this._walkIndex];
+        this.playerRect.setTexture(key);
+        const scale = key === 'player001_walk3' ? 1.05 : 1;
+        this.playerRect.setDisplaySize(300 * scale, 375 * scale);
+      },
+    });
     this.playerNameText = this.add.text(playerX, this._nameLabelY, 'Player', {
       fontFamily: 'monospace', fontSize: '16px', color: '#ffffff',
       stroke: '#000000', strokeThickness: 4,
@@ -336,16 +353,20 @@ export default class GameScene extends Phaser.Scene {
     }
     this.hpBarFill.setFillStyle(color);
 
-    // Player attack pose â€” random sprite for 400ms, then revert
+    // Player attack pose â€" random sprite for 400ms, then revert to walk cycle
     const attackKey = this._playerAttackSprites[
       Math.floor(Math.random() * this._playerAttackSprites.length)
     ];
+    this._walkTimer.paused = true;
     this.playerRect.setTexture(attackKey);
-    this.playerRect.setDisplaySize(300, 375);
+    if (attackKey === 'player001_roundhousekick') {
+      this.playerRect.setDisplaySize(300 * 0.95, 375 * 0.95);
+    } else {
+      this.playerRect.setDisplaySize(300, 375);
+    }
     if (this._playerPoseTimer) this._playerPoseTimer.remove();
     this._playerPoseTimer = this.time.delayedCall(400, () => {
-      this.playerRect.setTexture('player001_default');
-      this.playerRect.setDisplaySize(300, 375);
+      this._walkTimer.paused = false;
     });
 
     // Floating damage number (magnitude-tiered)
@@ -583,7 +604,8 @@ export default class GameScene extends Phaser.Scene {
       });
     }
 
-    // Player hit reaction pose for 400ms, then revert
+    // Player hit reaction pose for 400ms, then revert to walk cycle
+    this._walkTimer.paused = true;
     this.playerRect.setTexture('player001_hitreaction');
     this.playerRect.setDisplaySize(300, 375);
     this.playerRect.setTint(0xef4444);
@@ -592,8 +614,7 @@ export default class GameScene extends Phaser.Scene {
     });
     if (this._playerPoseTimer) this._playerPoseTimer.remove();
     this._playerPoseTimer = this.time.delayedCall(400, () => {
-      this.playerRect.setTexture('player001_default');
-      this.playerRect.setDisplaySize(300, 375);
+      this._walkTimer.paused = false;
     });
   }
 
