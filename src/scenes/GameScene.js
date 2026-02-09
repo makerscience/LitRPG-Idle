@@ -185,17 +185,25 @@ export default class GameScene extends Phaser.Scene {
       }
     }
 
-    // Scroll tree layers (diagonal: upper-right â†’ lower-left)
+    // Scroll tree layers (diagonal: upper-right â†' lower-left)
     if (this._treeLayers.length > 0) {
       const frontSpeed = PARALLAX.baseSpeedPxPerSec * 3;
       const diagRatio = PARALLAX.treeDiagRatio;
       for (const { row, trees } of this._treeLayers) {
         const xSpeed = frontSpeed * row.speedMult * dt;
-        const ySpeed = xSpeed * diagRatio;
+        const ySpeed = xSpeed * diagRatio * (row.diagMult ?? 1);
         for (const tree of trees) {
           tree.img.x -= xSpeed;
           tree.img.y += ySpeed;
-          // Wrap: past left edge or below game area â†’ reset to upper-right off-screen
+
+          // Perspective growth: scale up as tree travels right → left
+          if (row.growRange) {
+            const progress = 1 - Math.max(0, Math.min(1, (tree.img.x - ga.x) / ga.w));
+            const growMult = row.growRange[0] + progress * (row.growRange[1] - row.growRange[0]);
+            tree.img.setDisplaySize(tree.displayW * growMult, tree.displayH * growMult);
+          }
+
+          // Wrap: past left edge or below game area â†' reset to upper-right off-screen
           const topY = tree.img.y - tree.displayH;
           if (tree.img.x + tree.displayW * 0.5 < ga.x || topY > ga.y + ga.h + 50) {
             tree.img.x = ga.x + ga.w + tree.displayW * 0.5 + 20 + Math.random() * 100;
@@ -215,6 +223,13 @@ export default class GameScene extends Phaser.Scene {
         for (const fern of ferns) {
           fern.img.x -= xSpeed;
           fern.img.y += ySpeed;
+
+          // Perspective growth: scale up as fern travels right → left
+          if (row.growRange) {
+            const progress = 1 - Math.max(0, Math.min(1, (fern.img.x - ga.x) / ga.w));
+            const growMult = row.growRange[0] + progress * (row.growRange[1] - row.growRange[0]);
+            fern.img.setDisplaySize(fern.displayW * growMult, fern.displayH * growMult);
+          }
 
           const topY = fern.img.y - fern.displayH;
           if (fern.img.x + fern.displayW * 0.5 < ga.x - 60 || topY > ga.y + ga.h + 80) {
@@ -628,7 +643,7 @@ export default class GameScene extends Phaser.Scene {
     const ga = LAYOUT.gameArea;
     const skyH = Math.floor(ga.h * 0.83);
     const battleBottomY = ga.y + ga.h;
-    const midLayerBottomTargetY = 330;
+    const midLayerBottomTargetY = 360;
     const foregroundTopTargetY = 270;
 
     if (theme.images) {

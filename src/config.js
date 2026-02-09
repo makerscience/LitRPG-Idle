@@ -100,45 +100,51 @@ export const PARALLAX = {
 };
 
 export const TREE_ROWS = [
-  // Far row: small, slow, behind ground â€” highest start band
+  // Far row: small, slow, behind ground â€" highest start band
   {
     count: 24,
     speedMult: 0.4,
     scaleRange: [0.15, 0.22],
-    yRange: [0.40, 0.50],
+    yRange: [0.45, 0.50],
     depth: -0.45,
     alpha: 0.5,
+    diagMult: 0.65,
+    growRange: [0.9, 1.3],
     keys: ['fg_tree003', 'fg_tree004'],
   },
-  // Mid row: medium, in front of ground â€” middle start band
+  // Mid row: medium, in front of ground â€" middle start band
   {
     count: 16,
     speedMult: 0.7,
     scaleRange: [0.22, 0.32],
-    yRange: [0.48, 0.58],
+    yRange: [0.53, 0.58],
     depth: -0.35,
     alpha: 0.7,
+    diagMult: 0.65,
+    growRange: [0.9, 1.3],
     keys: ['fg_tree003', 'fg_tree004'],
   },
-  // Near row: large, fast, just behind characters â€” lowest start band, only tree003/004 at 4x density
+  // Near row: large, fast, just behind characters â€" lowest start band, only tree003/004 at 4x density
   {
     count: 12,
     speedMult: 1.0,
     scaleRange: [0.35, 0.45],
-    yRange: [0.56, 0.66],
+    yRange: [0.61, 0.66],
     depth: -0.15,
     alpha: 0.9,
+    diagMult: 0.65,
+    growRange: [0.9, 1.3],
     keys: ['fg_tree003', 'fg_tree004'],
   },
 ];
 
 export const FERN_ROWS = [
   // Back fern row (closest to tree backdrop)
-  { speedMult: 0.45, scaleRange: [0.084, 0.112], depth: -0.4, alpha: 0.65, xSpacingMult: 0.6 },
+  { speedMult: 0.45, scaleRange: [0.084, 0.112], depth: -0.4, alpha: 0.65, xSpacingMult: 0.6, growRange: [0.9, 1.1] },
   // Mid fern row (in front of near tree row at -0.15)
-  { speedMult: 0.65, scaleRange: [0.15, 0.2], depth: -0.14, alpha: 1.0, xSpacingMult: 0.58 },
+  { speedMult: 0.65, scaleRange: [0.135, 0.18], depth: -0.14, alpha: 0.85, xSpacingMult: 0.58, growRange: [0.9, 1.1] },
   // Front fern row
-  { speedMult: 0.85, scaleRange: [0.18, 0.24], depth: -0.12, alpha: 0.9, xSpacingMult: 0.28 },
+  { speedMult: 0.85, scaleRange: [0.18, 0.24], depth: -0.12, alpha: 0.9, xSpacingMult: 0.28, growRange: [0.9, 1.1] },
 ];
 
 export const COLORS = {

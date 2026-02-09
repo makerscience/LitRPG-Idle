@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 2026-02-08 (Parallax Depth & Perspective Tuning)
+- Perspective growth: trees and ferns scale from 90% → 130% (trees) / 110% (ferns) as they travel right to left
+- Per-row `diagMult` controls downward drift rate independently from global `treeDiagRatio`
+- Tree spawn Y ranges tightened (50% closer to end position) for subtler vertical travel
+- Mid background layer shifted down 30px; mid fern row opacity increased to 0.85
+
 ## 2026-02-08 (Tree & Fern Parallax Overhaul)
 - Replaced front layer strip system with individual tree sprites scrolling diagonally (upper-right → lower-left)
 - Trees render as normal sprites with PNG transparency — no blend mode tricks needed

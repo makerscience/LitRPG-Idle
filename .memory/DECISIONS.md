@@ -31,4 +31,18 @@ Format:
 - Alternatives considered: Store as class instance, SaveManager importing Store directly.
 - Consequences / Follow-ups: Every new state field needs a corresponding mutation method or integration into an existing one.
 
+## 2026-02-08
+- Tags: architecture, failure-mode
+- Decision: Tree/fern sprites use normal blend mode (NORMAL) with PNG alpha transparency. No ADD, MULTIPLY, or SCREEN.
+- Rationale: Tree images have dark-but-not-black backgrounds behind transparent areas. ADD/SCREEN made the non-black pixels visible as ghostly rectangles. MULTIPLY only works for white-bg images. PNG alpha handles it correctly with no blend tricks.
+- Alternatives considered: ADD (ghost rectangles), SCREEN (same issue, slightly less), MULTIPLY (only works on white-bg tree003).
+- Consequences / Follow-ups: Future foreground sprites should be PNGs with transparent backgrounds — no need for blend mode config per asset.
+
+## 2026-02-08
+- Tags: architecture
+- Decision: Tree containers tracked in `_treeLayers` separately from `_parallaxLayers`. Not added to the main parallax array.
+- Rationale: Main parallax loop's fallback branch was interfering with tree movement. Separating them ensures only the dedicated diagonal scroll code moves trees.
+- Alternatives considered: `isTreeLayer` data flag with continue in main loop (caused intermittent issues).
+- Consequences / Follow-ups: `_destroyParallax()` must iterate `_treeLayers` separately for cleanup.
+
 Tip: Search with `rg "Tags:.*workflow" .memory/DECISIONS.md`
