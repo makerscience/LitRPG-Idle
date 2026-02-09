@@ -1,5 +1,15 @@
 # CHANGELOG
 
+## 2026-02-08 (Parallax Polish Pass)
+- Added dense fern row between mid and near tree rows (depth -0.25, tight spacing)
+- Tree perspective growth now spans full off-screen-to-despawn range (no flat spots)
+- Near tree row downward drift increased to diagMult 1.2; far row speed bumped 20%
+- Mid background scroll slowed to 0.4× front speed; shifted down to Y=380
+- Back fern row moved down 5px and made less transparent (alpha 0.85)
+- Tree wrap padding tightened (0–30px) and spawn range extended to 1.5× screen width for fewer gaps
+
+---
+
 ## 2026-02-08 (Parallax Depth & Perspective Tuning)
 - Perspective growth: trees and ferns scale from 90% → 130% (trees) / 110% (ferns) as they travel right to left
 - Per-row `diagMult` controls downward drift rate independently from global `treeDiagRatio`

@@ -133,7 +133,7 @@ export default class GameScene extends Phaser.Scene {
         // Dual-image horizontal scroll (delta-based)
         const children = layer.getAll();
         const imgW = layer.getData('imgW');
-        const speed = PARALLAX.baseSpeedPxPerSec * (i + 1) * dt;
+        const speed = PARALLAX.baseSpeedPxPerSec * 3 * 0.4 * dt;
         for (const child of children) {
           child.x -= speed;
         }
@@ -196,9 +196,10 @@ export default class GameScene extends Phaser.Scene {
           tree.img.x -= xSpeed;
           tree.img.y += ySpeed;
 
-          // Perspective growth: scale up as tree travels right → left
+          // Perspective growth: scale from spawn (off-screen right) to despawn (left edge)
           if (row.growRange) {
-            const progress = 1 - Math.max(0, Math.min(1, (tree.img.x - ga.x) / ga.w));
+            const spawnX = ga.x + ga.w * 1.5;
+            const progress = 1 - Math.max(0, Math.min(1, (tree.img.x - ga.x) / (spawnX - ga.x)));
             const growMult = row.growRange[0] + progress * (row.growRange[1] - row.growRange[0]);
             tree.img.setDisplaySize(tree.displayW * growMult, tree.displayH * growMult);
           }
@@ -206,7 +207,7 @@ export default class GameScene extends Phaser.Scene {
           // Wrap: past left edge or below game area â†' reset to upper-right off-screen
           const topY = tree.img.y - tree.displayH;
           if (tree.img.x + tree.displayW * 0.5 < ga.x || topY > ga.y + ga.h + 50) {
-            tree.img.x = ga.x + ga.w + tree.displayW * 0.5 + 20 + Math.random() * 100;
+            tree.img.x = ga.x + ga.w + tree.displayW * 0.5 + Math.random() * 30;
             tree.img.y = ga.y + ga.h * row.yRange[0] + Math.random() * 30;
           }
         }
@@ -643,7 +644,7 @@ export default class GameScene extends Phaser.Scene {
     const ga = LAYOUT.gameArea;
     const skyH = Math.floor(ga.h * 0.83);
     const battleBottomY = ga.y + ga.h;
-    const midLayerBottomTargetY = 360;
+    const midLayerBottomTargetY = 380;
     const foregroundTopTargetY = 270;
 
     if (theme.images) {
@@ -763,9 +764,10 @@ export default class GameScene extends Phaser.Scene {
         const displayW = 1024 * scale;
         const displayH = 1536 * scale;
 
-        // Distribute trees along the diagonal path with random progress
-        const progress = i / row.count + (Math.random() * 0.5) / row.count;
-        const x = ga.x + ga.w * (1 - progress);
+        // Distribute trees across 1.5× screen width so off-screen trees are queued on the right
+        const spawnWidth = ga.w * 1.5;
+        const progress = i / row.count + (Math.random() * 0.3) / row.count;
+        const x = ga.x + spawnWidth * (1 - progress);
         const y = yStart + diagDrop * progress;
 
         const img = this.add.image(x, y, key).setOrigin(0.5, 1);
@@ -801,8 +803,8 @@ export default class GameScene extends Phaser.Scene {
       container.setData('mask', mask);
       container.setData('isFernLayer', true);
 
-      const yMin = rowIdx === 0 ? 375 : rowIdx === 1 ? 445 : rowIdx === 2 ? 500 : bandTop + rowIdx * sliceH;
-      const yMax = rowIdx === 0 ? 380 : rowIdx === 1 ? 490 : rowIdx === 2 ? 550 : bandTop + (rowIdx + 1) * sliceH + sliceH * 0.35;
+      const yMin = rowIdx === 0 ? 380 : rowIdx === 1 ? 415 : rowIdx === 2 ? 445 : rowIdx === 3 ? 500 : bandTop + rowIdx * sliceH;
+      const yMax = rowIdx === 0 ? 380 : rowIdx === 1 ? 450 : rowIdx === 2 ? 490 : rowIdx === 3 ? 550 : bandTop + (rowIdx + 1) * sliceH + sliceH * 0.35;
       const sampleScale = (row.scaleRange[0] + row.scaleRange[1]) * 0.5;
       const sampleTex = this.textures.get(fernKeys[0]).getSourceImage();
       const sampleW = sampleTex.width * sampleScale;

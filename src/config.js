@@ -103,7 +103,7 @@ export const TREE_ROWS = [
   // Far row: small, slow, behind ground â€" highest start band
   {
     count: 24,
-    speedMult: 0.4,
+    speedMult: 0.48,
     scaleRange: [0.15, 0.22],
     yRange: [0.45, 0.50],
     depth: -0.45,
@@ -132,7 +132,7 @@ export const TREE_ROWS = [
     yRange: [0.61, 0.66],
     depth: -0.15,
     alpha: 0.9,
-    diagMult: 0.65,
+    diagMult: 1.2,
     growRange: [0.9, 1.3],
     keys: ['fg_tree003', 'fg_tree004'],
   },
@@ -140,9 +140,11 @@ export const TREE_ROWS = [
 
 export const FERN_ROWS = [
   // Back fern row (closest to tree backdrop)
-  { speedMult: 0.45, scaleRange: [0.084, 0.112], depth: -0.4, alpha: 0.65, xSpacingMult: 0.6, growRange: [0.9, 1.1] },
-  // Mid fern row (in front of near tree row at -0.15)
-  { speedMult: 0.65, scaleRange: [0.135, 0.18], depth: -0.14, alpha: 0.85, xSpacingMult: 0.58, growRange: [0.9, 1.1] },
+  { speedMult: 0.45, scaleRange: [0.084, 0.112], depth: -0.4, alpha: 0.85, xSpacingMult: 0.6, growRange: [0.9, 1.1] },
+  // Dense fern row (between mid and near tree rows)
+  { speedMult: 0.85, scaleRange: [0.096, 0.128], depth: -0.25, alpha: 0.9, xSpacingMult: 0.3, growRange: [0.9, 1.1] },
+  // Mid fern row (in front of near tree row at -0.15, matches near tree speed)
+  { speedMult: 1.0, scaleRange: [0.135, 0.18], depth: -0.14, alpha: 0.85, xSpacingMult: 0.58, growRange: [0.9, 1.1] },
   // Front fern row (matches foreground scroll speed)
   { speedMult: 1.0, scaleRange: [0.18, 0.24], depth: -0.12, alpha: 0.9, xSpacingMult: 0.28, growRange: [0.9, 1.1] },
 ];
