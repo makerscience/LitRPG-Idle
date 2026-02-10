@@ -9,7 +9,7 @@ export const DAMAGE_FORMULAS = {
 export const COMBAT = {
   critChance: 0.05,
   critMultiplier: 2,
-  autoAttackInterval: 800,    // ms
+  autoAttackInterval: 1600,   // ms
   spawnDelay: 1000,           // ms after kill before next enemy
   enemyAttackInterval: 3000,       // ms â€” enemy attacks every 3 seconds
   playerHpPerVit: 10,              // max HP = vit * playerHpPerVit
@@ -79,7 +79,7 @@ export const CHEATS = {
 };
 
 export const SAVE = {
-  schemaVersion: 5,
+  schemaVersion: 6,
   autosaveInterval: 30_000,   // ms
   maxOfflineTime: 12 * 60 * 60 * 1000,  // 12 hours in ms
 };
@@ -91,6 +91,18 @@ export const LAYOUT = {
   logPanel:       { x: 960, y: 201, w: 320, h: 519 },
   bottomBar:      { x: 0, y: 670, w: 960, h: 50 },   // placeholder for Phase 6 cheat deck
   zoneNav:        { y: 70, centerX: 480 },             // relative to gameArea top
+};
+
+export const TERRITORY = {
+  nodeRadius: 28,
+  colors: {
+    locked:    0x444444,
+    unlocked:  0x666666,
+    claimable: 0x22c55e,
+    conquered: 0xeab308,
+  },
+  infoPanelX: 600,
+  infoPanelW: 340,
 };
 
 export const PARALLAX = {

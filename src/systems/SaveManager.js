@@ -50,6 +50,13 @@ const migrations = {
     data.schemaVersion = 5;
     return data;
   },
+  6: (data) => {
+    data.killsPerEnemy = data.killsPerEnemy || {};
+    data.territories = data.territories || {};
+    if (data.flags) data.flags.firstTerritoryClaim = data.flags.firstTerritoryClaim ?? false;
+    data.schemaVersion = 6;
+    return data;
+  },
 };
 
 /** Run all applicable migrations in order. */

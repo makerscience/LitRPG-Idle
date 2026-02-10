@@ -11,6 +11,7 @@ import {
   CHEAT_TOGGLE_ON, CHEAT_TOGGLE_OFF,
   PRESTIGE_AVAILABLE, PRESTIGE_PERFORMED, PRESTIGE_PERFORMED_DEFAULT, POST_PRESTIGE_COMBAT,
   BIG_DAMAGE, AMBIENT_SNARK, INVENTORY_FULL,
+  FIRST_TERRITORY_CLAIM, TERRITORY_CLAIM_COMMENTARY,
 } from '../data/dialogue.js';
 
 let unsubs = [];
@@ -172,6 +173,20 @@ const DialogueManager = {
       TimeEngine.scheduleOnce('dialogue:prestigeSnark', () => {
         say(pick(POST_PRESTIGE_COMBAT), 'sarcastic');
       }, 5000);
+    }));
+
+    // ── Territory claims ─────────────────────────────────────────
+    unsubs.push(on(EVENTS.TERRITORY_CLAIMED, () => {
+      const state = Store.getState();
+      if (!state.flags.firstTerritoryClaim) {
+        Store.setFlag('firstTerritoryClaim', true);
+        say(pick(FIRST_TERRITORY_CLAIM), 'sarcastic', 'Territory claimed');
+        return;
+      }
+      if (Math.random() < 0.5 && !isOnCooldown('territoryClaim', 30000)) {
+        setCooldown('territoryClaim');
+        say(pick(TERRITORY_CLAIM_COMMENTARY), 'sarcastic');
+      }
     }));
 
     // ── Big damage (>1M, 15s cooldown) ───────────────────────────

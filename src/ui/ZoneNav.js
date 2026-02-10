@@ -63,6 +63,21 @@ export default class ZoneNav {
     Store.setZone(state.currentWorld, newZone);
   }
 
+  show() {
+    this.leftArrow.setVisible(true);
+    this.zoneLabel.setVisible(true);
+    this.rightArrow.setVisible(true);
+    this._refresh();
+  }
+
+  hide() {
+    this.leftArrow.setVisible(false);
+    this.zoneLabel.setVisible(false);
+    this.rightArrow.setVisible(false);
+    this.leftArrow.disableInteractive();
+    this.rightArrow.disableInteractive();
+  }
+
   destroy() {
     for (const unsub of this._unsubs) unsub();
     this._unsubs = [];

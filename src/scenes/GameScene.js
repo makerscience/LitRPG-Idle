@@ -130,6 +130,9 @@ export default class GameScene extends Phaser.Scene {
     // Launch UI overlay scene (parallel, not replacing this scene)
     this.scene.launch('UIScene');
 
+    // Launch OverworldScene (starts sleeping — toggled by UIScene via M key)
+    this.scene.launch('OverworldScene');
+
     console.log('[GameScene] create â€” combat initialized');
   }
 
@@ -925,6 +928,7 @@ export default class GameScene extends Phaser.Scene {
   }
 
   _shutdown() {
+    this.scene.stop('OverworldScene');
     this.scene.stop('UIScene');
     for (const unsub of this._unsubs) unsub();
     this._unsubs = [];

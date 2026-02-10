@@ -42,6 +42,10 @@ export const EVENTS = {
   PRESTIGE_AVAILABLE:   'prestige:available',
   PRESTIGE_PERFORMED:   'prestige:performed',
 
+  // Territory
+  TERRITORY_CLAIMED:          'territory:claimed',
+  TERRITORY_PROGRESS_UPDATED: 'territory:progressUpdated',
+
   // Dialogue / UI
   DIALOGUE_QUEUED:      'dialogue:queued',
   DIALOGUE_DISPLAYED:   'dialogue:displayed',

@@ -1,5 +1,14 @@
 # CHANGELOG
 
+## 2026-02-10 (Overworld Territory Map)
+- Added overworld map overlay (M key / MAP button) with 13 conquerable territories across 5 zones
+- Each territory requires kill threshold + gold cost to claim, grants a permanent buff (gold gain, XP, crit, STR, VIT, HP regen, damage, attack speed, fragment drops, max HP)
+- Territory progress and conquered status persist across prestige resets
+- Buff integration: CombatEngine (damage, gold, XP, crit, regen, max HP), LootEngine (fragment drops), UpgradeManager (attack speed)
+- Save schema bumped to v6 with migration for killsPerEnemy/territories state
+
+---
+
 ## 2026-02-08 (Parallax Spacing & Growth Tuning)
 - Fixed fern clumping: spacing-aware respawn places each fern one step after the rightmost in its row
 - Initial fern spawn enforces minimum step spacing with small forward jitter (no more overlaps)

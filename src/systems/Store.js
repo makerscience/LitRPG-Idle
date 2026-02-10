@@ -36,8 +36,10 @@ function createInitialState() {
     unlockedCheats: [],
     activeCheats: {},
     titles: [],
-    flags: { crackTriggered: false, firstKill: false, firstLevelUp: false, reachedZone2: false, reachedZone3: false, reachedZone4: false, reachedZone5: false, firstEquip: false, firstFragment: false, firstMerge: false, firstPrestige: false, firstSell: false, kills100: false, kills500: false, kills1000: false, kills5000: false },
+    flags: { crackTriggered: false, firstKill: false, firstLevelUp: false, reachedZone2: false, reachedZone3: false, reachedZone4: false, reachedZone5: false, firstEquip: false, firstFragment: false, firstMerge: false, firstPrestige: false, firstSell: false, kills100: false, kills500: false, kills1000: false, kills5000: false, firstTerritoryClaim: false },
     settings: { autoAttack: false },
+    killsPerEnemy: {},
+    territories: {},
     timestamps: { lastSave: 0, lastOnline: 0 },
   };
 }
@@ -86,6 +88,8 @@ function hydrateState(saved) {
   if (saved.flags) fresh.flags = { ...fresh.flags, ...saved.flags };
   if (saved.settings) fresh.settings = { ...fresh.settings, ...saved.settings };
   if (saved.timestamps) fresh.timestamps = { ...fresh.timestamps, ...saved.timestamps };
+  if (saved.killsPerEnemy) fresh.killsPerEnemy = { ...saved.killsPerEnemy };
+  if (saved.territories) fresh.territories = JSON.parse(JSON.stringify(saved.territories));
 
   return fresh;
 }
@@ -201,6 +205,7 @@ const Store = {
     state.totalKills = 0;
 
     // Keeps: equipped, inventoryStacks, glitchFragments, unlockedCheats, activeCheats, titles, flags
+    // Keeps: killsPerEnemy, territories (permanent progression)
     emit(EVENTS.WORLD_ZONE_CHANGED, { world: 1, zone: 1 });
     emit(EVENTS.STATE_CHANGED, { changedKeys: ['all'] });
   },
@@ -315,6 +320,17 @@ const Store = {
 
   incrementKills() {
     state.totalKills += 1;
+  },
+
+  incrementEnemyKills(enemyId) {
+    if (!state.killsPerEnemy[enemyId]) state.killsPerEnemy[enemyId] = 0;
+    state.killsPerEnemy[enemyId] += 1;
+    // High frequency — no event emit (TerritoryManager reads directly)
+  },
+
+  conquerTerritory(territoryId) {
+    state.territories[territoryId] = { conquered: true, conqueredAt: Date.now() };
+    emit(EVENTS.STATE_CHANGED, { changedKeys: ['territories'] });
   },
 
   updateTimestamps(partial) {

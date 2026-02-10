@@ -12,12 +12,15 @@ import InventorySystem from './systems/InventorySystem.js';
 import UpgradeManager from './systems/UpgradeManager.js';
 import CheatManager from './systems/CheatManager.js';
 import PrestigeManager from './systems/PrestigeManager.js';
+import TerritoryManager from './systems/TerritoryManager.js';
+import OverworldScene from './scenes/OverworldScene.js';
 
 // ── Boot sequence ───────────────────────────────────────────────────
 Store.init();
 SaveManager.init(Store);
 TimeEngine.init();
 LootEngine.init();
+TerritoryManager.init();
 
 const config = {
   type: Phaser.AUTO,
@@ -30,7 +33,7 @@ const config = {
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
   physics: { default: false },
-  scene: [BootScene, GameScene, UIScene],
+  scene: [BootScene, GameScene, UIScene, OverworldScene],
 };
 
 const game = new Phaser.Game(config);
@@ -46,4 +49,5 @@ if (import.meta.env.DEV) {
   window.UpgradeManager = UpgradeManager;
   window.CheatManager = CheatManager;
   window.PrestigeManager = PrestigeManager;
+  window.TerritoryManager = TerritoryManager;
 }

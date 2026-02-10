@@ -5,6 +5,7 @@ import Store from './Store.js';
 import { on, emit, EVENTS } from '../events.js';
 import { INVENTORY, LOOT, ECONOMY, CHEATS } from '../config.js';
 import InventorySystem from './InventorySystem.js';
+import TerritoryManager from './TerritoryManager.js';
 
 let unsubs = [];
 
@@ -68,7 +69,8 @@ const LootEngine = {
   _rollFragmentDrop() {
     const state = Store.getState();
     if (!state.flags.crackTriggered) return;
-    if (Math.random() < ECONOMY.fragmentDropChance) {
+    const dropChance = ECONOMY.fragmentDropChance * TerritoryManager.getBuffMultiplier('fragmentDropRate');
+    if (Math.random() < dropChance) {
       Store.addFragments(1);
     }
   },

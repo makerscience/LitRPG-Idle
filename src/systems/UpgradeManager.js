@@ -6,6 +6,7 @@ import { D } from './BigNum.js';
 import { emit, EVENTS } from '../events.js';
 import { COMBAT } from '../config.js';
 import { getUpgrade, getAllUpgrades } from '../data/upgrades.js';
+import TerritoryManager from './TerritoryManager.js';
 
 const UpgradeManager = {
   getLevel(upgradeId) {
@@ -98,7 +99,8 @@ const UpgradeManager = {
   /** Computed auto-attack interval, floored at 200ms. */
   getAutoAttackInterval() {
     const speedBonus = this.getMultiplier('autoAttackSpeed') - 1; // strip the base 1
-    const interval = COMBAT.autoAttackInterval * (1 - speedBonus);
+    const territoryBonus = TerritoryManager.getBuffValue('autoAttackSpeed');
+    const interval = COMBAT.autoAttackInterval * (1 - speedBonus - territoryBonus);
     return Math.max(200, interval);
   },
 };

@@ -174,6 +174,11 @@ export default class SystemLog {
       const mult = PRESTIGE.multiplierFormula(data.count);
       this.addLine(`PRESTIGE #${data.count}! Multiplier: x${mult.toFixed(2)}`, 'prestige');
     }));
+
+    // Territory claimed
+    this._unsubs.push(on(EVENTS.TERRITORY_CLAIMED, (data) => {
+      this.addLine(`Territory claimed: ${data.name} [${data.buff.label}]`, 'system');
+    }));
   }
 
   _flushKill() {

@@ -4,23 +4,26 @@
 - Building a LitRPG idle/clicker game with a snarky SYSTEM narrator, using Phaser + Vite + break_infinity.js.
 
 ## Active Objectives (max 3)
-1. All 8 phases + sprite/HP system implemented — MVP feature-complete
-2. SYSTEM dialogue window with emotion-based styling implemented
-3. Next: more enemy sprites, playtesting, or Itch.io packaging
+1. Overworld Territory Map implemented (13 territories, buffs, overlay scene, claim flow)
+2. Phase 2 deferred: `allIncome` + `prestigeMultiplier` buff integration needs balance testing
+3. Next: playtesting territory balance, visual polish, or additional features
 
 ## Next Actions
-- [ ] Verify zone switching (1→2→1 cycles): all layers destroyed and recreated cleanly
-- [ ] Consider adding trees/ferns config for other zones (currently only Zone 1 has sprite parallax)
-- [ ] Add sprites for other Zone 1 enemies (Green Slime) if art available
-- [ ] Add background images for other zones (currently only Zone 1 has image-based parallax)
+- [ ] Playtest territory claim flow end-to-end (kill enemies, open map, claim, verify buff)
+- [ ] Verify map overlay renders correctly over game area with UIScene elements visible
+- [ ] Test save/load with territory state (killsPerEnemy + territories persistence)
+- [ ] Test prestige with territories (should NOT reset kills or conquered territories)
+- [ ] Add Phase 2 buff integration: `allIncome` and `prestigeMultiplier` after balance testing
+- [ ] Consider visual polish: node icons, territory images, transition animations
 
 ## Open Loops / Blockers
-- (none currently)
+- `allIncome` and `prestigeMultiplier` territory buffs are defined in data but NOT yet integrated into gameplay systems (deferred to Phase 2)
+- `getEffectiveMaxHp()` in CombatEngine accounts for flatVit + maxHp territory buffs, but Store's `healPlayer()` and `damagePlayer()` still use base max HP — may need alignment if HP display shows incorrect max
 
 ## How to Resume in 30 Seconds
 - **Open:** `.memory/CURRENT_FOCUS.md`
-- **Next:** Execute the first unchecked item in "Next Actions"
-- **If unclear:** Check `Current Phase Plan.md` for Phase 8 verification checklist
+- **Next:** Playtest the territory map (press M key in-game)
+- **If unclear:** Check the implementation plan in `Overworld Territory Map Plan.md`
 
 ## Key Context
 - Tech stack: Phaser 3, Vite 7, break_infinity.js, localStorage saves
@@ -33,14 +36,14 @@
 ---
 
 ## Last Session Summary (max ~8 bullets)
-- Fixed fern clumping: spacing-aware respawn + initial spawn enforce min step between ferns
-- All tree rows unified to growRange [0.8, 1.5] — continuous scaling from off-screen spawn to despawn
-- Tree growth no longer plateaus at screen edge — scales through full travel range including off-screen
-- 4th dense fern row added between mid/near trees (depth -0.25, tight xSpacingMult 0.3)
-- Near tree row diagMult raised to 1.2; far tree speedMult raised to 0.48
-- Mid bg scroll slowed to 0.4× front speed and shifted down to Y=380
-- Front fern row repositioned (yMin 540, yMax 560); back fern row raised to 375 and sped up 20%
-- Tree spawn extended to 1.5× screen width with tighter wrap padding to eliminate gaps
+- Created `src/data/territories.js` with 13 territory definitions (map positions, buffs, costs)
+- Added `TERRITORY_CLAIMED` and `TERRITORY_PROGRESS_UPDATED` events
+- Added `TERRITORY` config block and bumped save schema to v6
+- Added `killsPerEnemy` and `territories` to Store with hydration and prestige persistence
+- Created `TerritoryManager` singleton (kill tracking, claim flow, buff aggregation)
+- Integrated territory buffs into CombatEngine (STR, crit, baseDamage, goldGain, xpGain, hpRegen, maxHp, flatVit), LootEngine (fragmentDropRate), UpgradeManager (autoAttackSpeed)
+- Created `OverworldScene` with interactive map nodes, info panel, and claim UI
+- Added MAP button + M key toggle in UIScene, ZoneNav show/hide, SystemLog + DialogueManager territory hooks
 
 ## Pinned References
 - Governance rules: `CLAUDE.md`

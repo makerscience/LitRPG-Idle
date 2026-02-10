@@ -45,4 +45,18 @@ Format:
 - Alternatives considered: `isTreeLayer` data flag with continue in main loop (caused intermittent issues).
 - Consequences / Follow-ups: `_destroyParallax()` must iterate `_treeLayers` separately for cleanup.
 
+## 2026-02-10
+- Tags: architecture
+- Decision: Overworld Territory Map runs as a parallel overlay scene (OverworldScene). GameScene stays active underneath so TimeEngine.update() keeps ticking. OverworldScene does NOT touch TimeEngine.
+- Rationale: Eliminates double-tick and pause bugs. Map is opaque bg over game area, UIScene elements (TopBar, Log, Dialogue) remain visible since they're outside the game area rect.
+- Alternatives considered: Sleep/wake GameScene when map opens (would pause combat). Run map in UIScene as a panel (too complex, different lifecycle).
+- Consequences / Follow-ups: Territory buffs use TerritoryManager.getBuffValue/getBuffMultiplier pattern. Store doesn't import TerritoryManager (avoids circular deps) — CombatEngine provides getEffectiveMaxHp() wrapper instead.
+
+## 2026-02-10
+- Tags: architecture
+- Decision: Territory `killsPerEnemy` and `territories` persist across prestige resets. They are NOT reset in Store.performPrestige().
+- Rationale: Territories are meant to be permanent progression that rewards long-term play across prestige cycles.
+- Alternatives considered: Reset territories on prestige (too punishing), reset kills only (confusing UX).
+- Consequences / Follow-ups: Phase 2 will add `prestigeMultiplier` and `allIncome` buffs — need balance testing before integration.
+
 Tip: Search with `rg "Tags:.*workflow" .memory/DECISIONS.md`

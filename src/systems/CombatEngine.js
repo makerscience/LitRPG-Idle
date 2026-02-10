@@ -9,6 +9,7 @@ import { DAMAGE_FORMULAS, COMBAT } from '../config.js';
 import { getRandomEnemy } from '../data/enemies.js';
 import InventorySystem from './InventorySystem.js';
 import UpgradeManager from './UpgradeManager.js';
+import TerritoryManager from './TerritoryManager.js';
 
 let currentEnemy = null;
 let unsubs = [];
@@ -60,6 +61,18 @@ const CombatEngine = {
     // On level-up, restore HP to new max (VIT increases)
     unsubs.push(on(EVENTS.PROG_LEVEL_UP, () => {
       Store.resetPlayerHp();
+    }));
+
+    // Re-register auto-attack when territory attack speed buff is claimed
+    unsubs.push(on(EVENTS.TERRITORY_CLAIMED, (data) => {
+      if (data.buff.key === 'autoAttackSpeed') {
+        TimeEngine.register(
+          'combat:autoAttack',
+          () => CombatEngine.playerAttack(),
+          UpgradeManager.getAutoAttackInterval(),
+          true,
+        );
+      }
     }));
 
     // Subscribe to zone changes
@@ -131,14 +144,14 @@ const CombatEngine = {
   },
 
   getPlayerDamage(state) {
-    const str = state.playerStats.str;
+    const str = state.playerStats.str + TerritoryManager.getBuffValue('flatStr');
     const wpnDmg = InventorySystem.getEquippedWeaponDamage();
     const baseDamage = DAMAGE_FORMULAS.mortal(str, wpnDmg);
     const prestigeMult = state.prestigeMultiplier;
     const clickDmgMult = UpgradeManager.getMultiplier('clickDamage');
 
-    // Crit chance includes flat bonus from upgrades
-    const critChance = COMBAT.critChance + UpgradeManager.getFlatBonus('critChance');
+    // Crit chance includes flat bonus from upgrades + territory buff
+    const critChance = COMBAT.critChance + UpgradeManager.getFlatBonus('critChance') + TerritoryManager.getBuffValue('critChance');
 
     // Forced crit from FirstCrackDirector consumes the override
     let isCrit;
@@ -154,7 +167,8 @@ const CombatEngine = {
       critMult = isCrit ? baseCritMult : 1;
     }
 
-    const damage = D(baseDamage).times(clickDmgMult).times(prestigeMult).times(critMult).floor();
+    const damage = D(baseDamage).times(clickDmgMult).times(prestigeMult).times(critMult)
+      .times(TerritoryManager.getBuffMultiplier('baseDamage')).floor();
     return { damage, isCrit };
   },
 
@@ -179,9 +193,16 @@ const CombatEngine = {
   },
 
   _regenPlayerHp() {
-    const maxHp = Store.getPlayerMaxHp();
-    const regenAmount = maxHp.times(COMBAT.playerRegenPercent);
+    const maxHp = CombatEngine.getEffectiveMaxHp();
+    const regenAmount = maxHp.times(COMBAT.playerRegenPercent)
+      .times(TerritoryManager.getBuffMultiplier('hpRegen'));
     Store.healPlayer(regenAmount);
+  },
+
+  getEffectiveMaxHp() {
+    const state = Store.getState();
+    const effectiveVit = state.playerStats.vit + TerritoryManager.getBuffValue('flatVit');
+    return D(effectiveVit * COMBAT.playerHpPerVit).times(TerritoryManager.getBuffMultiplier('maxHp'));
   },
 
   _onPlayerDeath() {
@@ -212,9 +233,11 @@ const CombatEngine = {
     const goldAmount = D(dead.goldDrop)
       .times(UpgradeManager.getMultiplier('goldMultiplier'))
       .times(state.prestigeMultiplier)
+      .times(TerritoryManager.getBuffMultiplier('goldGain'))
       .floor();
     Store.addGold(goldAmount);
-    Store.addXp(D(dead.xpDrop).times(state.prestigeMultiplier).floor());
+    Store.addXp(D(dead.xpDrop).times(state.prestigeMultiplier)
+      .times(TerritoryManager.getBuffMultiplier('xpGain')).floor());
 
     TimeEngine.scheduleOnce('combat:spawnDelay', () => {
       CombatEngine.spawnEnemy();

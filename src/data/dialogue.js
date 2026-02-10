@@ -152,3 +152,16 @@ export const FAILED_PURCHASE = [
 export const INVENTORY_FULL = [
   'Your inventory is full. This is what happens when you hoard.',
 ];
+
+// ── Territory claims ──────────────────────────────────────────────
+
+export const FIRST_TERRITORY_CLAIM = [
+  "Congratulations. You've conquered a small patch of land. The rats are thrilled.",
+  "Territory claimed. I'm sure the local wildlife is devastated.",
+];
+
+export const TERRITORY_CLAIM_COMMENTARY = [
+  "Another territory falls to your relentless expansion. How colonial.",
+  "You realize these buffs are just numbers I made up, right?",
+  "Claim all you want. The map doesn't get bigger.",
+];

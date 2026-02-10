@@ -55,9 +55,44 @@ export default class UIScene extends Phaser.Scene {
     CheatManager.init();
     PrestigeManager.init();
 
+    // MAP button in bottom bar
+    this._mapOpen = false;
+    const mapBx = bb.x + bb.w / 2 - 240;
+    const mapBy = bb.y + bb.h / 2;
+    this._mapBtn = this.add.text(mapBx, mapBy, 'MAP [M]', {
+      fontFamily: 'monospace', fontSize: '14px', color: '#38bdf8',
+      backgroundColor: '#333333', padding: { x: 12, y: 6 },
+    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    this._mapBtn.on('pointerdown', () => this._toggleMap());
+    this._mapBtn.on('pointerover', () => this._mapBtn.setStyle({ backgroundColor: '#555555' }));
+    this._mapBtn.on('pointerout', () => this._mapBtn.setStyle({ backgroundColor: '#333333' }));
+
+    // M key binding
+    this._mKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.M);
+    this._mKey.on('down', () => this._toggleMap());
+
     this.events.on('shutdown', () => this._shutdown());
 
     console.log('[UIScene] create — UI overlay initialized');
+  }
+
+  _toggleMap() {
+    // Close any open modal panels first
+    if (this.inventoryPanel?._isOpen) this.inventoryPanel._close();
+    if (this.upgradePanel?._isOpen) this.upgradePanel._close();
+    if (this.prestigePanel?._isOpen) this.prestigePanel._close();
+    if (this.settingsPanel?._isOpen) this.settingsPanel._close();
+
+    const overworldScene = this.scene.get('OverworldScene');
+    if (overworldScene.scene.isSleeping()) {
+      overworldScene.scene.wake();
+      this.zoneNav.hide();
+      this._mapOpen = true;
+    } else {
+      overworldScene.scene.sleep();
+      this.zoneNav.show();
+      this._mapOpen = false;
+    }
   }
 
   _shutdown() {
