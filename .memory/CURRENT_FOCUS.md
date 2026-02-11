@@ -50,7 +50,7 @@
 ## Pinned References
 - Governance rules: `CLAUDE.md`
 - Redesign plan: `Codebase Redesign Plan.md`
-- Architecture: `ARCHITECTURE.md` (NOTE: drifted from reality — needs update)
+- Architecture: `ARCHITECTURE.md`
 - MVP Plan: `MVP_PLAN.md`
 - Lessons learned: `.memory/LESSONS_LEARNED.md`
 
