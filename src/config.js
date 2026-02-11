@@ -48,6 +48,12 @@ export const LOOT = {
     rare:       8,
     epic:       2,
   },
+  rarityMultiplier: {
+    common:   1,
+    uncommon: 1.5,
+    rare:     2.5,
+    epic:     5,
+  },
   mergeThreshold: 10,
 };
 
@@ -81,7 +87,7 @@ export const CHEATS = {
 };
 
 export const SAVE = {
-  schemaVersion: 7,
+  schemaVersion: 8,
   autosaveInterval: 30_000,   // ms
   maxOfflineTime: 12 * 60 * 60 * 1000,  // 12 hours in ms
 };

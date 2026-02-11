@@ -326,14 +326,16 @@ const Store = {
 
   // ── Inventory / Equipment mutations ─────────────────────────────
 
-  addInventoryItem(itemId, count = 1) {
+  addInventoryItem(stackKey, count = 1) {
     const stacks = state.inventoryStacks;
-    if (stacks[itemId]) {
-      stacks[itemId].count += count;
+    if (stacks[stackKey]) {
+      stacks[stackKey].count += count;
     } else {
-      stacks[itemId] = { count, tier: 0 };
+      // Extract rarity from composite key (e.g. 'iron_dagger::rare' → 'rare')
+      const rarity = stackKey.includes('::') ? stackKey.split('::')[1] : 'common';
+      stacks[stackKey] = { count, tier: 0, rarity };
     }
-    emit(EVENTS.INV_ITEM_ADDED, { itemId, count, totalCount: stacks[itemId].count });
+    emit(EVENTS.INV_ITEM_ADDED, { itemId: stackKey, count, totalCount: stacks[stackKey].count });
     emit(EVENTS.STATE_CHANGED, { changedKeys: ['inventoryStacks'] });
   },
 

@@ -168,6 +168,7 @@ const CombatEngine = {
       maxHp: currentEnemy.maxHp,
       isBoss: true,
       bossType: bossTemplate.bossType,
+      spriteSize: bossTemplate.spriteSize || null,
     });
   },
 

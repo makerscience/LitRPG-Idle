@@ -9,12 +9,12 @@
 3. Next: playtesting inventory grid interactions, visual polish, balance pass
 
 ## Next Actions
-- [ ] Playtest inventory grid: open BAG, verify 5x4 grid renders, items display abbreviations
-- [ ] Test equip flow: click slot to select, click again to equip, verify equipment box updates
-- [ ] Test sell flow: Shift+click to sell all, detail panel Sell 1 / Sell All buttons
-- [ ] Test unequip: click equipped item box to unequip back to inventory
+- [ ] Playtest rarity separation: collect multiple drops, verify different rarities appear as separate inventory slots
+- [ ] Test equip/unequip cycle: equip a rare item, unequip it, verify it returns to the correct rarity stack
+- [ ] Test sell flow with rarity stacks: Shift+click and detail panel Sell buttons
+- [ ] Test save/load migration: existing save with old keys should migrate to composite keys on load
 - [ ] Balance pass on boss HP/ATK multipliers and zone scaling factor (0.15)
-- [ ] Visual polish: consider item icons replacing abbreviation text in future
+- [ ] Consider rarity stat multipliers (rare items stronger than common) as future enhancement
 
 ## Open Loops / Blockers
 - `allIncome` and `prestigeMultiplier` territory buffs are defined in data but NOT yet integrated into gameplay systems (deferred to Phase 2)
@@ -38,13 +38,14 @@
 ---
 
 ## Last Session Summary (max ~8 bullets)
-- Rewrote InventoryPanel from text list to 5x4 visual grid with 64px slot boxes
-- Equipment section: 4 box slots (120x60) with slot label, item abbreviation, rarity border + word
-- Inventory grid: rarity-colored borders, bold abbreviation text, gold count badges, selection glow
-- Detail panel below grid: item name + rarity + slot + stat, italic description, Sell 1 / Sell All / Equip buttons
-- Added `abbr` field to all 12 items in items.js
-- Renamed `_invListObjects` → `_invGridObjects`, `_sellObjects` → `_detailObjects`
-- Added `RARITY_HEX` map for Phaser rectangle stroke colors
+- Fixed rarity-based inventory stacking: items of different rarities now occupy separate slots
+- Introduced composite stack keys (`itemId::rarity`) in InventorySystem, Store, and InventoryPanel
+- Added `makeStackKey()` / `parseStackKey()` helpers in InventorySystem
+- Updated `getItem()` in items.js to transparently handle composite keys
+- LootEngine now passes rolled rarity through to `tryAddItem()`
+- Equipment slots store composite stack keys preserving rarity through equip/unequip cycle
+- Save migration v7→v8 converts old inventory keys and equipped values to composite format
+- Schema version bumped to 8
 
 ## Pinned References
 - Governance rules: `CLAUDE.md`

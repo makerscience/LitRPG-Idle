@@ -4,9 +4,10 @@
 import Phaser from 'phaser';
 import { on, EVENTS } from '../events.js';
 import { LAYOUT, COLORS } from '../config.js';
-import { getItem } from '../data/items.js';
+import { getItem, getScaledItem } from '../data/items.js';
 import Store from '../systems/Store.js';
 import InventorySystem from '../systems/InventorySystem.js';
+import { parseStackKey } from '../systems/InventorySystem.js';
 
 const PANEL_W = 700;
 const PANEL_H = 450;
@@ -219,16 +220,18 @@ export default class InventoryPanel {
     let y = this._cy - PANEL_H / 2 + 75;
 
     for (const slot of SLOT_LABELS) {
-      const equipped = state.equipped[slot];
-      const item = equipped ? getItem(equipped) : null;
+      const stackKey = state.equipped[slot];
+      const item = stackKey ? getItem(stackKey) : null;
+      const rarity = stackKey ? parseStackKey(stackKey).rarity : null;
 
-      this._createEquipSlot(startX, y, slot, item);
+      this._createEquipSlot(startX, y, slot, item, rarity);
       y += EQ_SLOT_H + EQ_SLOT_GAP;
     }
   }
 
-  _createEquipSlot(x, y, slot, item) {
-    const rarityColor = item ? (RARITY_HEX[item.rarity] || 0xa1a1aa) : 0x333333;
+  _createEquipSlot(x, y, slot, item, rarity) {
+    const displayRarity = rarity || (item ? item.rarity : null);
+    const rarityColor = displayRarity ? (RARITY_HEX[displayRarity] || 0xa1a1aa) : 0x333333;
     const borderWidth = item ? 2 : 1;
 
     // Box background
@@ -253,7 +256,7 @@ export default class InventoryPanel {
         item.name,
         {
           fontFamily: 'monospace', fontSize: '10px',
-          color: COLORS.rarity[item.rarity] || '#a1a1aa',
+          color: COLORS.rarity[displayRarity] || '#a1a1aa',
           fontStyle: 'bold',
           align: 'center',
           wordWrap: { width: EQ_SLOT_W - 10 },
@@ -306,11 +309,12 @@ export default class InventoryPanel {
         const y = gridOriginY + row * SLOT_STEP;
 
         if (idx < entries.length) {
-          const [itemId, stack] = entries[idx];
-          const item = getItem(itemId);
+          const [stackKey, stack] = entries[idx];
+          const item = getItem(stackKey);
           if (item) {
-            const isSelected = this._selectedItemId === itemId;
-            this._createSlot(x, y, item, itemId, stack.count, isSelected);
+            const isSelected = this._selectedItemId === stackKey;
+            const rarity = stack.rarity || item.rarity;
+            this._createSlot(x, y, item, stackKey, stack.count, isSelected, rarity);
           } else {
             this._createEmptySlot(x, y);
           }
@@ -321,8 +325,8 @@ export default class InventoryPanel {
     }
   }
 
-  _createSlot(x, y, item, itemId, count, isSelected) {
-    const rarityColor = RARITY_HEX[item.rarity] || 0xa1a1aa;
+  _createSlot(x, y, item, stackKey, count, isSelected, rarity) {
+    const rarityColor = RARITY_HEX[rarity] || 0xa1a1aa;
     const borderWidth = isSelected ? 3 : 2;
     const borderColor = isSelected ? 0xffffff : rarityColor;
 
@@ -352,7 +356,7 @@ export default class InventoryPanel {
       item.name,
       {
         fontFamily: 'monospace', fontSize: '9px',
-        color: COLORS.rarity[item.rarity] || '#a1a1aa',
+        color: COLORS.rarity[rarity] || '#a1a1aa',
         fontStyle: 'bold',
         align: 'center',
         wordWrap: { width: SLOT_SIZE - 6 },
@@ -376,12 +380,12 @@ export default class InventoryPanel {
     // Click interactions
     bg.on('pointerdown', (pointer) => {
       if (pointer.event.shiftKey) {
-        InventorySystem.sellItem(itemId, count);
-      } else if (this._selectedItemId === itemId) {
-        InventorySystem.equipItem(itemId);
+        InventorySystem.sellItem(stackKey, count);
+      } else if (this._selectedItemId === stackKey) {
+        InventorySystem.equipItem(stackKey);
         this._selectedItemId = null;
       } else {
-        this._selectedItemId = itemId;
+        this._selectedItemId = stackKey;
         this._refresh();
       }
     });
@@ -408,9 +412,6 @@ export default class InventoryPanel {
   _renderItemDetail() {
     if (!this._selectedItemId) return;
 
-    const item = getItem(this._selectedItemId);
-    if (!item) return;
-
     const state = Store.getState();
     const stack = state.inventoryStacks[this._selectedItemId];
     if (!stack) {
@@ -418,19 +419,23 @@ export default class InventoryPanel {
       return;
     }
 
+    // Use rarity-scaled stats for display
+    const rarity = stack.rarity || 'common';
+    const scaled = getScaledItem(this._selectedItemId, rarity);
+    if (!scaled) return;
+
     const panelLeft = this._cx - PANEL_W / 2;
     const detailX = panelLeft + 190;
     const detailY = this._cy + PANEL_H / 2 - 80;
 
-    // Item name + rarity + slot + stat
-    const rarityColor = COLORS.rarity[item.rarity] || '#a1a1aa';
-    const statStr = item.statBonuses.atk > 0
-      ? `+${item.statBonuses.atk} ATK`
-      : `+${item.statBonuses.def} DEF`;
+    const rarityColor = COLORS.rarity[rarity] || '#a1a1aa';
+    const statStr = scaled.statBonuses.atk > 0
+      ? `+${scaled.statBonuses.atk} ATK`
+      : `+${scaled.statBonuses.def} DEF`;
 
     const headerText = this.scene.add.text(
       detailX, detailY,
-      `${item.name}  ${item.rarity} ${item.slot}  ${statStr}`,
+      `${scaled.name}  ${rarity} ${scaled.slot}  ${statStr}`,
       { fontFamily: 'monospace', fontSize: '11px', color: rarityColor }
     );
     this._detailObjects.push(headerText);
@@ -438,7 +443,7 @@ export default class InventoryPanel {
     // Description
     const descText = this.scene.add.text(
       detailX, detailY + 16,
-      `"${item.description}"`,
+      `"${scaled.description}"`,
       {
         fontFamily: 'monospace', fontSize: '10px', color: '#888888',
         fontStyle: 'italic',
@@ -452,7 +457,7 @@ export default class InventoryPanel {
     let btnX = detailX;
 
     // Sell 1 button
-    const sell1 = this.scene.add.text(btnX, btnY, `Sell 1 (${item.sellValue}g)`, {
+    const sell1 = this.scene.add.text(btnX, btnY, `Sell 1 (${scaled.sellValue}g)`, {
       fontFamily: 'monospace', fontSize: '11px', color: '#eab308',
       backgroundColor: '#333333', padding: { x: 6, y: 3 },
     }).setInteractive({ useHandCursor: true });
@@ -470,7 +475,7 @@ export default class InventoryPanel {
 
     // Sell all button (if more than 1)
     if (stack.count > 1) {
-      const totalGold = item.sellValue * stack.count;
+      const totalGold = scaled.sellValue * stack.count;
       const sellAll = this.scene.add.text(btnX, btnY, `Sell All x${stack.count} (${totalGold}g)`, {
         fontFamily: 'monospace', fontSize: '11px', color: '#eab308',
         backgroundColor: '#333333', padding: { x: 6, y: 3 },

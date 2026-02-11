@@ -1,5 +1,14 @@
 # CHANGELOG
 
+## 2026-02-10 (Rarity-Separated Inventory Stacks + Stat Scaling)
+- Items of different rarities now occupy separate inventory slots (Iron Dagger Common ≠ Iron Dagger Rare)
+- Rarity now scales stats and sell value: common ×1, uncommon ×1.5, rare ×2.5, epic ×5
+- Inventory uses composite stack keys (`itemId::rarity`) so each rarity variant is its own stack
+- Equipment preserves rolled rarity through equip/unequip cycle
+- Save migration v7→v8 converts existing inventory and equipment to new format
+
+---
+
 ## 2026-02-10 (Grid-Based Slotted Inventory)
 - Inventory panel now uses a 5x4 visual grid (20 slots) with 64px slot boxes instead of a text list
 - Equipment section shows 4 box slots (HEAD/BODY/WEAPON/LEGS) with item abbreviations and rarity-colored borders

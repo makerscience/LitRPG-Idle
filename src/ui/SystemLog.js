@@ -4,7 +4,7 @@
 import { on, EVENTS } from '../events.js';
 import { format } from '../systems/BigNum.js';
 import { LAYOUT, COLORS, UI, LOOT, PRESTIGE } from '../config.js';
-import { getItem } from '../data/items.js';
+import { getItem, getScaledItem } from '../data/items.js';
 import { getUpgrade } from '../data/upgrades.js';
 import { getCheat } from '../data/cheats.js';
 
@@ -120,10 +120,10 @@ export default class SystemLog {
     }));
 
     this._unsubs.push(on(EVENTS.INV_ITEM_EQUIPPED, (data) => {
-      const item = getItem(data.itemId);
-      if (!item) return;
-      const stat = item.statBonuses.atk > 0 ? `+${item.statBonuses.atk} ATK` : `+${item.statBonuses.def} DEF`;
-      this.addLine(`Equipped ${item.name} [${stat}]`, 'loot');
+      const scaled = getScaledItem(data.itemId);
+      if (!scaled) return;
+      const stat = scaled.statBonuses.atk > 0 ? `+${scaled.statBonuses.atk} ATK` : `+${scaled.statBonuses.def} DEF`;
+      this.addLine(`Equipped ${scaled.name} [${stat}]`, 'loot');
     }));
 
     this._unsubs.push(on(EVENTS.INV_ITEM_SOLD, (data) => {

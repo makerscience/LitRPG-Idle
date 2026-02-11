@@ -80,4 +80,11 @@ Format:
 - Alternatives considered: Keep zone progress on prestige (trivializes replay), reset territories too (too punishing).
 - Consequences / Follow-ups: createAreaProgress() called in performPrestige() to reset. Area 1 zone 1 starts unlocked on prestige.
 
+## 2026-02-10
+- Tags: architecture
+- Decision: Inventory stack keys use composite format `itemId::rarity` (e.g. `iron_dagger::rare`). Equipment slots store full composite keys. `getItem()` transparently strips the rarity suffix for item lookups.
+- Rationale: Allows same base item with different rarities to occupy separate inventory slots. Rarity is rolled at drop time by LootEngine and preserved through the full lifecycle (add → equip → unequip → sell).
+- Alternatives considered: Array of stacks per itemId (more complex iteration), rarity as a stack field only without changing keys (can't differentiate stacks of same item).
+- Consequences / Follow-ups: Save migration v8. All code touching inventoryStacks or equipped must use composite keys. `parseStackKey()` and `makeStackKey()` helpers in InventorySystem. Future: rarity could affect stat bonuses and sell value.
+
 Tip: Search with `rg "Tags:.*workflow" .memory/DECISIONS.md`

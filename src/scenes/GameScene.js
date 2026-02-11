@@ -305,7 +305,7 @@ export default class GameScene extends Phaser.Scene {
     const template = getEnemyById(data.enemyId);
     this._currentEnemySprites = template?.sprites || null;
     this._spriteOffsetY = template?.spriteOffsetY || 0;
-    const size = template?.spriteSize || { w: 200, h: 250 };
+    const size = data.spriteSize || template?.spriteSize || { w: 200, h: 250 };
     this._spriteW = size.w;
     this._spriteH = size.h;
 

@@ -58,8 +58,8 @@ const LootEngine = {
     // Drop count boosted when Loot Hoarder active
     const dropCount = lootHoarderActive ? CHEATS.lootHoarder.dropMultiplier : 1;
 
-    // Try to add to inventory
-    const added = InventorySystem.tryAddItem(selectedItemId, dropCount);
+    // Try to add to inventory (rarity determines which stack it goes into)
+    const added = InventorySystem.tryAddItem(selectedItemId, dropCount, rarity);
 
     if (added) {
       emit(EVENTS.LOOT_DROPPED, { itemId: selectedItemId, count: dropCount, rarity });

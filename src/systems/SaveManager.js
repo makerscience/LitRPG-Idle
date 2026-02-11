@@ -97,6 +97,46 @@ const migrations = {
     data.schemaVersion = 7;
     return data;
   },
+  8: (data) => {
+    // Migrate inventory stack keys from 'itemId' to 'itemId::rarity' composite format.
+    // Old stacks had no rarity field — default to the item's definition rarity or 'common'.
+    const ITEM_RARITIES = {
+      iron_dagger: 'common', iron_helm: 'common', leather_tunic: 'common',
+      steel_sword: 'uncommon', leather_cap: 'common', chainmail_vest: 'uncommon',
+      iron_greaves: 'common', mithril_blade: 'rare', steel_helm: 'uncommon',
+      steel_greaves: 'uncommon', adamantine_axe: 'epic', dragonbone_blade: 'epic',
+    };
+
+    if (data.inventoryStacks) {
+      const oldStacks = data.inventoryStacks;
+      const newStacks = {};
+      for (const [key, stack] of Object.entries(oldStacks)) {
+        if (key.includes('::')) {
+          // Already migrated
+          newStacks[key] = stack;
+        } else {
+          const rarity = stack.rarity || ITEM_RARITIES[key] || 'common';
+          const newKey = `${key}::${rarity}`;
+          newStacks[newKey] = { ...stack, rarity };
+        }
+      }
+      data.inventoryStacks = newStacks;
+    }
+
+    // Migrate equipped item IDs to composite stack keys
+    if (data.equipped) {
+      for (const slot of ['head', 'body', 'weapon', 'legs']) {
+        const val = data.equipped[slot];
+        if (val && !val.includes('::')) {
+          const rarity = ITEM_RARITIES[val] || 'common';
+          data.equipped[slot] = `${val}::${rarity}`;
+        }
+      }
+    }
+
+    data.schemaVersion = 8;
+    return data;
+  },
 };
 
 /** Run all applicable migrations in order. */

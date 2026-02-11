@@ -1,6 +1,8 @@
 // Item definitions — 12 items across 5 zones.
 // Shape: { id, name, slot, rarity, tier, statBonuses, sellValue, mergesInto, description }
 
+import { LOOT } from '../config.js';
+
 const ITEMS = {
   // Zone 1
   iron_dagger: {
@@ -146,7 +148,37 @@ const ITEMS = {
 };
 
 export function getItem(id) {
-  return ITEMS[id] ?? null;
+  // Support both 'iron_dagger' and 'iron_dagger::common' stack key formats
+  const baseId = id && id.includes('::') ? id.split('::')[0] : id;
+  return ITEMS[baseId] ?? null;
+}
+
+/**
+ * Return an item with stat bonuses and sell value scaled by rarity.
+ * Accepts a stack key ('iron_dagger::rare') or separate (id, rarity) args.
+ */
+export function getScaledItem(id, rarity) {
+  const item = getItem(id);
+  if (!item) return null;
+
+  // If rarity not provided, try to extract from composite key
+  if (!rarity && id && id.includes('::')) {
+    rarity = id.split('::')[1];
+  }
+  rarity = rarity || item.rarity;
+
+  const mult = LOOT.rarityMultiplier[rarity] ?? 1;
+  if (mult === 1) return item;
+
+  return {
+    ...item,
+    rarity,
+    statBonuses: {
+      atk: Math.floor(item.statBonuses.atk * mult),
+      def: Math.floor(item.statBonuses.def * mult),
+    },
+    sellValue: Math.floor(item.sellValue * mult),
+  };
 }
 
 export function getItemsForSlot(slot) {

@@ -111,7 +111,9 @@ const BossManager = {
       bossType,
       baseEnemyId: baseEnemy.id,
       sprites: baseEnemy.sprites || null,
-      spriteSize: baseEnemy.spriteSize || null,
+      spriteSize: baseEnemy.spriteSize
+        ? { w: baseEnemy.spriteSize.w * 2, h: baseEnemy.spriteSize.h * 2 }
+        : null,
       spriteOffsetY: baseEnemy.spriteOffsetY || 0,
       lootTable: baseEnemy.lootTable || [],
     };
