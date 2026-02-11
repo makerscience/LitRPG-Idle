@@ -6,12 +6,11 @@ import TimeEngine from './TimeEngine.js';
 import BossManager from './BossManager.js';
 import { D, Decimal } from './BigNum.js';
 import { emit, on, EVENTS } from '../events.js';
-import { DAMAGE_FORMULAS, COMBAT } from '../config.js';
-import { getRandomEnemy } from '../data/enemies.js';
+import { COMBAT } from '../config.js';
 import { getUnlockedEnemies, getZoneScaling } from '../data/areas.js';
-import InventorySystem from './InventorySystem.js';
 import UpgradeManager from './UpgradeManager.js';
 import TerritoryManager from './TerritoryManager.js';
+import { getEffectiveMaxHp, getBaseDamage, getCritChance, getGoldMultiplier, getXpMultiplier } from './ComputedStats.js';
 
 let currentEnemy = null;
 let unsubs = [];
@@ -194,14 +193,10 @@ const CombatEngine = {
   },
 
   getPlayerDamage(state) {
-    const str = state.playerStats.str + TerritoryManager.getBuffValue('flatStr');
-    const wpnDmg = InventorySystem.getEquippedWeaponDamage();
-    const baseDamage = DAMAGE_FORMULAS.mortal(str, wpnDmg);
+    const baseDamage = getBaseDamage();
     const prestigeMult = state.prestigeMultiplier;
     const clickDmgMult = UpgradeManager.getMultiplier('clickDamage');
-
-    // Crit chance includes flat bonus from upgrades + territory buff
-    const critChance = COMBAT.critChance + UpgradeManager.getFlatBonus('critChance') + TerritoryManager.getBuffValue('critChance');
+    const critChance = getCritChance();
 
     // Forced crit from FirstCrackDirector consumes the override
     let isCrit;
@@ -244,16 +239,15 @@ const CombatEngine = {
   },
 
   _regenPlayerHp() {
-    const maxHp = CombatEngine.getEffectiveMaxHp();
+    const maxHp = getEffectiveMaxHp();
     const regenAmount = maxHp.times(COMBAT.playerRegenPercent)
       .times(TerritoryManager.getBuffMultiplier('hpRegen'));
     Store.healPlayer(regenAmount);
   },
 
+  /** Delegates to ComputedStats.getEffectiveMaxHp(). Kept for backward compat. */
   getEffectiveMaxHp() {
-    const state = Store.getState();
-    const effectiveVit = state.playerStats.vit + TerritoryManager.getBuffValue('flatVit');
-    return D(effectiveVit * COMBAT.playerHpPerVit).times(TerritoryManager.getBuffMultiplier('maxHp'));
+    return getEffectiveMaxHp();
   },
 
   _onPlayerDeath() {
@@ -288,15 +282,9 @@ const CombatEngine = {
       isBoss: dead.isBoss || false,
     });
 
-    const state = Store.getState();
-    const goldAmount = D(dead.goldDrop)
-      .times(UpgradeManager.getMultiplier('goldMultiplier'))
-      .times(state.prestigeMultiplier)
-      .times(TerritoryManager.getBuffMultiplier('goldGain'))
-      .floor();
+    const goldAmount = D(dead.goldDrop).times(getGoldMultiplier()).floor();
     Store.addGold(goldAmount);
-    Store.addXp(D(dead.xpDrop).times(state.prestigeMultiplier)
-      .times(TerritoryManager.getBuffMultiplier('xpGain')).floor());
+    Store.addXp(D(dead.xpDrop).times(getXpMultiplier()).floor());
 
     // If boss was killed, handle boss defeat
     if (dead.isBoss) {

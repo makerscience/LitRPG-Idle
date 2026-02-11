@@ -6,6 +6,8 @@ import { PROGRESSION, ECONOMY, SAVE, PRESTIGE, COMBAT } from '../config.js';
 import { emit, EVENTS } from '../events.js';
 import { AREAS } from '../data/areas.js';
 
+import { getEffectiveMaxHp } from './ComputedStats.js';
+
 let state = null;
 
 /** Build initial areaProgress for all areas. */
@@ -307,7 +309,7 @@ const Store = {
     state.playerStats.xp = D(stats.xp);
     state.playerStats.xpToNext = D(PROGRESSION.xpForLevel(stats.level));
 
-    state.playerHp = D(stats.vit * COMBAT.playerHpPerVit);
+    state.playerHp = getEffectiveMaxHp();
     state.purchasedUpgrades = {};
     state.totalKills = 0;
 
@@ -405,7 +407,7 @@ const Store = {
 
   damagePlayer(amount) {
     state.playerHp = Decimal.max(state.playerHp.minus(D(amount)), D(0));
-    const maxHp = D(state.playerStats.vit * COMBAT.playerHpPerVit);
+    const maxHp = getEffectiveMaxHp();
     emit(EVENTS.COMBAT_PLAYER_DAMAGED, {
       amount: D(amount),
       remainingHp: state.playerHp,
@@ -417,16 +419,16 @@ const Store = {
   },
 
   healPlayer(amount) {
-    const maxHp = D(state.playerStats.vit * COMBAT.playerHpPerVit);
+    const maxHp = getEffectiveMaxHp();
     state.playerHp = Decimal.min(state.playerHp.plus(D(amount)), maxHp);
   },
 
   getPlayerMaxHp() {
-    return D(state.playerStats.vit * COMBAT.playerHpPerVit);
+    return getEffectiveMaxHp();
   },
 
   resetPlayerHp() {
-    state.playerHp = D(state.playerStats.vit * COMBAT.playerHpPerVit);
+    state.playerHp = getEffectiveMaxHp();
   },
 
   incrementKills() {

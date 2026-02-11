@@ -53,6 +53,12 @@ export default class UIScene extends Phaser.Scene {
     this.statsPanel = new StatsPanel(this);
     this.cheatDeck = new CheatDeck(this);
 
+    // Modal registry for mutual exclusion
+    this._modals = [
+      this.inventoryPanel, this.upgradePanel, this.prestigePanel,
+      this.settingsPanel, this.statsPanel,
+    ];
+
     // Initialize dialogue triggers + First Crack director + cheat manager + prestige
     DialogueManager.init();
     FirstCrackDirector.init();
@@ -80,13 +86,17 @@ export default class UIScene extends Phaser.Scene {
     console.log('[UIScene] create — UI overlay initialized');
   }
 
+  /** Close all open modals, optionally excluding one. Used by ModalPanel._open(). */
+  closeAllModals(except) {
+    for (const modal of this._modals) {
+      if (modal && modal !== except && modal._isOpen) {
+        modal._close();
+      }
+    }
+  }
+
   _toggleMap() {
-    // Close any open modal panels first
-    if (this.inventoryPanel?._isOpen) this.inventoryPanel._close();
-    if (this.upgradePanel?._isOpen) this.upgradePanel._close();
-    if (this.prestigePanel?._isOpen) this.prestigePanel._close();
-    if (this.settingsPanel?._isOpen) this.settingsPanel._close();
-    if (this.statsPanel?._isOpen) this.statsPanel._close();
+    this.closeAllModals();
 
     const overworldScene = this.scene.get('OverworldScene');
     if (overworldScene.scene.isSleeping()) {
@@ -108,11 +118,15 @@ export default class UIScene extends Phaser.Scene {
     if (this.systemLog) { this.systemLog.destroy(); this.systemLog = null; }
     if (this.zoneNav) { this.zoneNav.destroy(); this.zoneNav = null; }
     if (this.bossChallenge) { this.bossChallenge.destroy(); this.bossChallenge = null; }
-    if (this.inventoryPanel) { this.inventoryPanel.destroy(); this.inventoryPanel = null; }
-    if (this.upgradePanel) { this.upgradePanel.destroy(); this.upgradePanel = null; }
-    if (this.prestigePanel) { this.prestigePanel.destroy(); this.prestigePanel = null; }
-    if (this.settingsPanel) { this.settingsPanel.destroy(); this.settingsPanel = null; }
-    if (this.statsPanel) { this.statsPanel.destroy(); this.statsPanel = null; }
+    for (const modal of this._modals || []) {
+      if (modal) modal.destroy();
+    }
+    this.inventoryPanel = null;
+    this.upgradePanel = null;
+    this.prestigePanel = null;
+    this.settingsPanel = null;
+    this.statsPanel = null;
+    this._modals = [];
     if (this.cheatDeck) { this.cheatDeck.destroy(); this.cheatDeck = null; }
     DialogueManager.destroy();
     FirstCrackDirector.destroy();

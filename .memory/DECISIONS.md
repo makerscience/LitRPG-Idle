@@ -87,4 +87,25 @@ Format:
 - Alternatives considered: Array of stacks per itemId (more complex iteration), rarity as a stack field only without changing keys (can't differentiate stacks of same item).
 - Consequences / Follow-ups: Save migration v8. All code touching inventoryStacks or equipped must use composite keys. `parseStackKey()` and `makeStackKey()` helpers in InventorySystem. Future: rarity could affect stat bonuses and sell value.
 
+## 2026-02-11
+- Tags: architecture
+- Decision: ModalPanel base class uses `scene.closeAllModals(this)` for mutual exclusion instead of each panel checking every other panel. UIScene owns `_modals` array registry.
+- Rationale: Adding a new panel no longer requires updating N existing panels. Central registry is the single source of truth.
+- Alternatives considered: Each panel imports and checks others (original pattern, N² coupling), global event-based close (over-engineered).
+- Consequences / Follow-ups: New panels just extend ModalPanel and get added to `_modals` in UIScene.create(). No other panels need modification.
+
+## 2026-02-11
+- Tags: architecture
+- Decision: ComputedStats is a pure-function module (no state, no events). Store → ComputedStats circular import is acceptable because all usage is in function bodies, not at module evaluation time.
+- Rationale: ESM handles circular imports correctly when functions are called lazily. ComputedStats needs Store.getState(), Store needs ComputedStats.getEffectiveMaxHp(). Neither calls the other during module init.
+- Alternatives considered: Passing state as parameter (verbose, every caller must provide it), setter injection (unnecessary complexity).
+- Consequences / Follow-ups: Store.js currently has a broken `require()` attempt — must be replaced with direct ESM `import` which will work fine.
+
+## 2026-02-11
+- Tags: architecture
+- Decision: Dropped EffectChannels.js from Phase 2 plan. The existing buff key strings (`flatStr`, `baseDamage`, etc.) work fine without a formal registry.
+- Rationale: Only 11 buff keys exist, all used consistently. A formal registry adds complexity for negligible benefit in a solo project.
+- Alternatives considered: Implementing EffectChannels as planned (over-engineered for current scope).
+- Consequences / Follow-ups: If buff keys proliferate or cause bugs, revisit.
+
 Tip: Search with `rg "Tags:.*workflow" .memory/DECISIONS.md`

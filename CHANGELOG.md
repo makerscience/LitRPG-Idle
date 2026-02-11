@@ -1,5 +1,17 @@
 # CHANGELOG
 
+## 2026-02-11 (Codebase Redesign — Phase 1 + Phase 2 complete)
+- **ModalPanel base class** (`src/ui/ModalPanel.js`): extracted shared modal lifecycle (backdrop, panel chrome, toggle button, mutual exclusion, keyboard binding, event subscriptions, dynamic object management) into a single base class
+- **All 5 modal panels refactored** to extend ModalPanel — InventoryPanel, UpgradePanel, PrestigePanel, SettingsPanel, StatsPanel now only contain their unique content logic (~400 lines of duplicated boilerplate eliminated)
+- **ScrollableLog base class** (`src/ui/ScrollableLog.js`): extracted shared scroll/mask/render logic from SystemLog and SystemDialogue (~120 lines eliminated)
+- **ui-utils.js** (`src/ui/ui-utils.js`): `makeButton()` helper (replaces 20+ inline pointer handler blocks), `TEXT_STYLES` presets, `addText()` helper
+- **UIScene.closeAllModals()**: centralized modal registry replaces 5 hardcoded if-checks in `_toggleMap()` and per-panel mutual exclusion
+- **ComputedStats module** (`src/systems/ComputedStats.js`): pure functions for all derived stats (effective damage, max HP, crit chance, gold/XP multipliers, HP regen, etc.)
+- **CombatEngine + Store** now delegate to ComputedStats — Store HP methods (damage, heal, max, reset, prestige) use `getEffectiveMaxHp()`, fixing territory maxHP buff bug
+- **StatsPanel** refactored to use `ComputedStats.getAllStats()`, removing direct imports of CombatEngine, UpgradeManager, InventorySystem, and DAMAGE_FORMULAS
+
+---
+
 ## 2026-02-10 (Character Stats Panel)
 - New STATS [C] panel showing all player stats in one place (base stats, combat, economy, progression)
 - Two-column layout: left shows LEVEL/STR/VIT/LUCK + combat stats (MAX HP, DMG, CRIT, ATK SPEED), right shows ECONOMY + PROGRESSION

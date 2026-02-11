@@ -1,53 +1,57 @@
 # CURRENT_FOCUS
 
 ## One-liner
-- Building a LitRPG idle/clicker game with a snarky SYSTEM narrator, using Phaser + Vite + break_infinity.js.
+- Codebase redesign in progress — Phase 2 complete, Phase 3+ pending. ~4500 LOC idle game.
 
 ## Active Objectives (max 3)
-1. Character Stats Panel complete — two-column layout with base/combat/economy/progression stats
-2. Phase 2 deferred: `allIncome` + `prestigeMultiplier` buff integration needs balance testing
-3. Next: playtesting stats panel, visual polish, balance pass
+1. **Phase 2 complete:** ComputedStats fully integrated — CombatEngine, Store HP methods, and StatsPanel all delegate to it
+2. **Phase 1 complete:** ModalPanel base class, ScrollableLog base class, ui-utils, all panels refactored
+3. **Phases 3–8 pending:** Config decomposition, Store slimming, CombatEngine decomposition, kill tracking, event cleanup
 
 ## Next Actions
-- [ ] Playtest STATS panel: open with C key, verify all values match actual game state
-- [ ] Test mutual exclusion: open STATS then press I/U/P/ESC/M — verify STATS closes
-- [ ] Test refresh: level up / buy upgrade / claim territory / equip weapon → values update live
-- [ ] Balance pass on boss HP/ATK multipliers and zone scaling factor (0.15)
-- [ ] Consider adding tooltips or expandable stat breakdowns as future enhancement
+- [ ] Begin Phase 3: split config.js into config/layout.js + config/theme.js
+- [ ] Phase 4: Slim Store — extract SaveManager hydration, reduce mutation surface
+- [ ] Phase 5: CombatEngine decomposition — separate HP regen, auto-attack, spawn logic
+- [ ] Continue through Phases 6–8 per redesign plan
+- [ ] Balance test: territory maxHP buff now works — verify it's not too strong/weak
+- [ ] Address InventoryPanel local RARITY_HEX dict (Phase 1E cosmetic, low priority)
 
 ## Open Loops / Blockers
-- `allIncome` and `prestigeMultiplier` territory buffs are defined in data but NOT yet integrated into gameplay systems (deferred to Phase 2)
-- `getEffectiveMaxHp()` in CombatEngine accounts for flatVit + maxHp territory buffs, but Store's `healPlayer()` and `damagePlayer()` still use base max HP — may need alignment
-- Boss sprites currently reuse base enemy sprites — no unique boss sprites yet
-- INVENTORY.dropChanceByZone keys still named `dropChanceByZone` (maps to area now) — cosmetic, works fine
+- `allIncome` and `prestigeMultiplier` territory buffs defined in data but NOT yet integrated (deferred)
+- InventoryPanel still has local `RARITY_HEX` dict (Phase 1E incomplete — cosmetic, low priority)
+- Boss sprites currently reuse base enemy sprites
+- `dropChanceByZone` naming cosmetic mismatch (works fine)
 
 ## How to Resume in 30 Seconds
 - **Open:** `.memory/CURRENT_FOCUS.md`
-- **Next:** Playtest the grid inventory (press I or click BAG, verify grid layout)
-- **If unclear:** Check the implementation in `src/ui/InventoryPanel.js`
+- **Phase 2 done:** ComputedStats wired into Store, CombatEngine, StatsPanel
+- **Next:** Phase 3 — config decomposition
+- **Plan:** `Codebase Redesign Plan.md` has full 8-phase plan with status notes
 
 ## Key Context
 - Tech stack: Phaser 3, Vite 7, break_infinity.js, localStorage saves
 - Platform: Desktop-first, 1280x720, targeting Itch.io
-- 8-phase build plan in `MVP_PLAN.md`
-- Architecture + event catalog in `ARCHITECTURE.md`
+- Redesign plan: `Codebase Redesign Plan.md`
+- Architecture: `ARCHITECTURE.md`
 - Memory files: `.memory/CURRENT_FOCUS.md`, `.memory/DECISIONS.md`
 - Changelog: `CHANGELOG.md`
 
 ---
 
 ## Last Session Summary (max ~8 bullets)
-- Created Character Stats Panel (`src/ui/StatsPanel.js`) — modal overlay following existing panel pattern
-- Two-column layout: base stats + combat (left), economy + progression (right)
-- Shows computed values: effective damage, crit chance, atk speed, gold/XP multipliers, territory breakdowns
-- Toggle via STATS [C] button in bottom bar or C key
-- Mutual exclusion added to all 4 existing panels + MAP toggle
-- Integrated into UIScene (create, _toggleMap, _shutdown)
+- Fixed Store.js broken `require()` → clean ESM `import { getEffectiveMaxHp }` from ComputedStats
+- Wired 5 Store HP methods (damagePlayer, healPlayer, getPlayerMaxHp, resetPlayerHp) to `getEffectiveMaxHp()`
+- Fixed performPrestige HP reset to use `getEffectiveMaxHp()` — now includes territory VIT + maxHP buffs
+- Refactored StatsPanel `_getCombatRows()` to use `ComputedStats.getAllStats()` — eliminated 6 direct manager queries
+- Refactored StatsPanel `_getEconomyRows()` to use ComputedStats — eliminated manual multiplier assembly
+- Removed StatsPanel imports: CombatEngine, UpgradeManager, InventorySystem, DAMAGE_FORMULAS
+- Build passes cleanly (npm run build)
+- **Territory maxHP buff (territories 2, 11) now actually works** — was previously ignored in Store HP calculations
 
 ## Pinned References
 - Governance rules: `CLAUDE.md`
+- Redesign plan: `Codebase Redesign Plan.md`
 - Architecture: `ARCHITECTURE.md`
 - MVP Plan: `MVP_PLAN.md`
-- Original setup guide: `Minimal Claude Organization Setup (Governance-Only).md`
 
 Hard rule: If "Key Context" becomes a wall of text, move it into real docs and link here.
