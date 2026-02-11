@@ -131,6 +131,7 @@ export default class PrestigePanel {
     if (this.scene.inventoryPanel?._isOpen) this.scene.inventoryPanel._close();
     if (this.scene.upgradePanel?._isOpen) this.scene.upgradePanel._close();
     if (this.scene.settingsPanel?._isOpen) this.scene.settingsPanel._close();
+    if (this.scene.statsPanel?._isOpen) this.scene.statsPanel._close();
 
     this._isOpen = true;
     this._confirmPending = false;

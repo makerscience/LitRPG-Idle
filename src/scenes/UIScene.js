@@ -11,6 +11,7 @@ import InventoryPanel from '../ui/InventoryPanel.js';
 import UpgradePanel from '../ui/UpgradePanel.js';
 import PrestigePanel from '../ui/PrestigePanel.js';
 import SettingsPanel from '../ui/SettingsPanel.js';
+import StatsPanel from '../ui/StatsPanel.js';
 import CheatDeck from '../ui/CheatDeck.js';
 import DialogueManager from '../systems/DialogueManager.js';
 import FirstCrackDirector from '../systems/FirstCrackDirector.js';
@@ -49,6 +50,7 @@ export default class UIScene extends Phaser.Scene {
     this.upgradePanel = new UpgradePanel(this);
     this.prestigePanel = new PrestigePanel(this);
     this.settingsPanel = new SettingsPanel(this);
+    this.statsPanel = new StatsPanel(this);
     this.cheatDeck = new CheatDeck(this);
 
     // Initialize dialogue triggers + First Crack director + cheat manager + prestige
@@ -84,6 +86,7 @@ export default class UIScene extends Phaser.Scene {
     if (this.upgradePanel?._isOpen) this.upgradePanel._close();
     if (this.prestigePanel?._isOpen) this.prestigePanel._close();
     if (this.settingsPanel?._isOpen) this.settingsPanel._close();
+    if (this.statsPanel?._isOpen) this.statsPanel._close();
 
     const overworldScene = this.scene.get('OverworldScene');
     if (overworldScene.scene.isSleeping()) {
@@ -109,6 +112,7 @@ export default class UIScene extends Phaser.Scene {
     if (this.upgradePanel) { this.upgradePanel.destroy(); this.upgradePanel = null; }
     if (this.prestigePanel) { this.prestigePanel.destroy(); this.prestigePanel = null; }
     if (this.settingsPanel) { this.settingsPanel.destroy(); this.settingsPanel = null; }
+    if (this.statsPanel) { this.statsPanel.destroy(); this.statsPanel = null; }
     if (this.cheatDeck) { this.cheatDeck.destroy(); this.cheatDeck = null; }
     DialogueManager.destroy();
     FirstCrackDirector.destroy();

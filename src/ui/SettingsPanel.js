@@ -103,6 +103,7 @@ export default class SettingsPanel {
     if (this.scene.inventoryPanel?._isOpen) this.scene.inventoryPanel._close();
     if (this.scene.upgradePanel?._isOpen) this.scene.upgradePanel._close();
     if (this.scene.prestigePanel?._isOpen) this.scene.prestigePanel._close();
+    if (this.scene.statsPanel?._isOpen) this.scene.statsPanel._close();
 
     this._isOpen = true;
     this._wipePending = false;

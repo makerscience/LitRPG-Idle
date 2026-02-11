@@ -173,6 +173,9 @@ export default class InventoryPanel {
     if (this.scene.settingsPanel?._isOpen) {
       this.scene.settingsPanel._close();
     }
+    if (this.scene.statsPanel?._isOpen) {
+      this.scene.statsPanel._close();
+    }
     this._isOpen = true;
     this._selectedItemId = null;
     this._showModal();

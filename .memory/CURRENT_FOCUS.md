@@ -4,17 +4,16 @@
 - Building a LitRPG idle/clicker game with a snarky SYSTEM narrator, using Phaser + Vite + break_infinity.js.
 
 ## Active Objectives (max 3)
-1. Grid-based slotted inventory complete — 5x4 grid, 4 equipment box slots, rarity borders, detail panel
+1. Character Stats Panel complete — two-column layout with base/combat/economy/progression stats
 2. Phase 2 deferred: `allIncome` + `prestigeMultiplier` buff integration needs balance testing
-3. Next: playtesting inventory grid interactions, visual polish, balance pass
+3. Next: playtesting stats panel, visual polish, balance pass
 
 ## Next Actions
-- [ ] Playtest rarity separation: collect multiple drops, verify different rarities appear as separate inventory slots
-- [ ] Test equip/unequip cycle: equip a rare item, unequip it, verify it returns to the correct rarity stack
-- [ ] Test sell flow with rarity stacks: Shift+click and detail panel Sell buttons
-- [ ] Test save/load migration: existing save with old keys should migrate to composite keys on load
+- [ ] Playtest STATS panel: open with C key, verify all values match actual game state
+- [ ] Test mutual exclusion: open STATS then press I/U/P/ESC/M — verify STATS closes
+- [ ] Test refresh: level up / buy upgrade / claim territory / equip weapon → values update live
 - [ ] Balance pass on boss HP/ATK multipliers and zone scaling factor (0.15)
-- [ ] Consider rarity stat multipliers (rare items stronger than common) as future enhancement
+- [ ] Consider adding tooltips or expandable stat breakdowns as future enhancement
 
 ## Open Loops / Blockers
 - `allIncome` and `prestigeMultiplier` territory buffs are defined in data but NOT yet integrated into gameplay systems (deferred to Phase 2)
@@ -38,14 +37,12 @@
 ---
 
 ## Last Session Summary (max ~8 bullets)
-- Fixed rarity-based inventory stacking: items of different rarities now occupy separate slots
-- Introduced composite stack keys (`itemId::rarity`) in InventorySystem, Store, and InventoryPanel
-- Added `makeStackKey()` / `parseStackKey()` helpers in InventorySystem
-- Updated `getItem()` in items.js to transparently handle composite keys
-- LootEngine now passes rolled rarity through to `tryAddItem()`
-- Equipment slots store composite stack keys preserving rarity through equip/unequip cycle
-- Save migration v7→v8 converts old inventory keys and equipped values to composite format
-- Schema version bumped to 8
+- Created Character Stats Panel (`src/ui/StatsPanel.js`) — modal overlay following existing panel pattern
+- Two-column layout: base stats + combat (left), economy + progression (right)
+- Shows computed values: effective damage, crit chance, atk speed, gold/XP multipliers, territory breakdowns
+- Toggle via STATS [C] button in bottom bar or C key
+- Mutual exclusion added to all 4 existing panels + MAP toggle
+- Integrated into UIScene (create, _toggleMap, _shutdown)
 
 ## Pinned References
 - Governance rules: `CLAUDE.md`

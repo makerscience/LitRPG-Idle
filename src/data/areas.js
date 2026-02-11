@@ -51,9 +51,9 @@ export const AREA_COUNT = Object.keys(AREAS).length; // 5
 // ── Boss multipliers ────────────────────────────────────────────────
 
 export const BOSS_TYPES = {
-  MINI:  { label: 'Mini-Boss',       hpMult: 6,  atkMult: 3 },
-  ELITE: { label: 'Elite Mini-Boss', hpMult: 5,  atkMult: 2   },
-  AREA:  { label: 'Area Boss',       hpMult: 8,  atkMult: 2.5 },
+  MINI:  { label: 'Mini-Boss',       hpMult: 6,  atkMult: 3,   sizeMult: 2 },
+  ELITE: { label: 'Elite Mini-Boss', hpMult: 5,  atkMult: 2,   sizeMult: 2 },
+  AREA:  { label: 'Area Boss',       hpMult: 8,  atkMult: 2.5, sizeMult: 4 },
 };
 
 // ── Zone scaling ────────────────────────────────────────────────────

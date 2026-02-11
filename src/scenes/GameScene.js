@@ -81,6 +81,7 @@ export default class GameScene extends Phaser.Scene {
     this.enemySprite.on('pointerdown', () => CombatEngine.playerAttack());
     this._currentEnemySprites = null;
     this._poseRevertTimer = null;
+    this._deathFadeTimer = null;
     this._spriteW = 200;
     this._spriteH = 250;
 
@@ -295,6 +296,9 @@ export default class GameScene extends Phaser.Scene {
   }
 
   _onEnemySpawned(data) {
+    // Cancel any pending death-fade timer from a previous kill
+    if (this._deathFadeTimer) { this._deathFadeTimer.remove(); this._deathFadeTimer = null; }
+
     // Kill any lingering death-animation tweens from previous enemy
     this.tweens.killTweensOf(this.enemySprite);
     this.tweens.killTweensOf(this.enemyRect);
@@ -430,7 +434,8 @@ export default class GameScene extends Phaser.Scene {
       this.enemySprite.y = this._enemyY;
       this.enemySprite.disableInteractive();
 
-      this.time.delayedCall(500, () => {
+      this._deathFadeTimer = this.time.delayedCall(500, () => {
+        this._deathFadeTimer = null;
         this.tweens.add({
           targets: [target, this.enemyNameText, this.hpBarBg, this.hpBarFill],
           alpha: 0, duration: 300, ease: 'Power2',

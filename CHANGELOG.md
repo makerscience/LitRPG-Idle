@@ -1,5 +1,14 @@
 # CHANGELOG
 
+## 2026-02-10 (Character Stats Panel)
+- New STATS [C] panel showing all player stats in one place (base stats, combat, economy, progression)
+- Two-column layout: left shows LEVEL/STR/VIT/LUCK + combat stats (MAX HP, DMG, CRIT, ATK SPEED), right shows ECONOMY + PROGRESSION
+- Territory buff breakdowns shown inline (e.g. "7 + 2" for STR with territory bonus)
+- Auto-refreshes on level up, upgrade purchase, territory claim, equip/unequip, prestige
+- Mutual exclusion with all other modal panels (BAG, UPGRADES, PRESTIGE, SETTINGS, MAP)
+
+---
+
 ## 2026-02-10 (Rarity-Separated Inventory Stacks + Stat Scaling)
 - Items of different rarities now occupy separate inventory slots (Iron Dagger Common ≠ Iron Dagger Rare)
 - Rarity now scales stats and sell value: common ×1, uncommon ×1.5, rare ×2.5, epic ×5
