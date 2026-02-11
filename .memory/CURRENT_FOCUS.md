@@ -32,7 +32,7 @@
 - Platform: Desktop-first, 1280x720, targeting Itch.io
 - Redesign plan: `Codebase Redesign Plan.md`
 - Architecture: `ARCHITECTURE.md`
-- Memory files: `.memory/CURRENT_FOCUS.md`, `.memory/DECISIONS.md`
+- Memory files: `.memory/CURRENT_FOCUS.md`, `.memory/DECISIONS.md`, `.memory/LESSONS_LEARNED.md`
 - Changelog: `CHANGELOG.md`
 
 ---
@@ -50,7 +50,8 @@
 ## Pinned References
 - Governance rules: `CLAUDE.md`
 - Redesign plan: `Codebase Redesign Plan.md`
-- Architecture: `ARCHITECTURE.md`
+- Architecture: `ARCHITECTURE.md` (NOTE: drifted from reality — needs update)
 - MVP Plan: `MVP_PLAN.md`
+- Lessons learned: `.memory/LESSONS_LEARNED.md`
 
 Hard rule: If "Key Context" becomes a wall of text, move it into real docs and link here.
