@@ -23,13 +23,13 @@ export const FIRST_SELL = [
   "You sold that for gold? You know that's just rendered pixels, right?",
 ];
 
-// ── Zone entrances (one-shot per zone) ─────────────────────────────
+// ── Area entrances (one-shot per area) ─────────────────────────────
 
 export const ZONE_ENTRANCE = {
-  2: 'Zone 2. The monsters here are marginally less pathetic.',
-  3: 'Zone 3. I see you\'ve developed a taste for suffering.',
-  4: 'Zone 4. I should warn you - I stopped balancing past here.',
-  5: 'Zone 5. The Elder Dragon awaits. I\'d wish you luck, but I don\'t care.',
+  2: 'The Wilderness. The monsters here are marginally less pathetic.',
+  3: 'Deep Caverns. I see you\'ve developed a taste for suffering.',
+  4: 'Volcanic Ruins. I should warn you - I stopped balancing past here.',
+  5: 'The Dragon\'s Lair. The Elder Dragon awaits. I\'d wish you luck, but I don\'t care.',
 };
 
 // ── Kill milestones (one-shot per threshold) ───────────────────────
@@ -164,4 +164,33 @@ export const TERRITORY_CLAIM_COMMENTARY = [
   "Another territory falls to your relentless expansion. How colonial.",
   "You realize these buffs are just numbers I made up, right?",
   "Claim all you want. The map doesn't get bigger.",
+];
+
+// ── Boss encounters ─────────────────────────────────────────────────
+
+export const BOSS_CHALLENGE = [
+  "You're challenging the boss? Bold. Stupid, but bold.",
+  "I hope you've been leveling. Actually, I hope you haven't. This will be funnier.",
+  "The boss music would start now, if I'd bothered composing any.",
+];
+
+export const BOSS_DEFEATED = [
+  "Against all odds — and my expectations — you won.",
+  "The boss falls. I'll add this to the list of things I didn't think you could do.",
+  "Well. That happened. Moving on.",
+];
+
+export const ELITE_BOSS_DEFEATED = [
+  "An elite boss, no less. I'm running out of sarcasm. Almost.",
+  "That was supposed to be the hard one. I may need to recalibrate.",
+];
+
+export const AREA_BOSS_DEFEATED = [
+  "Area cleared. A new region opens. Your suffering continues.",
+  "Congratulations. You've conquered an entire area. The next one is worse.",
+  "The guardian falls. I'd celebrate, but there's always another area.",
+];
+
+export const FINAL_BOSS_DEFEATED = [
+  "You... actually did it. The Elder Dragon is dead. I have nothing sarcastic to say. That's a first.",
 ];

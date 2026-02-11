@@ -6,6 +6,7 @@ import TopBar from '../ui/TopBar.js';
 import SystemDialogue from '../ui/SystemDialogue.js';
 import SystemLog from '../ui/SystemLog.js';
 import ZoneNav from '../ui/ZoneNav.js';
+import BossChallenge from '../ui/BossChallenge.js';
 import InventoryPanel from '../ui/InventoryPanel.js';
 import UpgradePanel from '../ui/UpgradePanel.js';
 import PrestigePanel from '../ui/PrestigePanel.js';
@@ -43,6 +44,7 @@ export default class UIScene extends Phaser.Scene {
 
     this.systemLog = new SystemLog(this);
     this.zoneNav = new ZoneNav(this);
+    this.bossChallenge = new BossChallenge(this);
     this.inventoryPanel = new InventoryPanel(this);
     this.upgradePanel = new UpgradePanel(this);
     this.prestigePanel = new PrestigePanel(this);
@@ -87,10 +89,12 @@ export default class UIScene extends Phaser.Scene {
     if (overworldScene.scene.isSleeping()) {
       overworldScene.scene.wake();
       this.zoneNav.hide();
+      this.bossChallenge.hide();
       this._mapOpen = true;
     } else {
       overworldScene.scene.sleep();
       this.zoneNav.show();
+      this.bossChallenge.show();
       this._mapOpen = false;
     }
   }
@@ -100,6 +104,7 @@ export default class UIScene extends Phaser.Scene {
     if (this.systemDialogue) { this.systemDialogue.destroy(); this.systemDialogue = null; }
     if (this.systemLog) { this.systemLog.destroy(); this.systemLog = null; }
     if (this.zoneNav) { this.zoneNav.destroy(); this.zoneNav = null; }
+    if (this.bossChallenge) { this.bossChallenge.destroy(); this.bossChallenge = null; }
     if (this.inventoryPanel) { this.inventoryPanel.destroy(); this.inventoryPanel = null; }
     if (this.upgradePanel) { this.upgradePanel.destroy(); this.upgradePanel = null; }
     if (this.prestigePanel) { this.prestigePanel.destroy(); this.prestigePanel = null; }

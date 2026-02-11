@@ -12,7 +12,10 @@ import {
   PRESTIGE_AVAILABLE, PRESTIGE_PERFORMED, PRESTIGE_PERFORMED_DEFAULT, POST_PRESTIGE_COMBAT,
   BIG_DAMAGE, AMBIENT_SNARK, INVENTORY_FULL,
   FIRST_TERRITORY_CLAIM, TERRITORY_CLAIM_COMMENTARY,
+  BOSS_CHALLENGE, BOSS_DEFEATED as BOSS_DEFEATED_LINES,
+  ELITE_BOSS_DEFEATED, AREA_BOSS_DEFEATED, FINAL_BOSS_DEFEATED,
 } from '../data/dialogue.js';
+import { BOSS_TYPES } from '../data/areas.js';
 
 let unsubs = [];
 
@@ -70,8 +73,8 @@ const DialogueManager = {
 
       // Random combat commentary (~3% chance, 30s cooldown, suppressed by milestone)
       if (!milestoneHit && Math.random() < 0.03 && !isOnCooldown('combatCommentary', 30000)) {
-        const zone = state.currentZone;
-        const lines = COMBAT_COMMENTARY[zone];
+        const area = state.currentArea;
+        const lines = COMBAT_COMMENTARY[area];
         if (lines && lines.length > 0) {
           setCooldown('combatCommentary');
           say(pick(lines), 'sarcastic');
@@ -88,15 +91,15 @@ const DialogueManager = {
       }
     }));
 
-    // ── Zone entrances (one-shot per zone) ───────────────────────
-    unsubs.push(on(EVENTS.WORLD_ZONE_CHANGED, (data) => {
+    // ── Area entrances (one-shot per area) ───────────────────────
+    unsubs.push(on(EVENTS.WORLD_AREA_CHANGED, (data) => {
       const state = Store.getState();
-      const zone = data.zone;
-      if (zone >= 2) {
-        const flagKey = `reachedZone${zone}`;
-        if (!state.flags[flagKey] && ZONE_ENTRANCE[zone]) {
+      const area = data.area;
+      if (area >= 2) {
+        const flagKey = `reachedArea${area}`;
+        if (!state.flags[flagKey] && ZONE_ENTRANCE[area]) {
           Store.setFlag(flagKey, true);
-          say(ZONE_ENTRANCE[zone], 'neutral', `Entered Zone ${zone}`);
+          say(ZONE_ENTRANCE[area], 'neutral', `Entered Area ${area}`);
         }
       }
     }));
@@ -186,6 +189,30 @@ const DialogueManager = {
       if (Math.random() < 0.5 && !isOnCooldown('territoryClaim', 30000)) {
         setCooldown('territoryClaim');
         say(pick(TERRITORY_CLAIM_COMMENTARY), 'sarcastic');
+      }
+    }));
+
+    // ── Boss challenge started ───────────────────────────────────
+    unsubs.push(on(EVENTS.BOSS_SPAWNED, () => {
+      say(pick(BOSS_CHALLENGE), 'worried', 'Boss fight!');
+    }));
+
+    // ── Boss defeated ──────────────────────────────────────────────
+    unsubs.push(on(EVENTS.BOSS_DEFEATED, (data) => {
+      if (data.bossType === BOSS_TYPES.ELITE) {
+        say(pick(ELITE_BOSS_DEFEATED), 'impressed', `${data.name} defeated!`);
+      } else {
+        say(pick(BOSS_DEFEATED_LINES), 'impressed', `${data.name} defeated!`);
+      }
+    }));
+
+    // ── Area boss defeated ─────────────────────────────────────────
+    unsubs.push(on(EVENTS.AREA_BOSS_DEFEATED, (data) => {
+      // Check if this is the final boss (area 5)
+      if (data.area === 5) {
+        say(pick(FINAL_BOSS_DEFEATED), 'impressed', 'GAME COMPLETE');
+      } else {
+        say(pick(AREA_BOSS_DEFEATED), 'neutral', `${data.name} cleared!`);
       }
     }));
 

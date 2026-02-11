@@ -98,7 +98,16 @@ export default class SystemLog {
     }));
 
     this._unsubs.push(on(EVENTS.WORLD_ZONE_CHANGED, (data) => {
-      this.addLine(`Entered Zone ${data.zone}`, 'zoneChange');
+      const areaLabel = data.area ? ` (Area ${data.area})` : '';
+      this.addLine(`Entered Zone ${data.zone}${areaLabel}`, 'zoneChange');
+    }));
+
+    this._unsubs.push(on(EVENTS.BOSS_DEFEATED, (data) => {
+      this.addLine(`BOSS DEFEATED: ${data.name}!`, 'system');
+    }));
+
+    this._unsubs.push(on(EVENTS.AREA_BOSS_DEFEATED, (data) => {
+      this.addLine(`AREA CLEARED: ${data.name}! Next area unlocked.`, 'prestige');
     }));
 
     // Loot / Inventory events

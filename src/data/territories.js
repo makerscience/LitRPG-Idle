@@ -2,9 +2,9 @@
 // Each territory maps to one enemy type and provides a unique buff when conquered.
 
 const TERRITORIES = [
-  // Zone 1
+  // Area 1: Sewers
   {
-    id: 'sewer_rats_nest', name: "Sewer Rat's Nest", zone: 1,
+    id: 'sewer_rats_nest', name: "Sewer Rat's Nest", area: 1,
     enemyId: 'w1z1_rat',
     buff: { key: 'goldGain', label: '+15% Gold Gain', value: 0.15 },
     killsRequired: 50, goldCost: '500',
@@ -12,7 +12,7 @@ const TERRITORIES = [
     mapPosition: { x: 150, y: 540 },
   },
   {
-    id: 'slime_pit', name: 'Slime Pit', zone: 1,
+    id: 'slime_pit', name: 'Slime Pit', area: 1,
     enemyId: 'w1z1_slime',
     buff: { key: 'hpRegen', label: '+20% HP Regen', value: 0.20 },
     killsRequired: 40, goldCost: '800',
@@ -20,7 +20,7 @@ const TERRITORIES = [
     mapPosition: { x: 310, y: 540 },
   },
   {
-    id: 'goblin_warren', name: 'Goblin Warren', zone: 1,
+    id: 'goblin_warren', name: 'Goblin Warren', area: 1,
     enemyId: 'w1z1_goblin',
     buff: { key: 'xpGain', label: '+10% XP Gain', value: 0.10 },
     killsRequired: 30, goldCost: '1200',
@@ -28,9 +28,9 @@ const TERRITORIES = [
     mapPosition: { x: 470, y: 540 },
   },
 
-  // Zone 2
+  // Area 2: Wilderness
   {
-    id: 'wolf_den', name: 'Wolf Den', zone: 2,
+    id: 'wolf_den', name: 'Wolf Den', area: 2,
     enemyId: 'w1z2_wolf',
     buff: { key: 'critChance', label: '+3% Crit Chance', value: 0.03 },
     killsRequired: 40, goldCost: '5000',
@@ -38,7 +38,7 @@ const TERRITORIES = [
     mapPosition: { x: 150, y: 430 },
   },
   {
-    id: 'skeleton_crypt', name: 'Skeleton Crypt', zone: 2,
+    id: 'skeleton_crypt', name: 'Skeleton Crypt', area: 2,
     enemyId: 'w1z2_skeleton',
     buff: { key: 'flatStr', label: '+5 STR', value: 5 },
     killsRequired: 30, goldCost: '15000',
@@ -46,7 +46,7 @@ const TERRITORIES = [
     mapPosition: { x: 310, y: 430 },
   },
   {
-    id: 'bandit_hideout', name: 'Bandit Hideout', zone: 2,
+    id: 'bandit_hideout', name: 'Bandit Hideout', area: 2,
     enemyId: 'w1z2_bandit',
     buff: { key: 'goldGain', label: '+10% Gold Gain', value: 0.10 },
     killsRequired: 20, goldCost: '30000',
@@ -54,9 +54,9 @@ const TERRITORIES = [
     mapPosition: { x: 470, y: 430 },
   },
 
-  // Zone 3
+  // Area 3: Deep Caverns
   {
-    id: 'orc_camp', name: 'Orc Camp', zone: 3,
+    id: 'orc_camp', name: 'Orc Camp', area: 3,
     enemyId: 'w1z3_orc',
     buff: { key: 'baseDamage', label: '+10% Base Damage', value: 0.10 },
     killsRequired: 25, goldCost: '100000',
@@ -64,7 +64,7 @@ const TERRITORIES = [
     mapPosition: { x: 150, y: 320 },
   },
   {
-    id: 'troll_cave', name: 'Troll Cave', zone: 3,
+    id: 'troll_cave', name: 'Troll Cave', area: 3,
     enemyId: 'w1z3_troll',
     buff: { key: 'maxHp', label: '+15% Max HP', value: 0.15 },
     killsRequired: 15, goldCost: '300000',
@@ -72,7 +72,7 @@ const TERRITORIES = [
     mapPosition: { x: 310, y: 320 },
   },
   {
-    id: 'mage_tower', name: 'Mage Tower', zone: 3,
+    id: 'mage_tower', name: 'Mage Tower', area: 3,
     enemyId: 'w1z3_mage',
     buff: { key: 'fragmentDropRate', label: '+10% Fragment Drop Rate', value: 0.10 },
     killsRequired: 10, goldCost: '500000',
@@ -80,9 +80,9 @@ const TERRITORIES = [
     mapPosition: { x: 470, y: 320 },
   },
 
-  // Zone 4
+  // Area 4: Volcanic Ruins
   {
-    id: 'dragon_nursery', name: 'Dragon Nursery', zone: 4,
+    id: 'dragon_nursery', name: 'Dragon Nursery', area: 4,
     enemyId: 'w1z4_whelp',
     buff: { key: 'autoAttackSpeed', label: '+10% Attack Speed', value: 0.10 },
     killsRequired: 15, goldCost: '2000000',
@@ -90,7 +90,7 @@ const TERRITORIES = [
     mapPosition: { x: 150, y: 210 },
   },
   {
-    id: 'golem_foundry', name: 'Golem Foundry', zone: 4,
+    id: 'golem_foundry', name: 'Golem Foundry', area: 4,
     enemyId: 'w1z4_golem',
     buff: { key: 'flatVit', label: '+8 VIT', value: 8 },
     killsRequired: 8, goldCost: '5000000',
@@ -98,7 +98,7 @@ const TERRITORIES = [
     mapPosition: { x: 310, y: 210 },
   },
   {
-    id: 'lich_sanctum', name: 'Lich Sanctum', zone: 4,
+    id: 'lich_sanctum', name: 'Lich Sanctum', area: 4,
     enemyId: 'w1z4_lich',
     buff: { key: 'prestigeMultiplier', label: '+10% Prestige Multiplier', value: 0.10 },
     killsRequired: 5, goldCost: '10000000',
@@ -106,9 +106,9 @@ const TERRITORIES = [
     mapPosition: { x: 470, y: 210 },
   },
 
-  // Zone 5
+  // Area 5: Dragon's Lair
   {
-    id: 'elder_dragons_hoard', name: "Elder Dragon's Hoard", zone: 5,
+    id: 'elder_dragons_hoard', name: "Elder Dragon's Hoard", area: 5,
     enemyId: 'w1z5_dragon',
     buff: { key: 'allIncome', label: '+15% All Income', value: 0.15 },
     killsRequired: 3, goldCost: '50000000',
@@ -122,7 +122,11 @@ export function getTerritory(id) {
 }
 
 export function getTerritoriesForZone(zone) {
-  return TERRITORIES.filter(t => t.zone === zone);
+  return TERRITORIES.filter(t => t.area === zone);
+}
+
+export function getTerritoriesForArea(areaId) {
+  return TERRITORIES.filter(t => t.area === areaId);
 }
 
 export function getAllTerritories() {

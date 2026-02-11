@@ -4,8 +4,24 @@
 import { D, fromJSON, Decimal } from './BigNum.js';
 import { PROGRESSION, ECONOMY, SAVE, PRESTIGE, COMBAT } from '../config.js';
 import { emit, EVENTS } from '../events.js';
+import { AREAS } from '../data/areas.js';
 
 let state = null;
+
+/** Build initial areaProgress for all areas. */
+function createAreaProgress() {
+  const progress = {};
+  for (const areaId of Object.keys(AREAS)) {
+    progress[areaId] = {
+      furthestZone: 0,       // 0 = not yet entered (area locked)
+      bossesDefeated: [],    // zone numbers where boss was beaten
+      zoneClearKills: {},     // { zoneNum: killCount } — kills toward boss threshold
+    };
+  }
+  // Area 1 starts unlocked
+  progress[1].furthestZone = 1;
+  return progress;
+}
 
 /** Build a fresh default state from config values. */
 function createInitialState() {
@@ -29,14 +45,27 @@ function createInitialState() {
     purchasedUpgrades: {},
     totalKills: 0,
     currentWorld: 1,
+    currentArea: 1,
     currentZone: 1,
+    furthestArea: 1,
+    areaProgress: createAreaProgress(),
+    // Legacy fields kept for compatibility during transition
     furthestZone: 1,
     prestigeCount: 0,
     prestigeMultiplier: D(1),
     unlockedCheats: [],
     activeCheats: {},
     titles: [],
-    flags: { crackTriggered: false, firstKill: false, firstLevelUp: false, reachedZone2: false, reachedZone3: false, reachedZone4: false, reachedZone5: false, firstEquip: false, firstFragment: false, firstMerge: false, firstPrestige: false, firstSell: false, kills100: false, kills500: false, kills1000: false, kills5000: false, firstTerritoryClaim: false },
+    flags: {
+      crackTriggered: false, firstKill: false, firstLevelUp: false,
+      reachedZone2: false, reachedZone3: false, reachedZone4: false, reachedZone5: false,
+      firstEquip: false, firstFragment: false, firstMerge: false,
+      firstPrestige: false, firstSell: false,
+      kills100: false, kills500: false, kills1000: false, kills5000: false,
+      firstTerritoryClaim: false,
+      // Area entrance flags
+      reachedArea2: false, reachedArea3: false, reachedArea4: false, reachedArea5: false,
+    },
     settings: { autoAttack: false },
     killsPerEnemy: {},
     territories: {},
@@ -79,8 +108,11 @@ function hydrateState(saved) {
   if (saved.purchasedUpgrades) fresh.purchasedUpgrades = { ...saved.purchasedUpgrades };
   if (saved.totalKills != null) fresh.totalKills = saved.totalKills;
   if (saved.currentWorld != null) fresh.currentWorld = saved.currentWorld;
+  if (saved.currentArea != null) fresh.currentArea = saved.currentArea;
   if (saved.currentZone != null) fresh.currentZone = saved.currentZone;
+  if (saved.furthestArea != null) fresh.furthestArea = saved.furthestArea;
   if (saved.furthestZone != null) fresh.furthestZone = saved.furthestZone;
+  if (saved.areaProgress) fresh.areaProgress = JSON.parse(JSON.stringify(saved.areaProgress));
   if (saved.prestigeCount != null) fresh.prestigeCount = saved.prestigeCount;
   if (saved.unlockedCheats) fresh.unlockedCheats = [...saved.unlockedCheats];
   if (saved.activeCheats) fresh.activeCheats = { ...saved.activeCheats };
@@ -171,25 +203,100 @@ const Store = {
     emit(EVENTS.STATE_CHANGED, { changedKeys: ['playerStats'] });
   },
 
+  /** Navigate to a specific area and zone. */
+  setAreaZone(area, zone) {
+    const prevArea = state.currentArea;
+    state.currentArea = area;
+    state.currentZone = zone;
+    // Keep legacy fields in sync
+    state.currentWorld = 1;
+
+    emit(EVENTS.WORLD_ZONE_CHANGED, { world: 1, zone, area });
+    if (area !== prevArea) {
+      emit(EVENTS.WORLD_AREA_CHANGED, { area, prevArea });
+    }
+    emit(EVENTS.STATE_CHANGED, { changedKeys: ['currentArea', 'currentZone'] });
+  },
+
+  /** Legacy: setZone (kept for backward compat during transition). */
   setZone(world, zone) {
+    // In the new system, zone changes within an area don't change area
     state.currentWorld = world;
     state.currentZone = zone;
-    emit(EVENTS.WORLD_ZONE_CHANGED, { world, zone });
+    emit(EVENTS.WORLD_ZONE_CHANGED, { world, zone, area: state.currentArea });
     emit(EVENTS.STATE_CHANGED, { changedKeys: ['currentWorld', 'currentZone'] });
   },
 
+  setFurthestArea(area) {
+    state.furthestArea = Math.max(state.furthestArea, area);
+    // Keep legacy field in sync
+    state.furthestZone = state.furthestArea;
+    emit(EVENTS.STATE_CHANGED, { changedKeys: ['furthestArea', 'furthestZone'] });
+  },
+
   setFurthestZone(zone) {
-    state.furthestZone = Math.max(state.furthestZone, zone);
-    emit(EVENTS.STATE_CHANGED, { changedKeys: ['furthestZone'] });
+    // Legacy — now mapped to furthestArea
+    state.furthestZone = Math.max(state.furthestZone ?? 1, zone);
+    state.furthestArea = state.furthestZone;
+    emit(EVENTS.STATE_CHANGED, { changedKeys: ['furthestZone', 'furthestArea'] });
+  },
+
+  /** Update areaProgress for a specific area. */
+  updateAreaProgress(areaId, updates) {
+    if (!state.areaProgress[areaId]) {
+      state.areaProgress[areaId] = { furthestZone: 0, bossesDefeated: [], zoneClearKills: {} };
+    }
+    Object.assign(state.areaProgress[areaId], updates);
+    emit(EVENTS.STATE_CHANGED, { changedKeys: ['areaProgress'] });
+  },
+
+  /** Record a boss defeated in areaProgress. */
+  recordBossDefeated(areaId, zoneNum) {
+    if (!state.areaProgress[areaId]) {
+      state.areaProgress[areaId] = { furthestZone: 0, bossesDefeated: [], zoneClearKills: {} };
+    }
+    if (!state.areaProgress[areaId].bossesDefeated.includes(zoneNum)) {
+      state.areaProgress[areaId].bossesDefeated.push(zoneNum);
+    }
+    emit(EVENTS.STATE_CHANGED, { changedKeys: ['areaProgress'] });
+  },
+
+  /** Increment zone clear kills for boss threshold tracking. */
+  incrementZoneClearKills(areaId, zoneNum) {
+    if (!state.areaProgress[areaId]) {
+      state.areaProgress[areaId] = { furthestZone: 0, bossesDefeated: [], zoneClearKills: {} };
+    }
+    const kills = state.areaProgress[areaId].zoneClearKills;
+    kills[zoneNum] = (kills[zoneNum] || 0) + 1;
+    // No event — high frequency (BossManager reads directly)
+  },
+
+  /** Advance furthest zone in an area's progress. */
+  advanceAreaZone(areaId, zoneNum) {
+    if (!state.areaProgress[areaId]) {
+      state.areaProgress[areaId] = { furthestZone: 0, bossesDefeated: [], zoneClearKills: {} };
+    }
+    state.areaProgress[areaId].furthestZone = Math.max(
+      state.areaProgress[areaId].furthestZone, zoneNum
+    );
+    emit(EVENTS.STATE_CHANGED, { changedKeys: ['areaProgress'] });
   },
 
   performPrestige() {
     state.prestigeCount += 1;
     state.prestigeMultiplier = D(PRESTIGE.multiplierFormula(state.prestigeCount));
     state.gold = state.gold.times(PRESTIGE.goldRetention).floor();
+    state.currentArea = 1;
     state.currentZone = 1;
     state.currentWorld = 1;
-    // furthestZone NOT reset — permanent high-water mark
+    // furthestArea NOT reset — permanent high-water mark
+    // furthestZone kept in sync
+    state.furthestZone = state.furthestArea;
+
+    // Reset areaProgress zone clears (re-progress each prestige)
+    state.areaProgress = createAreaProgress();
+    // Area 1 starts accessible
+    state.areaProgress[1].furthestZone = 1;
 
     // Reset stats to starting values
     const stats = PROGRESSION.startingStats;
@@ -206,7 +313,9 @@ const Store = {
 
     // Keeps: equipped, inventoryStacks, glitchFragments, unlockedCheats, activeCheats, titles, flags
     // Keeps: killsPerEnemy, territories (permanent progression)
-    emit(EVENTS.WORLD_ZONE_CHANGED, { world: 1, zone: 1 });
+    // Keeps: furthestArea (permanent high-water mark)
+    emit(EVENTS.WORLD_ZONE_CHANGED, { world: 1, zone: 1, area: 1 });
+    emit(EVENTS.WORLD_AREA_CHANGED, { area: 1, prevArea: state.currentArea });
     emit(EVENTS.STATE_CHANGED, { changedKeys: ['all'] });
   },
 

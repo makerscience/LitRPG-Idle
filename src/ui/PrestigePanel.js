@@ -193,7 +193,7 @@ export default class PrestigePanel {
     this._addText(rightX, topY, '-- RESETS --', '#ef4444', '14px', true);
     const goldRetained = state.gold.times(PRESTIGE.goldRetention).floor();
     const resets = [
-      'Zone → 1',
+      'Area 1, Zone 1',
       `Gold: ${format(state.gold)} → ${format(goldRetained)} (keep 10%)`,
       'Level → 1 / Stats → Starting',
       'All Upgrades → Reset',

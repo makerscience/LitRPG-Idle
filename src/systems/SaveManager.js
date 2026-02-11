@@ -57,6 +57,46 @@ const migrations = {
     data.schemaVersion = 6;
     return data;
   },
+  7: (data) => {
+    // Area/zone hierarchy migration.
+    // Map old flat zone progression to new area/zone system generously.
+    const oldZone = data.currentZone ?? 1;
+    const oldFurthest = data.furthestZone ?? oldZone;
+
+    data.currentArea = oldZone;
+    data.currentZone = 1;              // Start at zone 1 of the area
+    data.furthestArea = oldFurthest;
+
+    // Build areaProgress — generous: mark all cleared areas as fully complete
+    const areaCounts = { 1: 5, 2: 7, 3: 7, 4: 10, 5: 5 };
+    data.areaProgress = {};
+    for (let a = 1; a <= 5; a++) {
+      if (a < oldFurthest) {
+        // Fully cleared area
+        const zc = areaCounts[a];
+        const bosses = [];
+        for (let z = 1; z <= zc; z++) bosses.push(z);
+        data.areaProgress[a] = { furthestZone: zc, bossesDefeated: bosses, zoneClearKills: {} };
+      } else if (a === oldFurthest) {
+        // Current frontier area — unlocked but at zone 1
+        data.areaProgress[a] = { furthestZone: 1, bossesDefeated: [], zoneClearKills: {} };
+      } else {
+        // Locked area
+        data.areaProgress[a] = { furthestZone: 0, bossesDefeated: [], zoneClearKills: {} };
+      }
+    }
+
+    // Add area entrance flags
+    if (data.flags) {
+      data.flags.reachedArea2 = data.flags.reachedArea2 ?? (oldFurthest >= 2);
+      data.flags.reachedArea3 = data.flags.reachedArea3 ?? (oldFurthest >= 3);
+      data.flags.reachedArea4 = data.flags.reachedArea4 ?? (oldFurthest >= 4);
+      data.flags.reachedArea5 = data.flags.reachedArea5 ?? (oldFurthest >= 5);
+    }
+
+    data.schemaVersion = 7;
+    return data;
+  },
 };
 
 /** Run all applicable migrations in order. */

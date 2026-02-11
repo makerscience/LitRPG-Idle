@@ -45,15 +45,15 @@ export default class OverworldScene extends Phaser.Scene {
     this._closeBtn.on('pointerover', () => this._closeBtn.setStyle({ color: '#ffffff', backgroundColor: '#555555' }));
     this._closeBtn.on('pointerout', () => this._closeBtn.setStyle({ color: '#a1a1aa', backgroundColor: '#333333' }));
 
-    // Zone labels on the left side
+    // Area labels on the left side
     this._zoneLabels = [];
-    const zones = [
-      { zone: 1, y: 540 }, { zone: 2, y: 430 }, { zone: 3, y: 320 },
-      { zone: 4, y: 210 }, { zone: 5, y: 100 },
+    const areas = [
+      { area: 1, y: 540 }, { area: 2, y: 430 }, { area: 3, y: 320 },
+      { area: 4, y: 210 }, { area: 5, y: 100 },
     ];
-    for (const { zone, y } of zones) {
-      const theme = ZONE_THEMES[zone];
-      const label = this.add.text(ga.x + 20, ga.y + y - 10, `Zone ${zone}: ${theme.name}`, {
+    for (const { area, y } of areas) {
+      const theme = ZONE_THEMES[area];
+      const label = this.add.text(ga.x + 20, ga.y + y - 10, `Area ${area}: ${theme.name}`, {
         fontFamily: 'monospace', fontSize: '11px', color: '#666666',
       });
       this._zoneLabels.push(label);
@@ -176,7 +176,7 @@ export default class OverworldScene extends Phaser.Scene {
     for (const node of this._nodes) {
       const t = node.territory;
       const conquered = TerritoryManager.isConquered(t.id);
-      const zoneReached = state.furthestZone >= t.zone;
+      const zoneReached = state.furthestArea >= t.area;
       const canClaim = TerritoryManager.canClaim(t.id);
 
       // Determine state and color
@@ -270,9 +270,9 @@ export default class OverworldScene extends Phaser.Scene {
     this._infoPanelObjects.push(nameText);
     y += nameText.height + 8;
 
-    // Zone label
-    const theme = ZONE_THEMES[territory.zone];
-    const zoneText = this.add.text(x + 15, y, `Zone ${territory.zone}: ${theme.name}`, {
+    // Area label
+    const theme = ZONE_THEMES[territory.area];
+    const zoneText = this.add.text(x + 15, y, `Area ${territory.area}: ${theme.name}`, {
       fontFamily: 'monospace', fontSize: '12px', color: '#888888',
     });
     this._infoPanelObjects.push(zoneText);

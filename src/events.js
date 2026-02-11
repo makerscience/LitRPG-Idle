@@ -10,6 +10,7 @@ export const EVENTS = {
 
   // World / Navigation
   WORLD_ZONE_CHANGED:   'world:zoneChanged',
+  WORLD_AREA_CHANGED:   'world:areaChanged',
 
   // Combat
   COMBAT_ENEMY_SPAWNED: 'combat:enemySpawned',
@@ -41,6 +42,12 @@ export const EVENTS = {
   CHEAT_TOGGLED:        'cheat:toggled',
   PRESTIGE_AVAILABLE:   'prestige:available',
   PRESTIGE_PERFORMED:   'prestige:performed',
+
+  // Boss
+  BOSS_CHALLENGE_READY:       'boss:challengeReady',
+  BOSS_SPAWNED:               'boss:spawned',
+  BOSS_DEFEATED:              'boss:defeated',
+  AREA_BOSS_DEFEATED:         'boss:areaDefeated',
 
   // Territory
   TERRITORY_CLAIMED:          'territory:claimed',

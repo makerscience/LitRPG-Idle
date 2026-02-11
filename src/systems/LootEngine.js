@@ -27,11 +27,11 @@ const LootEngine = {
     if (!lootTable || lootTable.length === 0) return;
 
     const state = Store.getState();
-    const zone = state.currentZone;
+    const area = state.currentArea;
     const lootHoarderActive = state.activeCheats['loot_hoarder'] === true;
 
-    // Base drop chance, boosted if Loot Hoarder active
-    let dropChance = INVENTORY.dropChanceByZone[zone] ?? 0.20;
+    // Base drop chance, boosted if Loot Hoarder active (keyed by area)
+    let dropChance = INVENTORY.dropChanceByZone[area] ?? 0.20;
     if (lootHoarderActive) {
       dropChance = Math.min(dropChance * CHEATS.lootHoarder.dropChanceBoost, CHEATS.lootHoarder.dropChanceCap);
     }

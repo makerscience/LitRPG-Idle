@@ -59,11 +59,13 @@ export const INVENTORY = {
 export const PRESTIGE = {
   multiplierFormula: (count) => 1 + count * 0.25,
   goldRetention: 0.10,
-  minZone: 4,
+  minZone: 4,     // legacy — kept for backward compat
+  minArea: 4,     // prestige unlocks at area 4
 };
 
 export const WORLD = {
-  zoneCount: 5,
+  zoneCount: 5,   // legacy — total number of areas (was zones)
+  areaCount: 5,
   width: 1280,
   height: 720,
 };
@@ -79,7 +81,7 @@ export const CHEATS = {
 };
 
 export const SAVE = {
-  schemaVersion: 6,
+  schemaVersion: 7,
   autosaveInterval: 30_000,   // ms
   maxOfflineTime: 12 * 60 * 60 * 1000,  // 12 hours in ms
 };

@@ -1,5 +1,5 @@
 // PrestigeManager — prestige loop orchestrator.
-// Tracks furthest zone, eligibility, and executes prestige resets.
+// Tracks furthest area, eligibility, and executes prestige resets.
 
 import Store from './Store.js';
 import { on, emit, EVENTS } from '../events.js';
@@ -13,18 +13,18 @@ const PrestigeManager = {
   init() {
     // Handle already-loaded saves where SAVE_LOADED fired before manager init.
     const initialState = Store.getState();
-    if (initialState.furthestZone >= PRESTIGE.minZone) {
+    if (initialState.furthestArea >= PRESTIGE.minArea) {
       prestigeAvailableEmitted = true;
     }
 
-    // Track furthest zone on zone changes
-    unsubs.push(on(EVENTS.WORLD_ZONE_CHANGED, (data) => {
+    // Track furthest area on area changes
+    unsubs.push(on(EVENTS.WORLD_AREA_CHANGED, (data) => {
       const state = Store.getState();
-      const prevFurthest = state.furthestZone;
-      Store.setFurthestZone(data.zone);
+      const prevFurthest = state.furthestArea;
+      Store.setFurthestArea(data.area);
 
-      // Emit PRESTIGE_AVAILABLE once when first reaching minZone
-      if (!prestigeAvailableEmitted && data.zone >= PRESTIGE.minZone && prevFurthest < PRESTIGE.minZone) {
+      // Emit PRESTIGE_AVAILABLE once when first reaching minArea
+      if (!prestigeAvailableEmitted && data.area >= PRESTIGE.minArea && prevFurthest < PRESTIGE.minArea) {
         prestigeAvailableEmitted = true;
         emit(EVENTS.PRESTIGE_AVAILABLE, {});
       }
@@ -33,7 +33,7 @@ const PrestigeManager = {
     // On save loaded, check if prestige already available
     unsubs.push(on(EVENTS.SAVE_LOADED, () => {
       const state = Store.getState();
-      if (state.furthestZone >= PRESTIGE.minZone) {
+      if (state.furthestArea >= PRESTIGE.minArea) {
         prestigeAvailableEmitted = true;
       }
     }));
@@ -48,7 +48,7 @@ const PrestigeManager = {
 
   canPrestige() {
     const state = Store.getState();
-    return state.furthestZone >= PRESTIGE.minZone;
+    return state.furthestArea >= PRESTIGE.minArea;
   },
 
   getNextMultiplier() {

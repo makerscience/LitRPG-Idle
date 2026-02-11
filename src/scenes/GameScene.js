@@ -25,8 +25,8 @@ export default class GameScene extends Phaser.Scene {
     this._combatY = ga.y + ga.h - 225;
     this._enemyY = this._combatY + 60;
 
-    // Create parallax background first (lowest depth)
-    this._createParallax(Store.getState().currentZone);
+    // Create parallax background first (lowest depth) — keyed on area, not zone
+    this._createParallax(Store.getState().currentArea);
 
     // Player attack pose config
     this._playerAttackSprites = [
@@ -115,10 +115,10 @@ export default class GameScene extends Phaser.Scene {
       if (data.active) this._onCheatGlitch();
     }));
 
-    // Parallax zone change
-    this._unsubs.push(on(EVENTS.WORLD_ZONE_CHANGED, (data) => {
+    // Parallax area change — only rebuild on area change, not zone change
+    this._unsubs.push(on(EVENTS.WORLD_AREA_CHANGED, (data) => {
       this._destroyParallax();
-      this._createParallax(data.zone);
+      this._createParallax(data.area);
     }));
 
     // Register shutdown handler

@@ -1,5 +1,25 @@
 # CHANGELOG
 
+## 2026-02-10 (ZoneNav Polish)
+- Sewer Rat HP halved (100 → 50) for easier early game
+- ZoneNav text: black stroke outlines, brighter colors, no transparency
+- Navigation arrows moved closer to labels (area ±90px, zone ±65px)
+- Arrows now hidden entirely when navigation in that direction is unavailable
+
+---
+
+## 2026-02-10 (Zone/Area Progression Restructure)
+- Restructured flat 5-zone system into 5 areas with 34 total zones (Sewers 5, Wilderness 7, Deep Caverns 7, Volcanic Ruins 10, Dragon's Lair 5)
+- Progressive enemy unlocks within areas: zone 1 = weakest enemy only, zone 2 adds next, zone 3+ adds all
+- Zone scaling: enemies get 15% stronger per zone within an area
+- Boss gate system: kill threshold per zone unlocks "Challenge Boss" button (mini-boss 3x, elite 5x every 5th, area boss 8x last zone)
+- Two-tier navigation UI: area arrows (top row) + zone arrows (bottom row) with boss progress indicator
+- Area bosses unlock next area on defeat; prestige resets zone progress but keeps area high-water mark
+- Save migration v6→v7: existing progress mapped generously to new area/zone hierarchy
+- Boss dialogue: encounter/defeat/area-clear lines with elite and final boss variants
+
+---
+
 ## 2026-02-10 (Overworld Territory Map)
 - Added overworld map overlay (M key / MAP button) with 13 conquerable territories across 5 zones
 - Each territory requires kill threshold + gold cost to claim, grants a permanent buff (gold gain, XP, crit, STR, VIT, HP regen, damage, attack speed, fragment drops, max HP)

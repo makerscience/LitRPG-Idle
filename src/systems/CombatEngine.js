@@ -3,10 +3,12 @@
 
 import Store from './Store.js';
 import TimeEngine from './TimeEngine.js';
+import BossManager from './BossManager.js';
 import { D, Decimal } from './BigNum.js';
 import { emit, on, EVENTS } from '../events.js';
 import { DAMAGE_FORMULAS, COMBAT } from '../config.js';
 import { getRandomEnemy } from '../data/enemies.js';
+import { getUnlockedEnemies, getZoneScaling } from '../data/areas.js';
 import InventorySystem from './InventorySystem.js';
 import UpgradeManager from './UpgradeManager.js';
 import TerritoryManager from './TerritoryManager.js';
@@ -17,6 +19,9 @@ let forcedCritMultiplier = null;
 
 const CombatEngine = {
   init() {
+    // Initialize BossManager
+    BossManager.init();
+
     // Register auto-attack ticker (enabled by default — it's an idle game)
     TimeEngine.register(
       'combat:autoAttack',
@@ -75,7 +80,7 @@ const CombatEngine = {
       }
     }));
 
-    // Subscribe to zone changes
+    // Subscribe to zone changes — spawn new enemy (not boss)
     unsubs.push(on(EVENTS.WORLD_ZONE_CHANGED, () => {
       // Cancel pending spawn delay
       TimeEngine.unregister('combat:spawnDelay');
@@ -88,6 +93,7 @@ const CombatEngine = {
   },
 
   destroy() {
+    BossManager.destroy();
     TimeEngine.unregister('combat:autoAttack');
     TimeEngine.unregister('combat:spawnDelay');
     TimeEngine.unregister('combat:enemyAttack');
@@ -98,27 +104,70 @@ const CombatEngine = {
     currentEnemy = null;
   },
 
+  /** Spawn a regular enemy using area/zone progressive unlock + zone scaling. */
   spawnEnemy() {
     const state = Store.getState();
-    const template = getRandomEnemy(state.currentZone);
-    if (!template) return;
+    const area = state.currentArea;
+    const zone = state.currentZone;
 
-    const maxHp = D(template.hp);
+    // Get unlocked enemies for this area+zone
+    const pool = getUnlockedEnemies(area, zone);
+    if (!pool || pool.length === 0) return;
+
+    const template = pool[Math.floor(Math.random() * pool.length)];
+    const zoneScale = getZoneScaling(zone);
+
+    const scaledHp = D(template.hp).times(zoneScale).floor();
+    const scaledAtk = Math.floor(template.attack * zoneScale);
+    const scaledGold = D(template.goldDrop).times(zoneScale).floor();
+    const scaledXp = D(template.xpDrop).times(zoneScale).floor();
+
     currentEnemy = {
       id: template.id,
       name: template.name,
-      maxHp,
-      hp: maxHp,
-      attack: template.attack,
-      goldDrop: template.goldDrop,
-      xpDrop: template.xpDrop,
+      maxHp: scaledHp,
+      hp: scaledHp,
+      attack: scaledAtk,
+      goldDrop: scaledGold.toString(),
+      xpDrop: scaledXp.toString(),
       lootTable: template.lootTable,
+      isBoss: false,
     };
 
     emit(EVENTS.COMBAT_ENEMY_SPAWNED, {
       enemyId: currentEnemy.id,
       name: currentEnemy.name,
       maxHp: currentEnemy.maxHp,
+      isBoss: false,
+    });
+  },
+
+  /** Spawn a boss enemy (called by BossManager via BossChallenge UI). */
+  spawnBoss(bossTemplate) {
+    // Cancel any pending spawn
+    TimeEngine.unregister('combat:spawnDelay');
+    currentEnemy = null;
+
+    const maxHp = D(bossTemplate.hp);
+    currentEnemy = {
+      id: bossTemplate.id,
+      name: bossTemplate.name,
+      maxHp,
+      hp: maxHp,
+      attack: bossTemplate.attack,
+      goldDrop: bossTemplate.goldDrop,
+      xpDrop: bossTemplate.xpDrop,
+      lootTable: bossTemplate.lootTable,
+      isBoss: true,
+      bossType: bossTemplate.bossType,
+    };
+
+    emit(EVENTS.COMBAT_ENEMY_SPAWNED, {
+      enemyId: bossTemplate.baseEnemyId || bossTemplate.id,
+      name: currentEnemy.name,
+      maxHp: currentEnemy.maxHp,
+      isBoss: true,
+      bossType: bossTemplate.bossType,
     });
   },
 
@@ -183,6 +232,7 @@ const CombatEngine = {
       name: currentEnemy.name,
       hp: currentEnemy.hp,
       maxHp: currentEnemy.maxHp,
+      isBoss: currentEnemy.isBoss || false,
     };
   },
 
@@ -210,6 +260,11 @@ const CombatEngine = {
     TimeEngine.setEnabled('combat:autoAttack', false);
     TimeEngine.setEnabled('combat:enemyAttack', false);
     TimeEngine.setEnabled('combat:playerRegen', false);
+
+    // If fighting a boss, cancel the boss fight
+    if (currentEnemy && currentEnemy.isBoss) {
+      BossManager.cancelBoss();
+    }
     currentEnemy = null;
 
     // Respawn after delay
@@ -227,7 +282,10 @@ const CombatEngine = {
     currentEnemy = null;
 
     Store.incrementKills();
-    emit(EVENTS.COMBAT_ENEMY_KILLED, { enemyId: dead.id, name: dead.name, lootTable: dead.lootTable });
+    emit(EVENTS.COMBAT_ENEMY_KILLED, {
+      enemyId: dead.id, name: dead.name, lootTable: dead.lootTable,
+      isBoss: dead.isBoss || false,
+    });
 
     const state = Store.getState();
     const goldAmount = D(dead.goldDrop)
@@ -238,6 +296,13 @@ const CombatEngine = {
     Store.addGold(goldAmount);
     Store.addXp(D(dead.xpDrop).times(state.prestigeMultiplier)
       .times(TerritoryManager.getBuffMultiplier('xpGain')).floor());
+
+    // If boss was killed, handle boss defeat
+    if (dead.isBoss) {
+      BossManager.onBossDefeated();
+      // Don't auto-spawn next enemy — zone change event will trigger new spawn
+      return;
+    }
 
     TimeEngine.scheduleOnce('combat:spawnDelay', () => {
       CombatEngine.spawnEnemy();
