@@ -4,22 +4,25 @@
 import Store from './Store.js';
 import TimeEngine from './TimeEngine.js';
 import BossManager from './BossManager.js';
+import Progression from './Progression.js';
 import { D, Decimal } from './BigNum.js';
-import { emit, on, EVENTS } from '../events.js';
+import { createScope, emit, EVENTS } from '../events.js';
 import { COMBAT } from '../config.js';
 import { getUnlockedEnemies, getZoneScaling } from '../data/areas.js';
 import UpgradeManager from './UpgradeManager.js';
 import TerritoryManager from './TerritoryManager.js';
-import { getEffectiveMaxHp, getBaseDamage, getCritChance, getGoldMultiplier, getXpMultiplier } from './ComputedStats.js';
+import { getEffectiveMaxHp, getBaseDamage, getCritChance } from './ComputedStats.js';
 
 let currentEnemy = null;
-let unsubs = [];
+let scope = null;
 let forcedCritMultiplier = null;
 
 const CombatEngine = {
   init() {
     // Initialize BossManager
     BossManager.init();
+
+    scope = createScope();
 
     // Register auto-attack ticker (enabled by default — it's an idle game)
     TimeEngine.register(
@@ -30,7 +33,7 @@ const CombatEngine = {
     );
 
     // Re-register auto-attack when speed upgrade purchased
-    unsubs.push(on(EVENTS.UPG_PURCHASED, (data) => {
+    scope.on(EVENTS.UPG_PURCHASED, (data) => {
       if (data.upgradeId === 'auto_attack_speed') {
         TimeEngine.register(
           'combat:autoAttack',
@@ -39,7 +42,7 @@ const CombatEngine = {
           true,
         );
       }
-    }));
+    });
 
     // Enemy attack timer — fires every 3s
     TimeEngine.register(
@@ -58,17 +61,17 @@ const CombatEngine = {
     );
 
     // Subscribe to player death
-    unsubs.push(on(EVENTS.COMBAT_PLAYER_DIED, () => {
+    scope.on(EVENTS.COMBAT_PLAYER_DIED, () => {
       CombatEngine._onPlayerDeath();
-    }));
+    });
 
     // On level-up, restore HP to new max (VIT increases)
-    unsubs.push(on(EVENTS.PROG_LEVEL_UP, () => {
+    scope.on(EVENTS.PROG_LEVEL_UP, () => {
       Store.resetPlayerHp();
-    }));
+    });
 
     // Re-register auto-attack when territory attack speed buff is claimed
-    unsubs.push(on(EVENTS.TERRITORY_CLAIMED, (data) => {
+    scope.on(EVENTS.TERRITORY_CLAIMED, (data) => {
       if (data.buff.key === 'autoAttackSpeed') {
         TimeEngine.register(
           'combat:autoAttack',
@@ -77,15 +80,15 @@ const CombatEngine = {
           true,
         );
       }
-    }));
+    });
 
     // Subscribe to zone changes — spawn new enemy (not boss)
-    unsubs.push(on(EVENTS.WORLD_ZONE_CHANGED, () => {
+    scope.on(EVENTS.WORLD_ZONE_CHANGED, () => {
       // Cancel pending spawn delay
       TimeEngine.unregister('combat:spawnDelay');
       currentEnemy = null;
       CombatEngine.spawnEnemy();
-    }));
+    });
 
     // Spawn first enemy
     CombatEngine.spawnEnemy();
@@ -98,8 +101,8 @@ const CombatEngine = {
     TimeEngine.unregister('combat:enemyAttack');
     TimeEngine.unregister('combat:playerRegen');
     TimeEngine.unregister('combat:playerRespawn');
-    for (const unsub of unsubs) unsub();
-    unsubs = [];
+    scope?.destroy();
+    scope = null;
     currentEnemy = null;
   },
 
@@ -276,15 +279,13 @@ const CombatEngine = {
     const dead = currentEnemy;
     currentEnemy = null;
 
-    Store.incrementKills();
+    // Reward orchestration lives in Progression
+    Progression.grantKillRewards(dead);
+
     emit(EVENTS.COMBAT_ENEMY_KILLED, {
       enemyId: dead.id, name: dead.name, lootTable: dead.lootTable,
       isBoss: dead.isBoss || false,
     });
-
-    const goldAmount = D(dead.goldDrop).times(getGoldMultiplier()).floor();
-    Store.addGold(goldAmount);
-    Store.addXp(D(dead.xpDrop).times(getXpMultiplier()).floor());
 
     // If boss was killed, handle boss defeat
     if (dead.isBoss) {

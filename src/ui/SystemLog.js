@@ -8,6 +8,7 @@ import { LAYOUT, COLORS, UI, LOOT, PRESTIGE } from '../config.js';
 import { getItem, getScaledItem } from '../data/items.js';
 import { getUpgrade } from '../data/upgrades.js';
 import { getCheat } from '../data/cheats.js';
+import OfflineProgress from '../systems/OfflineProgress.js';
 
 export default class SystemLog extends ScrollableLog {
   constructor(scene) {
@@ -132,6 +133,21 @@ export default class SystemLog extends ScrollableLog {
     this._unsubs.push(on(EVENTS.TERRITORY_CLAIMED, (data) => {
       this.addLine(`Territory claimed: ${data.name} [${data.buff.label}]`, 'system');
     }));
+
+    // ── Offline progress summary ──────────────────────────────────
+    const offlineResult = OfflineProgress.getLastResult();
+    if (offlineResult) {
+      let summary = `Welcome back! +${format(offlineResult.goldGained)} Gold, +${format(offlineResult.xpGained)} XP`;
+      if (offlineResult.fragmentsGained > 0) {
+        summary += `, +${offlineResult.fragmentsGained} Fragments`;
+      }
+      if (offlineResult.levelsGained > 0) {
+        summary += ` (${offlineResult.levelsGained} level-up${offlineResult.levelsGained > 1 ? 's' : ''})`;
+      }
+      summary += ` (away ${offlineResult.durationText})`;
+      this.addLine(summary, 'prestige');
+      OfflineProgress.clearResult();
+    }
   }
 
   _getLineStyle(line) {

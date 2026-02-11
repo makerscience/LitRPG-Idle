@@ -1,20 +1,19 @@
 # CURRENT_FOCUS
 
 ## One-liner
-- Codebase redesign in progress — Phase 2 complete, Phase 3+ pending. ~4500 LOC idle game.
+- Codebase redesign COMPLETE (all phases done). ~4600 LOC idle game. Post-redesign phase: balance testing, content, polish.
 
 ## Active Objectives (max 3)
-1. **Phase 2 complete:** ComputedStats fully integrated — CombatEngine, Store HP methods, and StatsPanel all delegate to it
-2. **Phase 1 complete:** ModalPanel base class, ScrollableLog base class, ui-utils, all panels refactored
-3. **Phases 3–8 pending:** Config decomposition, Store slimming, CombatEngine decomposition, kill tracking, event cleanup
+1. **Redesign complete:** All 9 phases done (Phase 4 skipped as unnecessary).
+2. **Post-redesign:** Balance testing, territory buff integration, new content
+3. **Polish:** Boss sprites, cosmetic cleanup, gameplay testing
 
 ## Next Actions
-- [ ] Begin Phase 3: split config.js into config/layout.js + config/theme.js
-- [ ] Phase 4: Slim Store — extract SaveManager hydration, reduce mutation surface
-- [ ] Phase 5: CombatEngine decomposition — separate HP regen, auto-attack, spawn logic
-- [ ] Continue through Phases 6–8 per redesign plan
-- [ ] Balance test: territory maxHP buff now works — verify it's not too strong/weak
-- [ ] Address InventoryPanel local RARITY_HEX dict (Phase 1E cosmetic, low priority)
+- [ ] Integrate `allIncome` and `prestigeMultiplier` territory buffs (defined in data, not yet wired)
+- [ ] Balance test: territory maxHP buff — verify not too strong/weak
+- [ ] Balance test: offline progress rewards — verify gold/XP rates feel right
+- [ ] Boss sprites — currently reuse base enemy sprites
+- [ ] Phase 1E: consolidate InventoryPanel local RARITY_HEX into config (cosmetic, low priority)
 
 ## Open Loops / Blockers
 - `allIncome` and `prestigeMultiplier` territory buffs defined in data but NOT yet integrated (deferred)
@@ -24,9 +23,9 @@
 
 ## How to Resume in 30 Seconds
 - **Open:** `.memory/CURRENT_FOCUS.md`
-- **Phase 2 done:** ComputedStats wired into Store, CombatEngine, StatsPanel
-- **Next:** Phase 3 — config decomposition
-- **Plan:** `Codebase Redesign Plan.md` has full 8-phase plan with status notes
+- **Redesign status:** ALL PHASES COMPLETE. Phase 9 (offline progress) was the final one.
+- **Architecture:** Progression.js owns XP/level + kill rewards. Store is pure state. EventScope pattern for subscriptions. ComputedStats for derived values. OfflineProgress computes catch-up rewards at boot.
+- **Plan:** `Codebase Redesign Plan.md` has full phase plan with status notes
 
 ## Key Context
 - Tech stack: Phaser 3, Vite 7, break_infinity.js, localStorage saves
@@ -39,14 +38,14 @@
 ---
 
 ## Last Session Summary (max ~8 bullets)
-- Fixed Store.js broken `require()` → clean ESM `import { getEffectiveMaxHp }` from ComputedStats
-- Wired 5 Store HP methods (damagePlayer, healPlayer, getPlayerMaxHp, resetPlayerHp) to `getEffectiveMaxHp()`
-- Fixed performPrestige HP reset to use `getEffectiveMaxHp()` — now includes territory VIT + maxHP buffs
-- Refactored StatsPanel `_getCombatRows()` to use `ComputedStats.getAllStats()` — eliminated 6 direct manager queries
-- Refactored StatsPanel `_getEconomyRows()` to use ComputedStats — eliminated manual multiplier assembly
-- Removed StatsPanel imports: CombatEngine, UpgradeManager, InventorySystem, DAMAGE_FORMULAS
-- Build passes cleanly (npm run build)
-- **Territory maxHP buff (territories 2, 11) now actually works** — was previously ignored in Store HP calculations
+- **Phase 9:** Offline progress engine — rate-based catch-up rewards on game load
+- Created `src/systems/OfflineProgress.js` (~130 lines): computes gold/XP/fragments from player DPS × zone enemy pool × clamped offline duration
+- Added `SAVE.minOfflineTime: 60_000` to config.js (skip rewards if <60s away)
+- Added 5 `OFFLINE_RETURN` dialogue lines to `src/data/dialogue.js`
+- Updated `main.js` boot sequence: `OfflineProgress.apply()` after TerritoryManager.init()
+- Updated `SystemLog.js`: displays "Welcome back!" summary line on construction
+- Updated `DialogueManager.js`: fires snarky SYSTEM quip if away >5 minutes
+- Build verified clean (`npm run build` passes)
 
 ## Pinned References
 - Governance rules: `CLAUDE.md`

@@ -4,25 +4,26 @@
 import Store from './Store.js';
 import TimeEngine from './TimeEngine.js';
 import CombatEngine from './CombatEngine.js';
-import { on, emit, EVENTS } from '../events.js';
+import { createScope, emit, EVENTS } from '../events.js';
 
-let unsubs = [];
+let scope = null;
 
 const FirstCrackDirector = {
   init() {
-    unsubs.push(on(EVENTS.COMBAT_ENEMY_KILLED, () => {
+    scope = createScope();
+    scope.on(EVENTS.COMBAT_ENEMY_KILLED, () => {
       const state = Store.getState();
       if (state.flags.crackTriggered) return;
 
       if (state.totalKills >= 20) {
         FirstCrackDirector._startCrackSequence();
       }
-    }));
+    });
   },
 
   destroy() {
-    for (const unsub of unsubs) unsub();
-    unsubs = [];
+    scope?.destroy();
+    scope = null;
     TimeEngine.unregister('crack:step2');
     TimeEngine.unregister('crack:step3');
     TimeEngine.unregister('crack:step4');

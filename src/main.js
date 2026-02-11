@@ -13,6 +13,7 @@ import UpgradeManager from './systems/UpgradeManager.js';
 import CheatManager from './systems/CheatManager.js';
 import PrestigeManager from './systems/PrestigeManager.js';
 import TerritoryManager from './systems/TerritoryManager.js';
+import OfflineProgress from './systems/OfflineProgress.js';
 import OverworldScene from './scenes/OverworldScene.js';
 
 // ── Boot sequence ───────────────────────────────────────────────────
@@ -21,6 +22,7 @@ SaveManager.init(Store);
 TimeEngine.init();
 LootEngine.init();
 TerritoryManager.init();
+OfflineProgress.apply();
 
 const config = {
   type: Phaser.AUTO,
@@ -50,4 +52,5 @@ if (import.meta.env.DEV) {
   window.CheatManager = CheatManager;
   window.PrestigeManager = PrestigeManager;
   window.TerritoryManager = TerritoryManager;
+  window.OfflineProgress = OfflineProgress;
 }

@@ -1,5 +1,31 @@
 # CHANGELOG
 
+## 2026-02-11 (Codebase Redesign — Phase 9: Offline Progress Engine)
+- **Offline progress engine** (`src/systems/OfflineProgress.js`): rate-based catch-up rewards on load — computes gold/XP/fragments from player DPS × zone enemy pool × clamped offline duration (60s min, 12h max)
+- **SystemLog summary**: "Welcome back! +X Gold, +Y XP" line with fragment/level-up info on game load
+- **SYSTEM dialogue**: snarky welcome-back quip from 5 new `OFFLINE_RETURN` lines (triggers if away >5 min)
+- **Config**: added `SAVE.minOfflineTime` (60s threshold to skip quick reloads)
+
+---
+
+## 2026-02-11 (Codebase Redesign — Phases 3, 6–8)
+- **Config decomposition** (Phase 3): split `config.js` into `config/layout.js` (LAYOUT, TERRITORY) + `config/theme.js` (COLORS, ZONE_THEMES, PARALLAX, TREE_ROWS, FERN_ROWS, UI) — `config.js` re-exports for backward compat
+- **CombatEngine decomposition** (Phase 6): kill reward orchestration (gold, XP, kill counters) moved into `Progression.grantKillRewards()` — CombatEngine now focused on enemy lifecycle + attack resolution
+- **Unified kill tracking** (Phase 7): all kill counting centralized in Progression — BossManager simplified to threshold check, TerritoryManager kill listener removed (reads Store on demand)
+- **EventScope helper** (Phase 8): `createScope()` in events.js replaces manual `unsubs` arrays across all 7 system singletons — eliminates leak risk
+- **Event contracts** (Phase 8): dev-mode payload validation for `COMBAT_ENEMY_KILLED`, `STATE_CHANGED`, `PRESTIGE_PERFORMED`, `TERRITORY_CLAIMED`
+
+---
+
+## 2026-02-11 (Codebase Redesign — Store Slimming)
+- **Progression module** (`src/systems/Progression.js`): extracted XP/level-up loop from Store into `Progression.grantXp()` — Store now exposes `addRawXp()` and `applyLevelUp()` as primitives
+- **PrestigeManager owns prestige reset**: prestige orchestration moved from `Store.performPrestige()` into `PrestigeManager.performPrestige()`, calling granular Store mutations
+- **New Store mutations**: `addFlatStat()`, `retainGold()`, `incrementPrestigeCount()`, `resetPlayerStats()`, `resetPurchasedUpgrades()`, `resetTotalKills()`, `resetAreaProgress()`
+- **UpgradeManager mutation fix**: direct `state.playerStats.str +=` replaced with `Store.addFlatStat()` — no more bypassing Store mutation boundary
+- **Legacy cleanup**: removed `Store.setZone()`, `Store.setFurthestZone()`, `Store.addXp()`, `Store.performPrestige()`, and dead state fields (`currentWorld`, top-level `furthestZone`)
+
+---
+
 ## 2026-02-11 (Codebase Redesign — Phase 1 + Phase 2 complete)
 - **ModalPanel base class** (`src/ui/ModalPanel.js`): extracted shared modal lifecycle (backdrop, panel chrome, toggle button, mutual exclusion, keyboard binding, event subscriptions, dynamic object management) into a single base class
 - **All 5 modal panels refactored** to extend ModalPanel — InventoryPanel, UpgradePanel, PrestigePanel, SettingsPanel, StatsPanel now only contain their unique content logic (~400 lines of duplicated boilerplate eliminated)

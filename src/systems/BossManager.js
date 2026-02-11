@@ -2,36 +2,36 @@
 // Boss fights are triggered by clicking the "Challenge Boss" button, not automatically.
 
 import Store from './Store.js';
-import { on, emit, EVENTS } from '../events.js';
+import { createScope, emit, EVENTS } from '../events.js';
 import { D } from './BigNum.js';
 import {
   getArea, getBossType, getBossKillThreshold, getZoneScaling,
   getStrongestEnemy, getBossDropMultiplier, BOSS_TYPES, AREAS,
 } from '../data/areas.js';
 
-let unsubs = [];
+let scope = null;
 let activeBoss = null;       // Currently active boss enemy (or null)
 let bossDefeated = false;    // Was the boss just defeated this zone?
 
 const BossManager = {
   init() {
-    // Track kills for boss threshold
-    unsubs.push(on(EVENTS.COMBAT_ENEMY_KILLED, (data) => {
-      if (activeBoss) return; // Don't count boss kills toward threshold
-      const state = Store.getState();
-      Store.incrementZoneClearKills(state.currentArea, state.currentZone);
+    scope = createScope();
+
+    // Check boss threshold after kills (counting is handled by Progression)
+    scope.on(EVENTS.COMBAT_ENEMY_KILLED, (data) => {
+      if (data.isBoss) return;
       BossManager._checkThreshold();
-    }));
+    });
 
     // Reset boss state on zone/area navigation
-    unsubs.push(on(EVENTS.WORLD_ZONE_CHANGED, () => {
+    scope.on(EVENTS.WORLD_ZONE_CHANGED, () => {
       BossManager.cancelBoss();
-    }));
+    });
   },
 
   destroy() {
-    for (const unsub of unsubs) unsub();
-    unsubs = [];
+    scope?.destroy();
+    scope = null;
     activeBoss = null;
     bossDefeated = false;
   },

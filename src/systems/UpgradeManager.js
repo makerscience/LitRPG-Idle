@@ -56,10 +56,9 @@ const UpgradeManager = {
     // Increment level
     const newLevel = Store.upgradeLevel(upgradeId);
 
-    // Apply immediate flat STR bonus
-    if (upgrade.effect.target === 'str') {
-      const state = Store.getState();
-      state.playerStats.str += upgrade.effect.valuePerLevel;
+    // Apply immediate flat stat bonus (e.g. STR)
+    if (upgrade.effect.type === 'flat' && ['str', 'vit', 'luck'].includes(upgrade.effect.target)) {
+      Store.addFlatStat(upgrade.effect.target, upgrade.effect.valuePerLevel);
     }
 
     emit(EVENTS.UPG_PURCHASED, {

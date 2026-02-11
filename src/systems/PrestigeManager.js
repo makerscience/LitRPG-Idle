@@ -1,16 +1,19 @@
 // PrestigeManager — prestige loop orchestrator.
 // Tracks furthest area, eligibility, and executes prestige resets.
+// Owns the full prestige sequence — Store provides granular mutations.
 
 import Store from './Store.js';
-import { on, emit, EVENTS } from '../events.js';
+import { createScope, emit, EVENTS } from '../events.js';
 import { PRESTIGE } from '../config.js';
 
-let unsubs = [];
+let scope = null;
 let prestigeAvailableEmitted = false;
 let justPrestiged = false;
 
 const PrestigeManager = {
   init() {
+    scope = createScope();
+
     // Handle already-loaded saves where SAVE_LOADED fired before manager init.
     const initialState = Store.getState();
     if (initialState.furthestArea >= PRESTIGE.minArea) {
@@ -18,7 +21,7 @@ const PrestigeManager = {
     }
 
     // Track furthest area on area changes
-    unsubs.push(on(EVENTS.WORLD_AREA_CHANGED, (data) => {
+    scope.on(EVENTS.WORLD_AREA_CHANGED, (data) => {
       const state = Store.getState();
       const prevFurthest = state.furthestArea;
       Store.setFurthestArea(data.area);
@@ -28,20 +31,20 @@ const PrestigeManager = {
         prestigeAvailableEmitted = true;
         emit(EVENTS.PRESTIGE_AVAILABLE, {});
       }
-    }));
+    });
 
     // On save loaded, check if prestige already available
-    unsubs.push(on(EVENTS.SAVE_LOADED, () => {
+    scope.on(EVENTS.SAVE_LOADED, () => {
       const state = Store.getState();
       if (state.furthestArea >= PRESTIGE.minArea) {
         prestigeAvailableEmitted = true;
       }
-    }));
+    });
   },
 
   destroy() {
-    for (const unsub of unsubs) unsub();
-    unsubs = [];
+    scope?.destroy();
+    scope = null;
     prestigeAvailableEmitted = false;
     justPrestiged = false;
   },
@@ -64,7 +67,20 @@ const PrestigeManager = {
   performPrestige() {
     if (!PrestigeManager.canPrestige()) return;
 
-    Store.performPrestige();
+    // Orchestrate prestige via granular Store mutations
+    Store.incrementPrestigeCount();
+    Store.retainGold(PRESTIGE.goldRetention);
+    Store.setAreaZone(1, 1);
+    // furthestArea NOT reset — permanent high-water mark
+    Store.resetAreaProgress();
+    Store.resetPlayerStats();
+    Store.resetPlayerHp();
+    Store.resetPurchasedUpgrades();
+    Store.resetTotalKills();
+    // Keeps: equipped, inventoryStacks, glitchFragments, unlockedCheats, activeCheats, titles, flags
+    // Keeps: killsPerEnemy, territories (permanent progression)
+    // Keeps: furthestArea (permanent high-water mark)
+
     justPrestiged = true;
     emit(EVENTS.PRESTIGE_PERFORMED, { count: Store.getState().prestigeCount });
     emit(EVENTS.SAVE_REQUESTED, {});

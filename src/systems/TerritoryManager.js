@@ -1,24 +1,18 @@
 // TerritoryManager — tracks territory conquest, kill progress, and buff aggregation.
-// Singleton following PrestigeManager pattern (init/destroy, unsubs array).
+// Singleton — init/destroy lifecycle, reads Store state on demand.
 
 import Store from './Store.js';
-import { on, emit, EVENTS } from '../events.js';
+import { emit, EVENTS } from '../events.js';
 import { D } from './BigNum.js';
 import { getAllTerritories, getTerritory } from '../data/territories.js';
 
-let unsubs = [];
-
 const TerritoryManager = {
   init() {
-    unsubs.push(on(EVENTS.COMBAT_ENEMY_KILLED, (data) => {
-      Store.incrementEnemyKills(data.enemyId);
-    }));
+    // Kill counting is handled centrally by Progression.
+    // Territory progress reads Store state on demand (canClaim, getKillProgress).
   },
 
-  destroy() {
-    for (const unsub of unsubs) unsub();
-    unsubs = [];
-  },
+  destroy() {},
 
   isConquered(territoryId) {
     return !!Store.getState().territories[territoryId]?.conquered;

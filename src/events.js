@@ -106,5 +106,39 @@ class EventBus {
 export const bus = new EventBus();
 
 // Convenience helpers
-export const emit = (event, payload) => bus.emit(event, payload);
 export const on = (event, handler) => bus.on(event, handler);
+
+/**
+ * Create a scoped event subscription group.
+ * Call scope.on() to subscribe; scope.destroy() unsubscribes all at once.
+ */
+export function createScope() {
+  const unsubs = [];
+  return {
+    on(event, handler) { unsubs.push(on(event, handler)); },
+    destroy() { unsubs.forEach(fn => fn()); unsubs.length = 0; },
+  };
+}
+
+// --- Event contracts (dev-mode validation) ---
+
+const EVENT_CONTRACTS = {
+  [EVENTS.COMBAT_ENEMY_KILLED]:  ['enemyId', 'name', 'isBoss'],
+  [EVENTS.STATE_CHANGED]:        [],
+  [EVENTS.PRESTIGE_PERFORMED]:   ['count'],
+  [EVENTS.TERRITORY_CLAIMED]:    ['territoryId', 'name', 'buff'],
+};
+
+export function emit(event, payload) {
+  if (import.meta.env.DEV) {
+    const required = EVENT_CONTRACTS[event];
+    if (required) {
+      for (const key of required) {
+        if (payload == null || !(key in payload)) {
+          console.warn(`[EventBus] Missing "${key}" in ${event} payload`, payload);
+        }
+      }
+    }
+  }
+  bus.emit(event, payload);
+}

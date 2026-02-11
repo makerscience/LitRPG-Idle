@@ -2,7 +2,7 @@
 // State holds live Decimal instances; strings only exist in localStorage.
 
 import { D, fromJSON, Decimal } from './BigNum.js';
-import { PROGRESSION, ECONOMY, SAVE, PRESTIGE, COMBAT } from '../config.js';
+import { PROGRESSION, ECONOMY, SAVE, COMBAT, PRESTIGE } from '../config.js';
 import { emit, EVENTS } from '../events.js';
 import { AREAS } from '../data/areas.js';
 
@@ -46,13 +46,10 @@ function createInitialState() {
     inventoryStacks: {},
     purchasedUpgrades: {},
     totalKills: 0,
-    currentWorld: 1,
     currentArea: 1,
     currentZone: 1,
     furthestArea: 1,
     areaProgress: createAreaProgress(),
-    // Legacy fields kept for compatibility during transition
-    furthestZone: 1,
     prestigeCount: 0,
     prestigeMultiplier: D(1),
     unlockedCheats: [],
@@ -109,11 +106,9 @@ function hydrateState(saved) {
   if (saved.inventoryStacks) fresh.inventoryStacks = saved.inventoryStacks;
   if (saved.purchasedUpgrades) fresh.purchasedUpgrades = { ...saved.purchasedUpgrades };
   if (saved.totalKills != null) fresh.totalKills = saved.totalKills;
-  if (saved.currentWorld != null) fresh.currentWorld = saved.currentWorld;
   if (saved.currentArea != null) fresh.currentArea = saved.currentArea;
   if (saved.currentZone != null) fresh.currentZone = saved.currentZone;
   if (saved.furthestArea != null) fresh.furthestArea = saved.furthestArea;
-  if (saved.furthestZone != null) fresh.furthestZone = saved.furthestZone;
   if (saved.areaProgress) fresh.areaProgress = JSON.parse(JSON.stringify(saved.areaProgress));
   if (saved.prestigeCount != null) fresh.prestigeCount = saved.prestigeCount;
   if (saved.unlockedCheats) fresh.unlockedCheats = [...saved.unlockedCheats];
@@ -157,7 +152,36 @@ const Store = {
     emit(EVENTS.STATE_CHANGED, { changedKeys: ['all'] });
   },
 
-  // ── Mutation methods ──────────────────────────────────────────────
+  // ── XP / Level mutations ────────────────────────────────────────
+
+  /** Add raw XP without level-up processing. Use Progression.grantXp() for full XP flow. */
+  addRawXp(amount) {
+    const xpGain = D(amount);
+    state.playerStats.xp = state.playerStats.xp.plus(xpGain);
+    emit(EVENTS.PROG_XP_GAINED, { amount: xpGain });
+    emit(EVENTS.STATE_CHANGED, { changedKeys: ['playerStats'] });
+  },
+
+  /** Apply one level-up: subtract xpToNext, increment level, apply stat growth, recalculate xpToNext. */
+  applyLevelUp() {
+    state.playerStats.xp = state.playerStats.xp.minus(state.playerStats.xpToNext);
+    state.playerStats.level += 1;
+
+    const growth = PROGRESSION.statGrowthPerLevel;
+    state.playerStats.str += growth.str;
+    state.playerStats.vit += growth.vit;
+    state.playerStats.luck += growth.luck;
+
+    state.playerStats.xpToNext = D(PROGRESSION.xpForLevel(state.playerStats.level));
+
+    emit(EVENTS.PROG_LEVEL_UP, {
+      level: state.playerStats.level,
+      stats: { ...state.playerStats },
+    });
+    emit(EVENTS.STATE_CHANGED, { changedKeys: ['playerStats'] });
+  },
+
+  // ── Currency mutations ──────────────────────────────────────────
 
   addGold(amount) {
     state.gold = state.gold.plus(D(amount));
@@ -177,70 +201,40 @@ const Store = {
     emit(EVENTS.STATE_CHANGED, { changedKeys: ['mana'] });
   },
 
-  addXp(amount) {
-    const xpGain = D(amount);
-    state.playerStats.xp = state.playerStats.xp.plus(xpGain);
-    emit(EVENTS.PROG_XP_GAINED, { amount: xpGain });
-
-    // Multi-level-up loop
-    while (state.playerStats.xp.gte(state.playerStats.xpToNext)) {
-      state.playerStats.xp = state.playerStats.xp.minus(state.playerStats.xpToNext);
-      state.playerStats.level += 1;
-
-      // Apply stat growth
-      const growth = PROGRESSION.statGrowthPerLevel;
-      state.playerStats.str += growth.str;
-      state.playerStats.vit += growth.vit;
-      state.playerStats.luck += growth.luck;
-
-      // Recalculate xpToNext for new level
-      state.playerStats.xpToNext = D(PROGRESSION.xpForLevel(state.playerStats.level));
-
-      emit(EVENTS.PROG_LEVEL_UP, {
-        level: state.playerStats.level,
-        stats: { ...state.playerStats },
-      });
-    }
-
-    emit(EVENTS.STATE_CHANGED, { changedKeys: ['playerStats'] });
+  spendGold(amount) {
+    state.gold = state.gold.minus(D(amount));
+    emit(EVENTS.STATE_CHANGED, { changedKeys: ['gold'] });
   },
+
+  spendFragments(amount) {
+    state.glitchFragments = state.glitchFragments.minus(D(amount));
+    emit(EVENTS.STATE_CHANGED, { changedKeys: ['glitchFragments'] });
+  },
+
+  /** Multiply gold by a retention fraction (used during prestige). */
+  retainGold(retention) {
+    state.gold = state.gold.times(retention).floor();
+    emit(EVENTS.STATE_CHANGED, { changedKeys: ['gold'] });
+  },
+
+  // ── Navigation mutations ────────────────────────────────────────
 
   /** Navigate to a specific area and zone. */
   setAreaZone(area, zone) {
     const prevArea = state.currentArea;
     state.currentArea = area;
     state.currentZone = zone;
-    // Keep legacy fields in sync
-    state.currentWorld = 1;
 
-    emit(EVENTS.WORLD_ZONE_CHANGED, { world: 1, zone, area });
+    emit(EVENTS.WORLD_ZONE_CHANGED, { zone, area });
     if (area !== prevArea) {
       emit(EVENTS.WORLD_AREA_CHANGED, { area, prevArea });
     }
     emit(EVENTS.STATE_CHANGED, { changedKeys: ['currentArea', 'currentZone'] });
   },
 
-  /** Legacy: setZone (kept for backward compat during transition). */
-  setZone(world, zone) {
-    // In the new system, zone changes within an area don't change area
-    state.currentWorld = world;
-    state.currentZone = zone;
-    emit(EVENTS.WORLD_ZONE_CHANGED, { world, zone, area: state.currentArea });
-    emit(EVENTS.STATE_CHANGED, { changedKeys: ['currentWorld', 'currentZone'] });
-  },
-
   setFurthestArea(area) {
     state.furthestArea = Math.max(state.furthestArea, area);
-    // Keep legacy field in sync
-    state.furthestZone = state.furthestArea;
-    emit(EVENTS.STATE_CHANGED, { changedKeys: ['furthestArea', 'furthestZone'] });
-  },
-
-  setFurthestZone(zone) {
-    // Legacy — now mapped to furthestArea
-    state.furthestZone = Math.max(state.furthestZone ?? 1, zone);
-    state.furthestArea = state.furthestZone;
-    emit(EVENTS.STATE_CHANGED, { changedKeys: ['furthestZone', 'furthestArea'] });
+    emit(EVENTS.STATE_CHANGED, { changedKeys: ['furthestArea'] });
   },
 
   /** Update areaProgress for a specific area. */
@@ -284,23 +278,22 @@ const Store = {
     emit(EVENTS.STATE_CHANGED, { changedKeys: ['areaProgress'] });
   },
 
-  performPrestige() {
-    state.prestigeCount += 1;
-    state.prestigeMultiplier = D(PRESTIGE.multiplierFormula(state.prestigeCount));
-    state.gold = state.gold.times(PRESTIGE.goldRetention).floor();
-    state.currentArea = 1;
-    state.currentZone = 1;
-    state.currentWorld = 1;
-    // furthestArea NOT reset — permanent high-water mark
-    // furthestZone kept in sync
-    state.furthestZone = state.furthestArea;
-
-    // Reset areaProgress zone clears (re-progress each prestige)
+  /** Reset areaProgress to initial state (used during prestige). */
+  resetAreaProgress() {
     state.areaProgress = createAreaProgress();
-    // Area 1 starts accessible
-    state.areaProgress[1].furthestZone = 1;
+    emit(EVENTS.STATE_CHANGED, { changedKeys: ['areaProgress'] });
+  },
 
-    // Reset stats to starting values
+  // ── Player stat mutations ───────────────────────────────────────
+
+  /** Add a flat bonus to a player stat (str, vit, luck). */
+  addFlatStat(stat, amount) {
+    state.playerStats[stat] += amount;
+    emit(EVENTS.STATE_CHANGED, { changedKeys: ['playerStats'] });
+  },
+
+  /** Reset player stats to starting values (used during prestige). */
+  resetPlayerStats() {
     const stats = PROGRESSION.startingStats;
     state.playerStats.str = stats.str;
     state.playerStats.vit = stats.vit;
@@ -308,17 +301,7 @@ const Store = {
     state.playerStats.level = stats.level;
     state.playerStats.xp = D(stats.xp);
     state.playerStats.xpToNext = D(PROGRESSION.xpForLevel(stats.level));
-
-    state.playerHp = getEffectiveMaxHp();
-    state.purchasedUpgrades = {};
-    state.totalKills = 0;
-
-    // Keeps: equipped, inventoryStacks, glitchFragments, unlockedCheats, activeCheats, titles, flags
-    // Keeps: killsPerEnemy, territories (permanent progression)
-    // Keeps: furthestArea (permanent high-water mark)
-    emit(EVENTS.WORLD_ZONE_CHANGED, { world: 1, zone: 1, area: 1 });
-    emit(EVENTS.WORLD_AREA_CHANGED, { area: 1, prevArea: state.currentArea });
-    emit(EVENTS.STATE_CHANGED, { changedKeys: ['all'] });
+    emit(EVENTS.STATE_CHANGED, { changedKeys: ['playerStats'] });
   },
 
   setFlag(key, value) {
@@ -362,17 +345,7 @@ const Store = {
     emit(EVENTS.STATE_CHANGED, { changedKeys: ['equipped'] });
   },
 
-  // ── Upgrade / Economy mutations ──────────────────────────────────
-
-  spendGold(amount) {
-    state.gold = state.gold.minus(D(amount));
-    emit(EVENTS.STATE_CHANGED, { changedKeys: ['gold'] });
-  },
-
-  spendFragments(amount) {
-    state.glitchFragments = state.glitchFragments.minus(D(amount));
-    emit(EVENTS.STATE_CHANGED, { changedKeys: ['glitchFragments'] });
-  },
+  // ── Upgrade mutations ──────────────────────────────────────────
 
   upgradeLevel(upgradeId) {
     if (!state.purchasedUpgrades[upgradeId]) {
@@ -381,6 +354,12 @@ const Store = {
     state.purchasedUpgrades[upgradeId] += 1;
     emit(EVENTS.STATE_CHANGED, { changedKeys: ['purchasedUpgrades'] });
     return state.purchasedUpgrades[upgradeId];
+  },
+
+  /** Reset purchased upgrades (used during prestige). */
+  resetPurchasedUpgrades() {
+    state.purchasedUpgrades = {};
+    emit(EVENTS.STATE_CHANGED, { changedKeys: ['purchasedUpgrades'] });
   },
 
   // ── Cheat mutations ───────────────────────────────────────────────
@@ -401,6 +380,15 @@ const Store = {
 
   isCheatActive(cheatId) {
     return state.activeCheats[cheatId] === true;
+  },
+
+  // ── Prestige mutations ────────────────────────────────────────────
+
+  /** Increment prestige count and recalculate multiplier. */
+  incrementPrestigeCount() {
+    state.prestigeCount += 1;
+    state.prestigeMultiplier = D(PRESTIGE.multiplierFormula(state.prestigeCount));
+    emit(EVENTS.STATE_CHANGED, { changedKeys: ['prestigeCount', 'prestigeMultiplier'] });
   },
 
   // ── Player HP mutations ──────────────────────────────────────────
@@ -431,8 +419,15 @@ const Store = {
     state.playerHp = getEffectiveMaxHp();
   },
 
+  // ── Kill tracking mutations ──────────────────────────────────────
+
   incrementKills() {
     state.totalKills += 1;
+  },
+
+  /** Reset total kills (used during prestige). */
+  resetTotalKills() {
+    state.totalKills = 0;
   },
 
   incrementEnemyKills(enemyId) {

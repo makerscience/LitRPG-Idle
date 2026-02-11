@@ -108,4 +108,39 @@ Format:
 - Alternatives considered: Implementing EffectChannels as planned (over-engineered for current scope).
 - Consequences / Follow-ups: If buff keys proliferate or cause bugs, revisit.
 
+## 2026-02-11
+- Tags: architecture
+- Decision: Store becomes a pure state container — no business logic. Progression.js owns XP/level-up. PrestigeManager owns prestige orchestration. Store only exposes granular mutation primitives.
+- Rationale: Store was a god object mixing state, XP loop, prestige reset logic. Extracting business logic into domain systems reduces coupling and makes each module easier to understand.
+- Alternatives considered: Keep Store.addXp() with level-up (simpler, but violates single responsibility). Full Progression system with kill rewards (deferred to Phase 6).
+- Consequences / Follow-ups: CombatEngine imports Progression. UpgradeManager uses Store.addFlatStat() instead of direct mutation. Phase 6 will expand Progression with kill reward orchestration.
+
+## 2026-02-11
+- Tags: architecture
+- Decision: Removed legacy state fields (currentWorld, top-level furthestZone) and legacy methods (setZone, setFurthestZone). No save migration needed — hydration defaults handle missing fields.
+- Rationale: These fields were only written/read inside Store.js, kept in sync with currentArea/furthestArea. Nobody outside Store consumed them. Removing eliminates dead state.
+- Alternatives considered: Keep for potential future multi-world support (YAGNI).
+- Consequences / Follow-ups: Old saves with these fields silently ignore them during hydration. WORLD_ZONE_CHANGED event payload no longer includes `world` field (nobody read it).
+
+## 2026-02-11
+- Tags: architecture
+- Decision: EventScope pattern (`createScope()`) replaces manual `let unsubs = []` arrays in all system singletons. Event contract registry validates payloads in dev mode only.
+- Rationale: Manual unsubs arrays are error-prone (forget to push, forget to clear). Scope groups subscriptions and guarantees cleanup. Contracts catch payload shape bugs early without production overhead.
+- Alternatives considered: Convert UI classes too (unnecessary — base classes already handle cleanup). Full runtime type validation (over-engineered for solo project).
+- Consequences / Follow-ups: New systems should use `createScope()` instead of manual arrays. UI components keep `this._unsubs` via base classes (ModalPanel, ScrollableLog).
+
+## 2026-02-11
+- Tags: architecture
+- Decision: All kill counting (total, per-enemy, zone-clear) centralized in Progression.grantKillRewards(). BossManager and TerritoryManager no longer count kills independently.
+- Rationale: Three systems independently counting from the same event created consistency risk. Single source of truth in Progression ensures counts are always in sync.
+- Alternatives considered: Keep distributed counting with event payload enrichment (still duplicated logic).
+- Consequences / Follow-ups: BossManager listener simplified to threshold check only. TerritoryManager init/destroy are now empty (reads Store on demand via canClaim/getKillProgress).
+
+## 2026-02-11
+- Tags: architecture
+- Decision: Offline progress uses rate-based calculation (DPS × time), not tick-by-tick simulation. Stored result pattern — OfflineProgress stores result, UI reads it when scenes create.
+- Rationale: Rate-based is simpler, faster, and matches MVP Plan guidance. Stored result avoids timing dependency on Phaser scene creation order. Events fire during apply() but no UI listeners exist yet — harmless.
+- Alternatives considered: Per-second tick simulation (expensive, unnecessary for coarse estimate). Event-based notification (timing issues with scenes not yet created).
+- Consequences / Follow-ups: No loot/items, kill counters, boss sim, or death modeling offline. If offline rewards feel too generous/stingy, tune the formula or add an efficiency multiplier (<1.0).
+
 Tip: Search with `rg "Tags:.*workflow" .memory/DECISIONS.md`

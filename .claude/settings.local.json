@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git mv:*)",
+      "Bash(node --version:*)",
+      "Bash(npm --version:*)",
+      "Bash(dir:*)",
+      "Bash(test:*)",
+      "Bash(git -C \"D:\\\\projects\\\\litrpg idle\" log --oneline --all -n 10)",
+      "Bash(npm init:*)",
+      "Bash(npm install:*)",
+      "Bash(npx vite build:*)",
+      "Bash(npx vite:*)",
+      "Bash(npm run dev:*)",
+      "Bash(timeout:*)",
+      "Bash(curl:*)",
+      "Bash(ping:*)",
+      "Bash(code:*)",
+      "Bash(git status:*)",
+      "Bash(powershell -Command:*)",
+      "Bash(npx identify-image:*)",
+      "Bash(git checkout:*)",
+      "Bash(file:*)",
+      "Bash(findstr:*)",
+      "Bash(npm ls:*)",
+      "Bash(ls:*)",
+      "Bash(npm run build:*)"
+    ]
+  }
+}

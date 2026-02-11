@@ -2,24 +2,25 @@
 // Subscribes to COMBAT_ENEMY_KILLED, uses InventorySystem to add items.
 
 import Store from './Store.js';
-import { on, emit, EVENTS } from '../events.js';
+import { createScope, emit, EVENTS } from '../events.js';
 import { INVENTORY, LOOT, ECONOMY, CHEATS } from '../config.js';
 import InventorySystem from './InventorySystem.js';
 import TerritoryManager from './TerritoryManager.js';
 
-let unsubs = [];
+let scope = null;
 
 const LootEngine = {
   init() {
-    unsubs.push(on(EVENTS.COMBAT_ENEMY_KILLED, (data) => {
+    scope = createScope();
+    scope.on(EVENTS.COMBAT_ENEMY_KILLED, (data) => {
       LootEngine._rollDrop(data);
       LootEngine._rollFragmentDrop();
-    }));
+    });
   },
 
   destroy() {
-    for (const unsub of unsubs) unsub();
-    unsubs = [];
+    scope?.destroy();
+    scope = null;
   },
 
   _rollDrop(data) {

@@ -194,3 +194,13 @@ export const AREA_BOSS_DEFEATED = [
 export const FINAL_BOSS_DEFEATED = [
   "You... actually did it. The Elder Dragon is dead. I have nothing sarcastic to say. That's a first.",
 ];
+
+// ── Offline return ──────────────────────────────────────────────────
+
+export const OFFLINE_RETURN = [
+  "Oh, you're back. I kept farming while you were gone.",
+  "Took you long enough. Here's what I earned.",
+  "I didn't miss you. But the gold counter did.",
+  "You left. I worked. The usual arrangement.",
+  "Welcome back. I've been busy. You're welcome.",
+];
