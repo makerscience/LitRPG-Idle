@@ -1,5 +1,14 @@
 # CHANGELOG
 
+## 2026-02-10 (Grid-Based Slotted Inventory)
+- Inventory panel now uses a 5x4 visual grid (20 slots) with 64px slot boxes instead of a text list
+- Equipment section shows 4 box slots (HEAD/BODY/WEAPON/LEGS) with item abbreviations and rarity-colored borders
+- Filled inventory slots display 4-char item abbreviation, rarity border color, and gold count badge (x3)
+- Selected slot shows item detail panel below grid: name, rarity, slot, stat bonus, description, Sell/Equip buttons
+- Added `abbr` field to all 12 items in items.js (IrDa, IrHe, LeTu, StSw, etc.)
+
+---
+
 ## 2026-02-10 (ZoneNav Polish)
 - Sewer Rat HP halved (100 → 50) for easier early game
 - ZoneNav text: black stroke outlines, brighter colors, no transparency

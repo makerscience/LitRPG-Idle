@@ -4,17 +4,17 @@
 - Building a LitRPG idle/clicker game with a snarky SYSTEM narrator, using Phaser + Vite + break_infinity.js.
 
 ## Active Objectives (max 3)
-1. Zone/Area Progression Restructure complete — 5 areas with 34 zones, boss gate system, progressive enemy unlocks
+1. Grid-based slotted inventory complete — 5x4 grid, 4 equipment box slots, rarity borders, detail panel
 2. Phase 2 deferred: `allIncome` + `prestigeMultiplier` buff integration needs balance testing
-3. Next: playtesting area/zone progression, boss fights, save migration, visual polish
+3. Next: playtesting inventory grid interactions, visual polish, balance pass
 
 ## Next Actions
-- [ ] Playtest new game flow: Area 1 Zone 1 → kill rats → boss challenge → advance to Zone 2
-- [ ] Test area boss defeat → next area unlock flow
-- [ ] Test prestige with new area/zone system (should reset areaProgress, keep furthestArea)
-- [ ] Test save migration v6→v7 (load old save, verify generous mapping)
-- [ ] Test overworld map with `furthestArea` gating (territories use area, not zone)
+- [ ] Playtest inventory grid: open BAG, verify 5x4 grid renders, items display abbreviations
+- [ ] Test equip flow: click slot to select, click again to equip, verify equipment box updates
+- [ ] Test sell flow: Shift+click to sell all, detail panel Sell 1 / Sell All buttons
+- [ ] Test unequip: click equipped item box to unequip back to inventory
 - [ ] Balance pass on boss HP/ATK multipliers and zone scaling factor (0.15)
+- [ ] Visual polish: consider item icons replacing abbreviation text in future
 
 ## Open Loops / Blockers
 - `allIncome` and `prestigeMultiplier` territory buffs are defined in data but NOT yet integrated into gameplay systems (deferred to Phase 2)
@@ -24,8 +24,8 @@
 
 ## How to Resume in 30 Seconds
 - **Open:** `.memory/CURRENT_FOCUS.md`
-- **Next:** Playtest the zone/area progression (start new game, kill enemies, challenge boss)
-- **If unclear:** Check the implementation plan in `Current Phase Plan.md`
+- **Next:** Playtest the grid inventory (press I or click BAG, verify grid layout)
+- **If unclear:** Check the implementation in `src/ui/InventoryPanel.js`
 
 ## Key Context
 - Tech stack: Phaser 3, Vite 7, break_infinity.js, localStorage saves
@@ -38,11 +38,13 @@
 ---
 
 ## Last Session Summary (max ~8 bullets)
-- Zone/Area Progression Restructure: 5 areas with 34 zones, boss gates, progressive enemy unlocks, zone scaling
-- Created areas.js, BossManager.js, BossChallenge.js; rewrote ZoneNav, CombatEngine, Store
-- Save migration v6→v7; updated OverworldScene, PrestigeManager, DialogueManager, SystemLog
-- Polish: halved Sewer Rat HP, ZoneNav text readability (black outlines, brighter, no transparency)
-- Arrows moved closer to labels and hidden when navigation unavailable
+- Rewrote InventoryPanel from text list to 5x4 visual grid with 64px slot boxes
+- Equipment section: 4 box slots (120x60) with slot label, item abbreviation, rarity border + word
+- Inventory grid: rarity-colored borders, bold abbreviation text, gold count badges, selection glow
+- Detail panel below grid: item name + rarity + slot + stat, italic description, Sell 1 / Sell All / Equip buttons
+- Added `abbr` field to all 12 items in items.js
+- Renamed `_invListObjects` → `_invGridObjects`, `_sellObjects` → `_detailObjects`
+- Added `RARITY_HEX` map for Phaser rectangle stroke colors
 
 ## Pinned References
 - Governance rules: `CLAUDE.md`
