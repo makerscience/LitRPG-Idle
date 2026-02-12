@@ -36,7 +36,7 @@ export const COLORS = {
 
 export const ZONE_THEMES = {
   1: {
-    name: 'Sewers',
+    name: 'Forest',
     layers: [0x1a2a1a, 0x0d1f0d, 0x0a1a0a],
     images: ['bg002_rear', 'bg002_mid'],
     trees: ['fg_tree003', 'fg_tree004'],

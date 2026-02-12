@@ -5,6 +5,7 @@
 import Store from './Store.js';
 import { emit, EVENTS } from '../events.js';
 import { getItem, getScaledItem } from '../data/items.js';
+import { getEquipSlotForItem } from '../data/equipSlots.js';
 import { INVENTORY, LOOT } from '../config.js';
 
 let _mergeDepth = 0;
@@ -61,7 +62,8 @@ const InventorySystem = {
     if (!item) return;
 
     const state = Store.getState();
-    const slot = item.slot;
+    const slot = InventorySystem._resolveEquipSlot(item);
+    if (!slot) return;
 
     // Unequip existing item in that slot (return to inventory)
     const currentlyEquipped = state.equipped[slot];
@@ -75,6 +77,25 @@ const InventorySystem = {
 
     // Equip the item (store full stack key so rarity is preserved)
     Store.equipItem(slot, stackKey);
+  },
+
+  /**
+   * Resolve which equipped slot an item should go into.
+   * Handles ring → ring1/ring2 disambiguation.
+   */
+  _resolveEquipSlot(item) {
+    const baseSlot = getEquipSlotForItem(item.slot);
+    if (!baseSlot) return null;
+
+    // Ring disambiguation: prefer empty slot, fallback to ring1
+    if (item.slot === 'ring') {
+      const state = Store.getState();
+      if (!state.equipped.ring1) return 'ring1';
+      if (!state.equipped.ring2) return 'ring2';
+      return 'ring1'; // replace ring1 if both occupied
+    }
+
+    return baseSlot;
   },
 
   /**
@@ -161,7 +182,7 @@ const InventorySystem = {
    */
   getEquippedWeaponDamage() {
     const state = Store.getState();
-    const weaponKey = state.equipped.weapon;
+    const weaponKey = state.equipped.main_hand;
     if (!weaponKey) return 0;
 
     const item = getScaledItem(weaponKey);

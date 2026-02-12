@@ -1,5 +1,5 @@
 // ZoneNav — two-tier area/zone navigation in the game area.
-// Top row: area arrows (< Sewers >)
+// Top row: area arrows (< Forest >)
 // Bottom row: zone arrows (< Zone 3/5 >)
 
 import Store from '../systems/Store.js';

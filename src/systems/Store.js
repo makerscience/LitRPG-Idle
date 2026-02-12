@@ -5,6 +5,7 @@ import { D, fromJSON, Decimal } from './BigNum.js';
 import { PROGRESSION, ECONOMY, SAVE, COMBAT, PRESTIGE } from '../config.js';
 import { emit, EVENTS } from '../events.js';
 import { AREAS } from '../data/areas.js';
+import { ALL_SLOT_IDS } from '../data/equipSlots.js';
 
 import { getEffectiveMaxHp } from './ComputedStats.js';
 
@@ -42,7 +43,7 @@ function createInitialState() {
       xpToNext: D(PROGRESSION.xpForLevel(stats.level)),
     },
     playerHp: D(stats.vit * COMBAT.playerHpPerVit),
-    equipped: { head: null, body: null, weapon: null, legs: null },
+    equipped: Object.fromEntries(ALL_SLOT_IDS.map(id => [id, null])),
     inventoryStacks: {},
     purchasedUpgrades: {},
     totalKills: 0,
@@ -102,7 +103,18 @@ function hydrateState(saved) {
   }
 
   // Simple objects / arrays — shallow copy
-  if (saved.equipped) fresh.equipped = { ...fresh.equipped, ...saved.equipped };
+  if (saved.equipped) {
+    fresh.equipped = { ...fresh.equipped, ...saved.equipped };
+    // Migrate old slot key names (body→chest, weapon→main_hand)
+    if (saved.equipped.body && !saved.equipped.chest) {
+      fresh.equipped.chest = saved.equipped.body;
+    }
+    if (saved.equipped.weapon && !saved.equipped.main_hand) {
+      fresh.equipped.main_hand = saved.equipped.weapon;
+    }
+    delete fresh.equipped.body;
+    delete fresh.equipped.weapon;
+  }
   if (saved.inventoryStacks) fresh.inventoryStacks = saved.inventoryStacks;
   if (saved.purchasedUpgrades) fresh.purchasedUpgrades = { ...saved.purchasedUpgrades };
   if (saved.totalKills != null) fresh.totalKills = saved.totalKills;

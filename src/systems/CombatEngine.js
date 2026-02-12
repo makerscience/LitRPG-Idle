@@ -98,6 +98,7 @@ const CombatEngine = {
     BossManager.destroy();
     TimeEngine.unregister('combat:autoAttack');
     TimeEngine.unregister('combat:spawnDelay');
+    TimeEngine.unregister('combat:bossDefeatedDelay');
     TimeEngine.unregister('combat:enemyAttack');
     TimeEngine.unregister('combat:playerRegen');
     TimeEngine.unregister('combat:playerRespawn');
@@ -174,11 +175,11 @@ const CombatEngine = {
     });
   },
 
-  playerAttack() {
+  playerAttack(isClick = false) {
     if (!currentEnemy) return;
 
     const state = Store.getState();
-    const { damage, isCrit } = CombatEngine.getPlayerDamage(state);
+    const { damage, isCrit } = CombatEngine.getPlayerDamage(state, isClick);
 
     currentEnemy.hp = Decimal.max(currentEnemy.hp.minus(damage), 0);
 
@@ -195,10 +196,10 @@ const CombatEngine = {
     }
   },
 
-  getPlayerDamage(state) {
+  getPlayerDamage(state, isClick = false) {
     const baseDamage = getBaseDamage();
     const prestigeMult = state.prestigeMultiplier;
-    const clickDmgMult = UpgradeManager.getMultiplier('clickDamage');
+    const clickDmgMult = isClick ? UpgradeManager.getMultiplier('clickDamage') : 1;
     const critChance = getCritChance();
 
     // Forced crit from FirstCrackDirector consumes the override
@@ -287,10 +288,12 @@ const CombatEngine = {
       isBoss: dead.isBoss || false,
     });
 
-    // If boss was killed, handle boss defeat
+    // If boss was killed, delay zone advancement so the death sprite can play
+    // (1000ms hold + 300ms fade in GameScene)
     if (dead.isBoss) {
-      BossManager.onBossDefeated();
-      // Don't auto-spawn next enemy — zone change event will trigger new spawn
+      TimeEngine.scheduleOnce('combat:bossDefeatedDelay', () => {
+        BossManager.onBossDefeated();
+      }, 1300);
       return;
     }
 

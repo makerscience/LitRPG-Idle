@@ -45,7 +45,7 @@ export const KILL_MILESTONES = {
 
 export const COMBAT_COMMENTARY = {
   1: [
-    "Another rat falls. The sewers weep. Actually, they don't. They're sewers.",
+    "Another rat falls. The forest weeps. Actually, it doesn't. It's a forest.",
     "At this rate, you'll single-handedly solve the city's pest problem.",
     "The slime didn't even put up a fight. Have some dignity, slime.",
     "That goblin had a family. Well, probably. I don't track goblin HR.",

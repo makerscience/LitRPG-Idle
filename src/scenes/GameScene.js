@@ -23,7 +23,7 @@ export default class GameScene extends Phaser.Scene {
     const playerX = ga.x + 200;
     this._enemyX = ga.x + 700;
     this._combatY = ga.y + ga.h - 225;
-    this._enemyY = this._combatY + 60;
+    this._enemyY = this._combatY + 40;
 
     // Create parallax background first (lowest depth) — keyed on area, not zone
     this._createParallax(Store.getState().currentArea);
@@ -73,12 +73,12 @@ export default class GameScene extends Phaser.Scene {
     // Enemy placeholder â€” red rect (click target for enemies without sprites)
     this.enemyRect = this.add.rectangle(this._enemyX, this._enemyY, 200, 250, 0xef4444);
     this.enemyRect.setInteractive({ useHandCursor: true });
-    this.enemyRect.on('pointerdown', () => CombatEngine.playerAttack());
+    this.enemyRect.on('pointerdown', () => CombatEngine.playerAttack(true));
 
     // Enemy sprite (for enemies with sprite assets)
     this.enemySprite = this.add.image(this._enemyX, this._enemyY, 'goblin001_default');
     this.enemySprite.setVisible(false);
-    this.enemySprite.on('pointerdown', () => CombatEngine.playerAttack());
+    this.enemySprite.on('pointerdown', () => CombatEngine.playerAttack(true));
     this._currentEnemySprites = null;
     this._poseRevertTimer = null;
     this._deathFadeTimer = null;
@@ -312,13 +312,16 @@ export default class GameScene extends Phaser.Scene {
     const size = data.spriteSize || template?.spriteSize || { w: 200, h: 250 };
     this._spriteW = size.w;
     this._spriteH = size.h;
+    const baseH = template?.spriteSize?.h || 250;
+    const hDiff = this._spriteH - baseH;
+    this._bottomAlignOffsetY = hDiff > 0 ? -hDiff / 2 + 40 : 0;
 
     if (this._currentEnemySprites) {
       // Show sprite with default pose (apply Y offset for living poses)
       this.enemySprite.setTexture(this._currentEnemySprites.default);
       this.enemySprite.setScale(1);  // reset from death anim before resizing
       this.enemySprite.setDisplaySize(this._spriteW, this._spriteH);
-      this.enemySprite.y = this._enemyY + this._spriteOffsetY;
+      this.enemySprite.y = this._enemyY + this._spriteOffsetY + this._bottomAlignOffsetY;
       this.enemySprite.setVisible(true);
       this.enemySprite.setAlpha(1);
       this.enemySprite.setInteractive({ useHandCursor: true });
@@ -428,13 +431,14 @@ export default class GameScene extends Phaser.Scene {
     if (this._poseRevertTimer) { this._poseRevertTimer.remove(); this._poseRevertTimer = null; }
 
     if (this._currentEnemySprites) {
-      // Show dead pose at base position (no offset), then fade out
+      // Show dead pose at base position (no living-pose offset), then fade out
       this.enemySprite.setTexture(this._currentEnemySprites.dead);
       this.enemySprite.setDisplaySize(this._spriteW, this._spriteH);
-      this.enemySprite.y = this._enemyY;
+      this.enemySprite.y = this._enemyY + this._bottomAlignOffsetY;
       this.enemySprite.disableInteractive();
 
-      this._deathFadeTimer = this.time.delayedCall(500, () => {
+      const deathHoldMs = _data.isBoss ? 1000 : 500;
+      this._deathFadeTimer = this.time.delayedCall(deathHoldMs, () => {
         this._deathFadeTimer = null;
         this.tweens.add({
           targets: [target, this.enemyNameText, this.hpBarBg, this.hpBarFill],

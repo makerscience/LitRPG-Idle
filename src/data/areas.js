@@ -12,7 +12,7 @@ import { WORLD_1_ENEMIES } from './enemies.js';
 const AREAS = {
   1: {
     id: 1,
-    name: 'Sewers',
+    name: 'Forest',
     zoneCount: 5,
     enemies: () => getEnemiesForArea(1),
   },
@@ -51,9 +51,9 @@ export const AREA_COUNT = Object.keys(AREAS).length; // 5
 // ── Boss multipliers ────────────────────────────────────────────────
 
 export const BOSS_TYPES = {
-  MINI:  { label: 'Mini-Boss',       hpMult: 6,  atkMult: 3,   sizeMult: 2 },
-  ELITE: { label: 'Elite Mini-Boss', hpMult: 5,  atkMult: 2,   sizeMult: 2 },
-  AREA:  { label: 'Area Boss',       hpMult: 8,  atkMult: 2.5, sizeMult: 4 },
+  MINI:  { label: 'Mini-Boss',       hpMult: 6,  atkMult: 3,   sizeMult: 1.5 },
+  ELITE: { label: 'Elite Mini-Boss', hpMult: 5,  atkMult: 2,   sizeMult: 1.5 },
+  AREA:  { label: 'Area Boss',       hpMult: 8,  atkMult: 2.5, sizeMult: 2 },
 };
 
 // ── Zone scaling ────────────────────────────────────────────────────

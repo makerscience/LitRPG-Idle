@@ -33,14 +33,19 @@ export function getBaseDamage() {
   return DAMAGE_FORMULAS.mortal(str, wpnDmg);
 }
 
-/** Effective damage per hit after all multipliers (prestige, upgrades, territory). */
+/** Effective auto-attack damage per hit after all multipliers (prestige, territory). */
 export function getEffectiveDamage() {
   const state = Store.getState();
   const baseDmg = getBaseDamage();
-  const clickDmgMult = UpgradeManager.getMultiplier('clickDamage');
   const prestigeMult = state.prestigeMultiplier;
   const territoryDmgMult = TerritoryManager.getBuffMultiplier('baseDamage');
-  return Math.floor(baseDmg * clickDmgMult * prestigeMult * territoryDmgMult);
+  return Math.floor(baseDmg * prestigeMult * territoryDmgMult);
+}
+
+/** Effective click damage per hit (auto-attack damage × click damage upgrade multiplier). */
+export function getClickDamage() {
+  const clickDmgMult = UpgradeManager.getMultiplier('clickDamage');
+  return Math.floor(getEffectiveDamage() * clickDmgMult);
 }
 
 /** Crit chance from base + upgrades + territory. */
@@ -91,6 +96,7 @@ export function getAllStats() {
     effectiveMaxHp: getEffectiveMaxHp(),
     baseDamage: getBaseDamage(),
     effectiveDamage: getEffectiveDamage(),
+    clickDamage: getClickDamage(),
     critChance: getCritChance(),
     critMultiplier: getCritMultiplier(),
     autoAttackInterval: getAutoAttackInterval(),

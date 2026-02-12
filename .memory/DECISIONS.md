@@ -143,4 +143,11 @@ Format:
 - Alternatives considered: Per-second tick simulation (expensive, unnecessary for coarse estimate). Event-based notification (timing issues with scenes not yet created).
 - Consequences / Follow-ups: No loot/items, kill counters, boss sim, or death modeling offline. If offline rewards feel too generous/stingy, tune the formula or add an efficiency multiplier (<1.0).
 
+## 2026-02-12
+- Tags: architecture
+- Decision: Equipment slot IDs in Store.equipped use descriptive names (`chest`, `main_hand`) instead of item slot field names (`body`, `weapon`). equipSlots.js maps between them via `itemSlot` field.
+- Rationale: 33 equipment slots need clear names (e.g., `ring1`/`ring2` for two ring slots, `main_hand` vs future `off_hand`). Item `slot` field stays generic for filtering. equipSlots data bridges the two.
+- Alternatives considered: Keep store keys matching item.slot (simpler but ambiguous for rings, future off-hand). Use numeric IDs (less readable).
+- Consequences / Follow-ups: Save migration in hydrateState maps old `body`→`chest`, `weapon`→`main_hand`. SaveManager v7→v8 migration still uses old names (runs first, then hydration remaps). InventorySystem._resolveEquipSlot() handles item.slot → equipped key mapping.
+
 Tip: Search with `rg "Tags:.*workflow" .memory/DECISIONS.md`

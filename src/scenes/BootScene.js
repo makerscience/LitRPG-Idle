@@ -27,10 +27,10 @@ export default class BootScene extends Phaser.Scene {
     this.load.image('fg_tree002',   'Images/foreground001_tree002.png');
     this.load.image('fg_tree003',   'Images/foreground001_tree003.png');
     this.load.image('fg_tree004',   'Images/foreground001_tree004.png');
-    this.load.image('sewerrat001_default',  'Images/sewerrat001_default.png');
-    this.load.image('sewerrat001_reaction', 'Images/sewerrat001_reaction.png');
-    this.load.image('sewerrat001_attack',   'Images/sewerrat001_attack.png');
-    this.load.image('sewerrat001_dead',     'Images/sewerrat001_dead.png');
+    this.load.image('forestrat001_default',  'Images/forestrat001_default.png');
+    this.load.image('forestrat001_reaction', 'Images/forestrat001_reaction.png');
+    this.load.image('forestrat001_attack',   'Images/forestrat001_attack.png');
+    this.load.image('forestrat001_dead',     'Images/forestrat001_dead.png');
     this.load.image('player001_default',        'Images/Player001_default.png');
     this.load.image('player001_strongpunch',    'Images/Player001_strongpunch.png');
     this.load.image('player001_jumpkick',       'Images/Player001_jumpkick.png');

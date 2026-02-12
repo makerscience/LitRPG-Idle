@@ -2,13 +2,13 @@
 // Each territory maps to one enemy type and provides a unique buff when conquered.
 
 const TERRITORIES = [
-  // Area 1: Sewers
+  // Area 1: Forest
   {
-    id: 'sewer_rats_nest', name: "Sewer Rat's Nest", area: 1,
+    id: 'forest_rats_nest', name: "Forest Rat's Nest", area: 1,
     enemyId: 'w1z1_rat',
     buff: { key: 'goldGain', label: '+15% Gold Gain', value: 0.15 },
     killsRequired: 50, goldCost: '500',
-    description: 'A nest of oversized rats hoarding stolen coins.',
+    description: 'A nest of oversized forest rats hoarding stolen coins.',
     mapPosition: { x: 150, y: 540 },
   },
   {

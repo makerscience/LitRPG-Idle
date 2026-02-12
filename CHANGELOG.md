@@ -1,5 +1,14 @@
 # CHANGELOG
 
+## 2026-02-12 (Character Silhouette Equipment Screen)
+- **Equipment slot data** (`src/data/equipSlots.js`): declarative definitions for 33 equipment slots across 8 tiers (0–7), with body anchors, side placement, and tier-gated unlock helpers
+- **Silhouette paper-doll layout**: inventory panel left side now shows a dimmed player sprite with equipment slots in left/right columns connected by lines to body anchor points, plus accessory grid below
+- **Panel resized** to 880x560 (from 700x450) — separator and inventory grid/detail shifted right to accommodate equipment zone
+- **Store equipped expansion**: `equipped` object now holds all 33 slot IDs (was 4); save migration renames old `body`→`chest`, `weapon`→`main_hand`
+- **Equip slot resolution**: `InventorySystem._resolveEquipSlot()` maps item slot fields to equipped keys, with ring→ring1/ring2 disambiguation
+
+---
+
 ## 2026-02-11 (Codebase Redesign — Phase 9: Offline Progress Engine)
 - **Offline progress engine** (`src/systems/OfflineProgress.js`): rate-based catch-up rewards on load — computes gold/XP/fragments from player DPS × zone enemy pool × clamped offline duration (60s min, 12h max)
 - **SystemLog summary**: "Welcome back! +X Gold, +Y XP" line with fragment/level-up info on game load

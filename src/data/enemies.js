@@ -2,13 +2,13 @@
 // IDs use w{world}z{zone}_{name} format (kept for backward compat).
 
 const WORLD_1_ENEMIES = [
-  // Area 1: Sewers (HP 100–500)
-  { id: 'w1z1_rat',    name: 'Sewer Rat',       area: 1, hp: '50',   attack: 6,  goldDrop: '5',   xpDrop: '8',
+  // Area 1: Forest (HP 100–500)
+  { id: 'w1z1_rat',    name: 'Forest Rat',      area: 1, hp: '50',   attack: 6,  goldDrop: '5',   xpDrop: '8',
     sprites: {
-      default:  'sewerrat001_default',
-      reaction: 'sewerrat001_reaction',
-      attack:   'sewerrat001_attack',
-      dead:     'sewerrat001_dead',
+      default:  'forestrat001_default',
+      reaction: 'forestrat001_reaction',
+      attack:   'forestrat001_attack',
+      dead:     'forestrat001_dead',
     },
     spriteSize: { w: 125, h: 125 },
     lootTable: [
