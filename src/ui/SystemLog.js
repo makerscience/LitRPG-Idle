@@ -69,7 +69,7 @@ export default class SystemLog extends ScrollableLog {
       const name = item ? item.name : data.itemId;
       const rarity = data.rarity ? data.rarity.charAt(0).toUpperCase() + data.rarity.slice(1) : 'Common';
       const countStr = data.count > 1 ? `${data.count}x ` : '';
-      this.addLine(`Dropped: ${countStr}${name} (${rarity})`, 'loot');
+      this.addLine(`Dropped: ${countStr}${name} (${rarity})`, 'loot', COLORS.rarity[data.rarity]);
     }));
 
     this._unsubs.push(on(EVENTS.INV_ITEM_EQUIPPED, (data) => {
@@ -161,10 +161,10 @@ export default class SystemLog extends ScrollableLog {
     this._pendingKill = null;
   }
 
-  addLine(text, type = 'default') {
+  addLine(text, type = 'default', colorOverride = null) {
     const now = new Date();
     const ts = `[${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}]`;
-    const color = COLORS.logText[type] || COLORS.logText.default;
+    const color = colorOverride || COLORS.logText[type] || COLORS.logText.default;
     this._addLineData({ text: `${ts} ${text}`, color });
   }
 }
