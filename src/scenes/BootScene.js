@@ -42,6 +42,9 @@ export default class BootScene extends Phaser.Scene {
     this.load.image('player001_hitreaction',    'Images/Player001_hitreaction.png');
     this.load.image('player001_walk1',          'Images/Player001_walk1.png');
     this.load.image('player001_walk3',          'Images/Player001_walk3.png');
+
+    // Equipment thumbnails
+    this.load.image('weapon001_sharpstick', 'Images/equipment/weapon001_sharpstick.png');
   }
 
   create() {

@@ -10,6 +10,7 @@ const ITEMS = {
     name: 'Sharpened Stick',
     description: 'Pointy end goes in the enemy.',
     abbr: 'ShSt',
+    thumbnail: 'weapon001_sharpstick',
     slot: 'weapon',
     rarity: 'common',
     tier: 1,

@@ -26,6 +26,9 @@ export default class UIScene extends Phaser.Scene {
   }
 
   create() {
+    // Crisp text rendering for UI — GameScene leaves this off for smooth parallax
+    this.cameras.main.roundPixels = true;
+
     // Panel backgrounds drawn first (behind UI components)
     const ga = LAYOUT.gameArea;
     const bb = LAYOUT.bottomBar;

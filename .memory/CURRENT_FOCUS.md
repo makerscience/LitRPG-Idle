@@ -28,7 +28,7 @@
 
 ## How to Resume in 30 Seconds
 - **Open:** `.memory/CURRENT_FOCUS.md`
-- **Last change:** Inventory UX overhaul — drag-to-equip, drag-to-sell, cursor tooltips, font bump, roundPixels
+- **Last change:** Equipment thumbnails, inventory bug fixes, smooth parallax
 - **Architecture:** Progression.js owns XP/level + kill rewards. Store is pure state. EventScope pattern for subscriptions. ComputedStats for derived values. BossManager looks up named bosses via `getBossForZone()`. LootEngine uses zone-based item pools with slot weighting and pity.
 - **Plan:** `Plans/Redesign Plan.md` — 8-phase implementation, Phase 7 complete
 - **Balance tool:** `npm run balance:sim` — zone-by-zone idle progression simulation
@@ -48,14 +48,12 @@
 ---
 
 ## Last Session Summary (max ~8 bullets)
-- Equip slot highlighting + drag-to-equip: amber highlight on hover/select, ghost text follows cursor, drop on slot to equip
-- Drag-to-sell: SELL drop zone in upper-right of inventory panel; drag items onto it to sell full stack
-- Cursor-following tooltips: compact 280px tooltip follows mouse; single-column layout with inline stat diffs and "vs." reference line
-- All inventory panel fonts bumped +2px for readability (8→10, 9→11, 10→12, 11→13, 13→15)
-- Added `roundPixels: true` to Phaser game config (`src/main.js`) — fixes sub-pixel text blur globally
-- Bug fix: deferred click actions to `pointerup` so `_refresh()` doesn't destroy bg before Phaser's drag fires `dragstart`
-- Tooltip uses Phaser Container + scene `pointermove` listener (replaces old `_tooltipObjects` array)
-- Files modified: `src/ui/InventoryPanel.js`, `src/main.js`
+- Bug fix: inventory tooltip and drag ghost no longer vanish when loot drops while panel is open (deferred refresh while dragging, tooltip persists across rebuilds)
+- Smooth parallax: moved `roundPixels: true` from global game config to UIScene camera only — trees/ferns no longer jitter at slow scroll speeds
+- Equipment thumbnails: items can now have a `thumbnail` field pointing to a Phaser texture key; shown in inventory grid slots, equipment slots, and drag ghost
+- First thumbnail: Sharpened Stick (`weapon001_sharpstick`) loaded from `Images/equipment/`
+- Equipment slots resized to 64x64 (matching inventory grid slots) and pushed to far left/right edges of equipment zone
+- Files modified: `src/ui/InventoryPanel.js`, `src/main.js`, `src/scenes/BootScene.js`, `src/scenes/UIScene.js`, `src/data/items.js`
 
 ## Pinned References
 - Governance rules: `CLAUDE.md`

@@ -25,8 +25,8 @@ const SLOT_GAP = 6;
 const SLOT_STEP = SLOT_SIZE + SLOT_GAP; // 70px
 
 // Equipment slot dimensions (boxes around silhouette — enlarged for 7-slot V2 layout)
-const EQ_W = 100;
-const EQ_H = 38;
+const EQ_W = SLOT_SIZE;
+const EQ_H = SLOT_SIZE;
 const EQ_GAP = 6;
 
 // Accessory slot dimensions (bottom row)
@@ -62,6 +62,7 @@ export default class InventoryPanel extends ModalPanel {
     this._dragData = null;      // { stackKey, equipSlotId }
     this._pendingClick = null;  // { action: 'select'|'equip', stackKey }
     this._sellZone = null;      // sell drop-zone rectangle
+    this._refreshPending = false; // deferred refresh while dragging
   }
 
   _getTitle() { return 'INVENTORY'; }
@@ -131,11 +132,22 @@ export default class InventoryPanel extends ModalPanel {
     super._close();
   }
 
+  // Override: defer refresh while dragging so the dragged slot isn't destroyed mid-drag
+  _refresh() {
+    if (!this._isOpen) return;
+    if (this._dragData) {
+      this._refreshPending = true;
+      return;
+    }
+    this._refreshPending = false;
+    this._clearDynamic();
+    this._buildContent();
+  }
+
   _buildContent() {
-    this._hideTooltip();
+    // Tooltip intentionally NOT destroyed here — it persists across refreshes
+    // and gets replaced naturally on the next pointerover
     this._equipSlotBgs = {};
-    if (this._dragGhost) { this._dragGhost.destroy(); this._dragGhost = null; }
-    this._dragData = null;
     this._pendingClick = null;
     this._renderEquipmentSilhouette();
     this._renderInventoryGrid();
@@ -168,12 +180,13 @@ export default class InventoryPanel extends ModalPanel {
     gfx.lineStyle(1, 0x555566, 0.6);
     this._dynamicObjects.push(gfx);
 
-    // Left column — slot boxes at silhouetteCx - 150
-    const leftX = silCx - 150;
+    // Left column — flush to left edge of panel
+    const panelLeft = this._cx - PANEL_W / 2;
+    const leftX = panelLeft + 10;
     this._layoutColumn(leftSlots, leftX, silCy, state, gfx, silCx, silCy, 'left');
 
-    // Right column — slot boxes at silhouetteCx + 66
-    const rightX = silCx + 66;
+    // Right column — flush to right edge of equipment zone (separator at panelLeft + 345)
+    const rightX = panelLeft + 345 - EQ_W - 10;
     this._layoutColumn(rightSlots, rightX, silCy, state, gfx, silCx, silCy, 'right');
 
     // Accessory grid — bottom row
@@ -273,16 +286,24 @@ export default class InventoryPanel extends ModalPanel {
     this._dynamicObjects.push(label);
 
     if (item) {
-      const nameText = this.scene.add.text(
-        x + EQ_W / 2, y + EQ_H / 2 + 4, item.name,
-        {
-          fontFamily: 'monospace', fontSize: '11px',
-          color: COLORS.rarity[displayRarity] || '#a1a1aa',
-          fontStyle: 'bold', align: 'center',
-          wordWrap: { width: EQ_W - 8 },
-        }
-      ).setOrigin(0.5);
-      this._dynamicObjects.push(nameText);
+      if (item.thumbnail && this.scene.textures.exists(item.thumbnail)) {
+        const thumb = this.scene.add.image(
+          x + EQ_W / 2, y + EQ_H / 2, item.thumbnail
+        );
+        thumb.setDisplaySize(EQ_H - 6, EQ_H - 6);
+        this._dynamicObjects.push(thumb);
+      } else {
+        const nameText = this.scene.add.text(
+          x + EQ_W / 2, y + EQ_H / 2 + 4, item.name,
+          {
+            fontFamily: 'monospace', fontSize: '11px',
+            color: COLORS.rarity[displayRarity] || '#a1a1aa',
+            fontStyle: 'bold', align: 'center',
+            wordWrap: { width: EQ_W - 8 },
+          }
+        ).setOrigin(0.5);
+        this._dynamicObjects.push(nameText);
+      }
 
       bg.on('pointerdown', () => InventorySystem.unequipItem(slotDef.id));
       bg.on('pointerover', () => {
@@ -426,16 +447,24 @@ export default class InventoryPanel extends ModalPanel {
       this._dynamicObjects.push(glow);
     }
 
-    const nameText = this.scene.add.text(
-      x + SLOT_SIZE / 2, y + SLOT_SIZE / 2 - (count > 1 ? 5 : 0), item.name,
-      {
-        fontFamily: 'monospace', fontSize: '11px',
-        color: COLORS.rarity[rarity] || '#a1a1aa',
-        fontStyle: 'bold', align: 'center',
-        wordWrap: { width: SLOT_SIZE - 6 },
-      }
-    ).setOrigin(0.5);
-    this._dynamicObjects.push(nameText);
+    if (item.thumbnail && this.scene.textures.exists(item.thumbnail)) {
+      const thumb = this.scene.add.image(
+        x + SLOT_SIZE / 2, y + SLOT_SIZE / 2, item.thumbnail
+      );
+      thumb.setDisplaySize(SLOT_SIZE - 12, SLOT_SIZE - 12);
+      this._dynamicObjects.push(thumb);
+    } else {
+      const nameText = this.scene.add.text(
+        x + SLOT_SIZE / 2, y + SLOT_SIZE / 2 - (count > 1 ? 5 : 0), item.name,
+        {
+          fontFamily: 'monospace', fontSize: '11px',
+          color: COLORS.rarity[rarity] || '#a1a1aa',
+          fontStyle: 'bold', align: 'center',
+          wordWrap: { width: SLOT_SIZE - 6 },
+        }
+      ).setOrigin(0.5);
+      this._dynamicObjects.push(nameText);
+    }
 
     if (count > 1) {
       const badge = this.scene.add.text(
@@ -487,12 +516,18 @@ export default class InventoryPanel extends ModalPanel {
     bg.on('dragstart', (pointer) => {
       this._pendingClick = null; // cancel click — user is dragging
       this._dragData = { stackKey, equipSlotId, count };
-      this._dragGhost = this.scene.add.text(pointer.x, pointer.y, item.name, {
-        fontFamily: 'monospace', fontSize: '12px',
-        color: COLORS.rarity[rarity] || '#a1a1aa',
-        fontStyle: 'bold', backgroundColor: '#1a1a2e',
-        padding: { x: 4, y: 2 },
-      }).setOrigin(0.5).setDepth(300).setAlpha(0.9);
+      if (item.thumbnail && this.scene.textures.exists(item.thumbnail)) {
+        this._dragGhost = this.scene.add.image(pointer.x, pointer.y, item.thumbnail);
+        this._dragGhost.setDisplaySize(SLOT_SIZE - 12, SLOT_SIZE - 12);
+      } else {
+        this._dragGhost = this.scene.add.text(pointer.x, pointer.y, item.name, {
+          fontFamily: 'monospace', fontSize: '12px',
+          color: COLORS.rarity[rarity] || '#a1a1aa',
+          fontStyle: 'bold', backgroundColor: '#1a1a2e',
+          padding: { x: 4, y: 2 },
+        }).setOrigin(0.5);
+      }
+      this._dragGhost.setDepth(300).setAlpha(0.9);
       if (equipSlotId) this._highlightEquipSlot(equipSlotId);
       if (this._sellZone) this._sellZone.setStrokeStyle(2, 0xeab308);
     });
@@ -522,6 +557,7 @@ export default class InventoryPanel extends ModalPanel {
         if (data.equipSlotId) this._unhighlightEquipSlot(data.equipSlotId);
         this._sellZone.setStrokeStyle(1, 0x8b5e1a);
         this._sellZone.setFillStyle(0x1a1a1a);
+        if (this._refreshPending) { this._refreshPending = false; this._refresh(); }
         return;
       }
 
@@ -539,6 +575,12 @@ export default class InventoryPanel extends ModalPanel {
       if (this._sellZone) {
         this._sellZone.setStrokeStyle(1, 0x8b5e1a);
         this._sellZone.setFillStyle(0x1a1a1a);
+      }
+
+      // Flush any refresh that was deferred while dragging
+      if (this._refreshPending) {
+        this._refreshPending = false;
+        this._refresh();
       }
     });
   }

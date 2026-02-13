@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## 2026-02-13 — Equipment Thumbnails, Inventory Bug Fixes, Smooth Parallax
+- **Equipment thumbnails**: items with a `thumbnail` field now display an image in inventory grid slots, equipment slots, and drag ghost instead of text; first thumbnail: Sharpened Stick
+- **Equipment slot layout**: slots resized to 64x64 (matching inventory grid) and pushed to far left/right edges of the equipment zone
+- **Inventory refresh fix**: tooltip and drag ghost no longer vanish when loot drops while the inventory panel is open; refresh deferred during active drag
+- **Smooth parallax**: `roundPixels` moved from global game config to UIScene camera only — eliminates tree/fern jitter at slow scroll speeds while keeping UI text crisp
+
+---
+
 ## 2026-02-13 — Inventory UX Overhaul: Drag, Tooltips, Sell Zone
 - **Equip slot highlighting**: hovering or selecting an inventory item highlights the target equipment slot with an amber border
 - **Drag-to-equip**: drag an inventory item onto its target equipment slot to equip it; ghost text follows cursor during drag
