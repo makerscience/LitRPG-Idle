@@ -61,16 +61,21 @@ export default class BossChallenge {
   }
 
   _showButton() {
+    const bossData = BossManager.getCurrentBossData();
     const bossLabel = BossManager.getCurrentBossLabel();
+
     let text;
     if (bossLabel === BOSS_TYPES.AREA.label) {
-      text = '\u2694 CHALLENGE AREA BOSS \u2694';
+      const name = bossData?.name || 'AREA BOSS';
+      text = `\u2694 CHALLENGE ${name.toUpperCase()} \u2694`;
       this._btn.setStyle({ backgroundColor: '#7c2d12', color: '#fbbf24' });
     } else if (bossLabel === BOSS_TYPES.ELITE.label) {
-      text = '\u2605 CHALLENGE ELITE BOSS \u2605';
+      const name = bossData?.name || 'ELITE BOSS';
+      text = `\u2605 CHALLENGE ${name.toUpperCase()} \u2605`;
       this._btn.setStyle({ backgroundColor: '#4c1d95', color: '#c4b5fd' });
     } else {
-      text = 'CHALLENGE BOSS';
+      const name = bossData?.name || 'BOSS';
+      text = `CHALLENGE ${name.toUpperCase()}`;
       this._btn.setStyle({ backgroundColor: '#7c2d12', color: '#ffffff' });
     }
 

@@ -6,7 +6,7 @@ import Progression from './Progression.js';
 import { D } from './BigNum.js';
 import { getEffectiveDamage, getCritChance, getCritMultiplier, getAutoAttackInterval, getGoldMultiplier, getXpMultiplier } from './ComputedStats.js';
 import { getUnlockedEnemies, getZoneScaling } from '../data/areas.js';
-import { SAVE, ECONOMY, COMBAT } from '../config.js';
+import { SAVE, ECONOMY, COMBAT_V2 } from '../config.js';
 import TerritoryManager from './TerritoryManager.js';
 
 let lastResult = null;
@@ -75,7 +75,7 @@ const OfflineProgress = {
     if (playerDps <= 0) return;
 
     // ── Kill cycle time ───────────────────────────────────────────
-    const timePerKill = (avgHp / playerDps) + (COMBAT.spawnDelay / 1000);
+    const timePerKill = (avgHp / playerDps) + (COMBAT_V2.spawnDelay / 1000);
     if (timePerKill <= 0) return;
 
     const estimatedKills = Math.floor(offlineSeconds / timePerKill);
@@ -99,7 +99,7 @@ const OfflineProgress = {
     Progression.grantXp(xpGained);
     if (fragmentsGained > 0) Store.addFragments(fragmentsGained);
 
-    // Sync HP with any VIT gained from level-ups
+    // Sync HP with any HP gained from level-ups
     Store.resetPlayerHp();
 
     const levelsGained = state.playerStats.level - levelBefore;

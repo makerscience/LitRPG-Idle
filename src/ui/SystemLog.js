@@ -8,7 +8,9 @@ import { LAYOUT, COLORS, UI, LOOT, PRESTIGE } from '../config.js';
 import { getItem, getScaledItem } from '../data/items.js';
 import { getUpgrade } from '../data/upgrades.js';
 import { getCheat } from '../data/cheats.js';
+import { getArea } from '../data/areas.js';
 import OfflineProgress from '../systems/OfflineProgress.js';
+import Store from '../systems/Store.js';
 
 export default class SystemLog extends ScrollableLog {
   constructor(scene) {
@@ -25,6 +27,19 @@ export default class SystemLog extends ScrollableLog {
     // Subscribe to events
     this._unsubs.push(on(EVENTS.COMBAT_ENEMY_SPAWNED, (data) => {
       this._currentEnemyName = data.name;
+      if (data.armorPen > 0) {
+        const penPct = Math.round(data.armorPen * 100);
+        this.addLine(`\u26A0 ${data.name} has ${penPct}% Armor Penetration`, 'warning');
+      }
+      if (data.dot) {
+        this.addLine(`\u26A0 ${data.name} deals ${data.dot} dmg/sec (bypasses defense)`, 'warning');
+      }
+    }));
+
+    this._unsubs.push(on(EVENTS.COMBAT_DOT_TICK, (data) => {
+      if (data.tickNumber % 5 === 0) {
+        this.addLine(`Blight: -${data.damage} HP`, 'dot');
+      }
     }));
 
     this._unsubs.push(on(EVENTS.COMBAT_ENEMY_KILLED, (data) => {
@@ -52,8 +67,9 @@ export default class SystemLog extends ScrollableLog {
     }));
 
     this._unsubs.push(on(EVENTS.WORLD_ZONE_CHANGED, (data) => {
-      const areaLabel = data.area ? ` (Area ${data.area})` : '';
-      this.addLine(`Entered Zone ${data.zone}${areaLabel}`, 'zoneChange');
+      const areaData = data.area ? getArea(data.area) : null;
+      const areaName = areaData?.name || `Area ${data.area}`;
+      this.addLine(`Entered ${areaName} \u2014 Zone ${data.zone}`, 'zoneChange');
     }));
 
     this._unsubs.push(on(EVENTS.BOSS_DEFEATED, (data) => {
@@ -75,8 +91,17 @@ export default class SystemLog extends ScrollableLog {
     this._unsubs.push(on(EVENTS.INV_ITEM_EQUIPPED, (data) => {
       const scaled = getScaledItem(data.itemId);
       if (!scaled) return;
-      const stat = scaled.statBonuses.atk > 0 ? `+${scaled.statBonuses.atk} ATK` : `+${scaled.statBonuses.def} DEF`;
-      this.addLine(`Equipped ${scaled.name} [${stat}]`, 'loot');
+      const b = scaled.statBonuses;
+      const parts = [];
+      // For weapons, atk === str — show ATK only to avoid redundancy
+      if (b.atk) parts.push(`+${b.atk} ATK`);
+      else if (b.str) parts.push(`+${b.str} STR`);
+      if (b.def) parts.push(`+${b.def} DEF`);
+      if (b.hp) parts.push(`+${b.hp} HP`);
+      if (b.regen) parts.push(`+${b.regen} Regen`);
+      if (b.atkSpeed) parts.push(`+${b.atkSpeed} AtkSpd`);
+      const statStr = parts.length > 0 ? ` [${parts.join(', ')}]` : '';
+      this.addLine(`Equipped ${scaled.name}${statStr}`, 'loot');
     }));
 
     this._unsubs.push(on(EVENTS.INV_ITEM_SOLD, (data) => {
@@ -134,8 +159,13 @@ export default class SystemLog extends ScrollableLog {
       this.addLine(`Territory claimed: ${data.name} [${data.buff.label}]`, 'system');
     }));
 
-    // ── Offline progress summary ──────────────────────────────────
+    // ── Welcome message (first launch) ──────────────────────────────
     const offlineResult = OfflineProgress.getLastResult();
+    if (!offlineResult && Store.getState().totalKills === 0) {
+      this.addLine('Welcome to the Harsh Threshold. Survive.', 'system');
+    }
+
+    // ── Offline progress summary ──────────────────────────────────
     if (offlineResult) {
       let summary = `Welcome back! +${format(offlineResult.goldGained)} Gold, +${format(offlineResult.xpGained)} XP`;
       if (offlineResult.fragmentsGained > 0) {

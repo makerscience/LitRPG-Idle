@@ -4,33 +4,46 @@
 import Store from './Store.js';
 import UpgradeManager from './UpgradeManager.js';
 import TerritoryManager from './TerritoryManager.js';
-import InventorySystem from './InventorySystem.js';
 import { D } from './BigNum.js';
-import { DAMAGE_FORMULAS, COMBAT } from '../config.js';
+import { COMBAT_V2 } from '../config.js';
+import { getScaledItem } from '../data/items.js';
 
-/** Effective STR after territory buffs. */
+/** Sum a single stat key across all equipped gear. */
+function getEquipmentStatSum(statKey) {
+  const state = Store.getState();
+  let sum = 0;
+  for (const stackKey of Object.values(state.equipped)) {
+    if (!stackKey) continue;
+    const item = getScaledItem(stackKey);
+    if (item && item.statBonuses[statKey]) {
+      sum += item.statBonuses[statKey];
+    }
+  }
+  return sum;
+}
+
+/** Effective STR after gear and territory buffs. */
 export function getEffectiveStr() {
   const state = Store.getState();
-  return state.playerStats.str + TerritoryManager.getBuffValue('flatStr');
+  return state.playerStats.str + getEquipmentStatSum('str') + TerritoryManager.getBuffValue('flatStr');
 }
 
-/** Effective VIT after territory buffs. */
-export function getEffectiveVit() {
+/** Effective DEF after gear and territory buffs. */
+export function getEffectiveDef() {
   const state = Store.getState();
-  return state.playerStats.vit + TerritoryManager.getBuffValue('flatVit');
+  return state.playerStats.def + getEquipmentStatSum('def') + TerritoryManager.getBuffValue('flatDef');
 }
 
-/** Max HP after all buffs (VIT * hpPerVit * territory maxHp multiplier). */
+/** Max HP after gear and territory multiplier. */
 export function getEffectiveMaxHp() {
-  const effectiveVit = getEffectiveVit();
-  return D(effectiveVit * COMBAT.playerHpPerVit).times(TerritoryManager.getBuffMultiplier('maxHp'));
+  const state = Store.getState();
+  const baseHp = state.playerStats.hp + getEquipmentStatSum('hp');
+  return D(baseHp).times(TerritoryManager.getBuffMultiplier('maxHp'));
 }
 
-/** Base damage from STR formula + weapon, before multipliers. */
+/** Base damage = effective STR. Enemy defense applied at combat time. */
 export function getBaseDamage() {
-  const str = getEffectiveStr();
-  const wpnDmg = InventorySystem.getEquippedWeaponDamage();
-  return DAMAGE_FORMULAS.mortal(str, wpnDmg);
+  return getEffectiveStr();
 }
 
 /** Effective auto-attack damage per hit after all multipliers (prestige, territory). */
@@ -42,7 +55,7 @@ export function getEffectiveDamage() {
   return Math.floor(baseDmg * prestigeMult * territoryDmgMult);
 }
 
-/** Effective click damage per hit (auto-attack damage × click damage upgrade multiplier). */
+/** Effective click damage per hit (auto-attack damage x click damage upgrade multiplier). */
 export function getClickDamage() {
   const clickDmgMult = UpgradeManager.getMultiplier('clickDamage');
   return Math.floor(getEffectiveDamage() * clickDmgMult);
@@ -50,20 +63,43 @@ export function getClickDamage() {
 
 /** Crit chance from base + upgrades + territory. */
 export function getCritChance() {
-  return COMBAT.critChance +
-    UpgradeManager.getFlatBonus('critChance') +
+  return UpgradeManager.getFlatBonus('critChance') +
     TerritoryManager.getBuffValue('critChance');
 }
 
 /** Crit multiplier (10x after crack, normal otherwise). */
 export function getCritMultiplier() {
   const state = Store.getState();
-  return state.flags.crackTriggered ? 10 : COMBAT.critMultiplier;
+  return state.flags.crackTriggered ? 10 : COMBAT_V2.critMultiplier ?? 2;
 }
 
-/** Auto-attack interval in ms (delegates to UpgradeManager which includes territory). */
+/** HP regen per second: flat from levels + gear, scaled by territory multiplier. */
+export function getHpRegen() {
+  const state = Store.getState();
+  const baseRegen = state.playerStats.regen + getEquipmentStatSum('regen');
+  const regenMult = TerritoryManager.getBuffMultiplier('hpRegen');
+  return D(baseRegen).times(regenMult);
+}
+
+/** Player attack speed from base + gear. */
+export function getPlayerAtkSpeed() {
+  return COMBAT_V2.playerBaseAtkSpeed + getEquipmentStatSum('atkSpeed');
+}
+
+/** Player auto-attack interval in ms (gear speed + upgrade/territory bonuses). Floor 200ms. */
+export function getPlayerAutoAttackInterval() {
+  const effectiveSpeed = getPlayerAtkSpeed();
+  const baseInterval = Math.floor(1000 / effectiveSpeed);
+  // Apply upgrade and territory speed bonuses as reduction
+  const speedBonus = UpgradeManager.getMultiplier('autoAttackSpeed') - 1;
+  const territoryBonus = TerritoryManager.getBuffValue('autoAttackSpeed');
+  const interval = baseInterval * (1 - speedBonus - territoryBonus);
+  return Math.max(200, Math.floor(interval));
+}
+
+/** Auto-attack interval in ms (delegates to getPlayerAutoAttackInterval). */
 export function getAutoAttackInterval() {
-  return UpgradeManager.getAutoAttackInterval();
+  return getPlayerAutoAttackInterval();
 }
 
 /** Total gold multiplier from upgrades, prestige, and territory. */
@@ -80,19 +116,12 @@ export function getXpMultiplier() {
   return state.prestigeMultiplier * TerritoryManager.getBuffMultiplier('xpGain');
 }
 
-/** HP regen per second after all buffs. */
-export function getHpRegen() {
-  const maxHp = getEffectiveMaxHp();
-  const regenMult = TerritoryManager.getBuffMultiplier('hpRegen');
-  return maxHp.times(COMBAT.playerRegenPercent).times(regenMult);
-}
-
 /** Full computed stats object for UI display. */
 export function getAllStats() {
   const state = Store.getState();
   return {
     effectiveStr: getEffectiveStr(),
-    effectiveVit: getEffectiveVit(),
+    effectiveDef: getEffectiveDef(),
     effectiveMaxHp: getEffectiveMaxHp(),
     baseDamage: getBaseDamage(),
     effectiveDamage: getEffectiveDamage(),
@@ -100,10 +129,10 @@ export function getAllStats() {
     critChance: getCritChance(),
     critMultiplier: getCritMultiplier(),
     autoAttackInterval: getAutoAttackInterval(),
+    playerAtkSpeed: getPlayerAtkSpeed(),
     goldMultiplier: getGoldMultiplier(),
     xpMultiplier: getXpMultiplier(),
     hpRegen: getHpRegen(),
-    weaponDamage: InventorySystem.getEquippedWeaponDamage(),
     prestigeMultiplier: state.prestigeMultiplier,
   };
 }

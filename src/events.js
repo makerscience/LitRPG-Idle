@@ -18,6 +18,7 @@ export const EVENTS = {
   COMBAT_ENEMY_KILLED:  'combat:enemyKilled',
   COMBAT_PLAYER_DAMAGED:'combat:playerDamaged',
   COMBAT_PLAYER_DIED:   'combat:playerDied',
+  COMBAT_DOT_TICK:      'combat:dotTick',
 
   // Economy / Currencies
   ECON_GOLD_GAINED:     'econ:goldGained',

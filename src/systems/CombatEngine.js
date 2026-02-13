@@ -7,11 +7,11 @@ import BossManager from './BossManager.js';
 import Progression from './Progression.js';
 import { D, Decimal } from './BigNum.js';
 import { createScope, emit, EVENTS } from '../events.js';
-import { COMBAT } from '../config.js';
+import { COMBAT_V2 } from '../config.js';
 import { getUnlockedEnemies, getZoneScaling } from '../data/areas.js';
 import UpgradeManager from './UpgradeManager.js';
 import TerritoryManager from './TerritoryManager.js';
-import { getEffectiveMaxHp, getBaseDamage, getCritChance } from './ComputedStats.js';
+import { getEffectiveMaxHp, getBaseDamage, getCritChance, getEffectiveDef, getPlayerAutoAttackInterval, getHpRegen } from './ComputedStats.js';
 
 let currentEnemy = null;
 let scope = null;
@@ -28,7 +28,7 @@ const CombatEngine = {
     TimeEngine.register(
       'combat:autoAttack',
       () => CombatEngine.playerAttack(),
-      COMBAT.autoAttackInterval,
+      getPlayerAutoAttackInterval(),
       true,
     );
 
@@ -38,25 +38,27 @@ const CombatEngine = {
         TimeEngine.register(
           'combat:autoAttack',
           () => CombatEngine.playerAttack(),
-          UpgradeManager.getAutoAttackInterval(),
+          getPlayerAutoAttackInterval(),
           true,
         );
       }
     });
 
-    // Enemy attack timer — fires every 3s
-    TimeEngine.register(
-      'combat:enemyAttack',
-      () => CombatEngine.enemyAttack(),
-      COMBAT.enemyAttackInterval,
-      true,
-    );
+    // Re-register auto-attack when equipment changes (atkSpeed from gear may change)
+    scope.on(EVENTS.INV_ITEM_EQUIPPED, () => {
+      TimeEngine.register(
+        'combat:autoAttack',
+        () => CombatEngine.playerAttack(),
+        getPlayerAutoAttackInterval(),
+        true,
+      );
+    });
 
     // Player HP regen — fires every 1s
     TimeEngine.register(
       'combat:playerRegen',
       () => CombatEngine._regenPlayerHp(),
-      COMBAT.playerRegenInterval,
+      1000,
       true,
     );
 
@@ -65,7 +67,7 @@ const CombatEngine = {
       CombatEngine._onPlayerDeath();
     });
 
-    // On level-up, restore HP to new max (VIT increases)
+    // On level-up, restore HP to new max
     scope.on(EVENTS.PROG_LEVEL_UP, () => {
       Store.resetPlayerHp();
     });
@@ -76,7 +78,7 @@ const CombatEngine = {
         TimeEngine.register(
           'combat:autoAttack',
           () => CombatEngine.playerAttack(),
-          UpgradeManager.getAutoAttackInterval(),
+          getPlayerAutoAttackInterval(),
           true,
         );
       }
@@ -86,6 +88,8 @@ const CombatEngine = {
     scope.on(EVENTS.WORLD_ZONE_CHANGED, () => {
       // Cancel pending spawn delay
       TimeEngine.unregister('combat:spawnDelay');
+      TimeEngine.unregister('combat:enemyAttack');
+      CombatEngine._stopDot();
       currentEnemy = null;
       CombatEngine.spawnEnemy();
     });
@@ -100,11 +104,51 @@ const CombatEngine = {
     TimeEngine.unregister('combat:spawnDelay');
     TimeEngine.unregister('combat:bossDefeatedDelay');
     TimeEngine.unregister('combat:enemyAttack');
+    TimeEngine.unregister('combat:enemyDot');
     TimeEngine.unregister('combat:playerRegen');
     TimeEngine.unregister('combat:playerRespawn');
     scope?.destroy();
     scope = null;
     currentEnemy = null;
+  },
+
+  /** Register per-enemy attack timer based on enemy's attackSpeed. */
+  _registerEnemyAttackTimer() {
+    if (!currentEnemy) return;
+    const speed = currentEnemy.attackSpeed ?? 1.0;
+    const interval = Math.max(200, Math.floor(1000 / speed));
+    TimeEngine.register(
+      'combat:enemyAttack',
+      () => CombatEngine.enemyAttack(),
+      interval,
+      true,
+    );
+  },
+
+  /** Start DoT ticker if current enemy has a dot field. */
+  _startDot() {
+    if (!currentEnemy || !currentEnemy.dot) return;
+    const dot = currentEnemy.dot;
+    let dotTickCount = 0;
+    TimeEngine.register(
+      'combat:enemyDot',
+      () => {
+        // Flat damage bypasses defense
+        Store.damagePlayer(dot);
+        dotTickCount++;
+        emit(EVENTS.COMBAT_DOT_TICK, {
+          damage: dot,
+          tickNumber: dotTickCount,
+        });
+      },
+      1000,
+      true,
+    );
+  },
+
+  /** Stop DoT ticker. */
+  _stopDot() {
+    TimeEngine.unregister('combat:enemyDot');
   },
 
   /** Spawn a regular enemy using area/zone progressive unlock + zone scaling. */
@@ -135,6 +179,10 @@ const CombatEngine = {
       xpDrop: scaledXp.toString(),
       lootTable: template.lootTable,
       isBoss: false,
+      defense: template.defense ?? 0,
+      armorPen: template.armorPen ?? 0,
+      attackSpeed: template.attackSpeed ?? 1.0,
+      dot: template.dot ?? null,
     };
 
     emit(EVENTS.COMBAT_ENEMY_SPAWNED, {
@@ -142,13 +190,21 @@ const CombatEngine = {
       name: currentEnemy.name,
       maxHp: currentEnemy.maxHp,
       isBoss: false,
+      armorPen: currentEnemy.armorPen,
+      dot: currentEnemy.dot,
+      defense: currentEnemy.defense,
     });
+
+    CombatEngine._registerEnemyAttackTimer();
+    CombatEngine._startDot();
   },
 
   /** Spawn a boss enemy (called by BossManager via BossChallenge UI). */
   spawnBoss(bossTemplate) {
     // Cancel any pending spawn
     TimeEngine.unregister('combat:spawnDelay');
+    TimeEngine.unregister('combat:enemyAttack');
+    CombatEngine._stopDot();
     currentEnemy = null;
 
     const maxHp = D(bossTemplate.hp);
@@ -163,6 +219,10 @@ const CombatEngine = {
       lootTable: bossTemplate.lootTable,
       isBoss: true,
       bossType: bossTemplate.bossType,
+      defense: bossTemplate.defense ?? 0,
+      armorPen: bossTemplate.armorPen ?? 0,
+      attackSpeed: bossTemplate.attackSpeed ?? 1.0,
+      dot: bossTemplate.dot ?? null,
     };
 
     emit(EVENTS.COMBAT_ENEMY_SPAWNED, {
@@ -172,7 +232,13 @@ const CombatEngine = {
       isBoss: true,
       bossType: bossTemplate.bossType,
       spriteSize: bossTemplate.spriteSize || null,
+      armorPen: currentEnemy.armorPen,
+      dot: currentEnemy.dot,
+      defense: currentEnemy.defense,
     });
+
+    CombatEngine._registerEnemyAttackTimer();
+    CombatEngine._startDot();
   },
 
   playerAttack(isClick = false) {
@@ -197,7 +263,10 @@ const CombatEngine = {
   },
 
   getPlayerDamage(state, isClick = false) {
-    const baseDamage = getBaseDamage();
+    const str = getBaseDamage();
+    const enemyDef = currentEnemy?.defense ?? 0;
+    const rawDamage = COMBAT_V2.playerDamage(str, enemyDef);
+
     const prestigeMult = state.prestigeMultiplier;
     const clickDmgMult = isClick ? UpgradeManager.getMultiplier('clickDamage') : 1;
     const critChance = getCritChance();
@@ -211,12 +280,11 @@ const CombatEngine = {
       forcedCritMultiplier = null;
     } else {
       isCrit = Math.random() < critChance;
-      // After crack, crits are permanently 10x
-      const baseCritMult = state.flags.crackTriggered ? 10 : COMBAT.critMultiplier;
+      const baseCritMult = state.flags.crackTriggered ? 10 : (COMBAT_V2.critMultiplier ?? 2);
       critMult = isCrit ? baseCritMult : 1;
     }
 
-    const damage = D(baseDamage).times(clickDmgMult).times(prestigeMult).times(critMult)
+    const damage = D(rawDamage).times(clickDmgMult).times(prestigeMult).times(critMult)
       .times(TerritoryManager.getBuffMultiplier('baseDamage')).floor();
     return { damage, isCrit };
   },
@@ -238,14 +306,14 @@ const CombatEngine = {
 
   enemyAttack() {
     if (!currentEnemy) return;
-    const damage = currentEnemy.attack;
+    const playerDef = getEffectiveDef();
+    const armorPen = currentEnemy.armorPen ?? 0;
+    const damage = COMBAT_V2.enemyDamage(currentEnemy.attack, playerDef, armorPen);
     Store.damagePlayer(damage);
   },
 
   _regenPlayerHp() {
-    const maxHp = getEffectiveMaxHp();
-    const regenAmount = maxHp.times(COMBAT.playerRegenPercent)
-      .times(TerritoryManager.getBuffMultiplier('hpRegen'));
+    const regenAmount = getHpRegen();
     Store.healPlayer(regenAmount);
   },
 
@@ -259,6 +327,7 @@ const CombatEngine = {
     TimeEngine.setEnabled('combat:autoAttack', false);
     TimeEngine.setEnabled('combat:enemyAttack', false);
     TimeEngine.setEnabled('combat:playerRegen', false);
+    CombatEngine._stopDot();
 
     // If fighting a boss, cancel the boss fight
     if (currentEnemy && currentEnemy.isBoss) {
@@ -270,14 +339,17 @@ const CombatEngine = {
     TimeEngine.scheduleOnce('combat:playerRespawn', () => {
       Store.resetPlayerHp();
       TimeEngine.setEnabled('combat:autoAttack', true);
-      TimeEngine.setEnabled('combat:enemyAttack', true);
       TimeEngine.setEnabled('combat:playerRegen', true);
       CombatEngine.spawnEnemy();
-    }, COMBAT.playerDeathRespawnDelay);
+    }, COMBAT_V2.playerDeathRespawnDelay);
   },
 
   _onEnemyDeath() {
     const dead = currentEnemy;
+
+    // Stop DoT and enemy attack before nulling
+    CombatEngine._stopDot();
+    TimeEngine.unregister('combat:enemyAttack');
     currentEnemy = null;
 
     // Reward orchestration lives in Progression
@@ -299,7 +371,7 @@ const CombatEngine = {
 
     TimeEngine.scheduleOnce('combat:spawnDelay', () => {
       CombatEngine.spawnEnemy();
-    }, COMBAT.spawnDelay);
+    }, COMBAT_V2.spawnDelay);
   },
 };
 

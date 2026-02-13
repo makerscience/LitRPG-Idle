@@ -20,6 +20,8 @@ export const COLORS = {
     loot:       '#a855f7',
     defeat:     '#e5e5e5',
     prestige:   '#f59e0b',
+    warning:    '#f97316',
+    dot:        '#ef4444',
     default:    '#a1a1aa',
   },
   rarity: {
@@ -36,16 +38,13 @@ export const COLORS = {
 
 export const ZONE_THEMES = {
   1: {
-    name: 'Forest',
     layers: [0x1a2a1a, 0x0d1f0d, 0x0a1a0a],
     images: ['bg002_rear', 'bg002_mid'],
     trees: ['fg_tree003', 'fg_tree004'],
     ferns: ['fern', 'fern002'],
   },
-  2: { name: 'Wilderness',     layers: [0x1a2e1a, 0x152815, 0x0d1f0d] },
-  3: { name: 'Deep Caverns',   layers: [0x1a1a2e, 0x15152b, 0x0d0d1f] },
-  4: { name: 'Volcanic Ruins', layers: [0x2e1a1a, 0x2b1515, 0x1f0d0d] },
-  5: { name: "Dragon's Lair",  layers: [0x2e2a1a, 0x2b2515, 0x1f1d0d] },
+  2: { layers: [0x1a2e1a, 0x152815, 0x0d1f0d] },
+  3: { layers: [0x1a1a2e, 0x15152b, 0x0d0d1f] },
 };
 
 export const PARALLAX = {

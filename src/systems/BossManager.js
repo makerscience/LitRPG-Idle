@@ -1,13 +1,14 @@
-// BossManager — handles boss challenge state, generates boss templates, tracks kill thresholds.
+// BossManager — handles boss challenge state, looks up named bosses, tracks kill thresholds.
 // Boss fights are triggered by clicking the "Challenge Boss" button, not automatically.
 
 import Store from './Store.js';
 import { createScope, emit, EVENTS } from '../events.js';
 import { D } from './BigNum.js';
 import {
-  getArea, getBossType, getBossKillThreshold, getZoneScaling,
-  getStrongestEnemy, getBossDropMultiplier, BOSS_TYPES, AREAS,
+  getArea, getBossKillThreshold, BOSS_TYPES, AREAS,
 } from '../data/areas.js';
+import { getBossForZone } from '../data/bosses.js';
+import { getEnemyById } from '../data/enemies.js';
 
 let scope = null;
 let activeBoss = null;       // Currently active boss enemy (or null)
@@ -36,6 +37,15 @@ const BossManager = {
     bossDefeated = false;
   },
 
+  /** Convert current area + zone to global zone and look up boss data. */
+  _getBossData() {
+    const state = Store.getState();
+    const areaData = getArea(state.currentArea);
+    if (!areaData) return null;
+    const globalZone = areaData.zoneStart + state.currentZone - 1;
+    return getBossForZone(globalZone);
+  },
+
   /** Check if the kill threshold for the current zone's boss is met. */
   _checkThreshold() {
     const state = Store.getState();
@@ -43,6 +53,9 @@ const BossManager = {
     const zone = state.currentZone;
     const progress = state.areaProgress[area];
     if (!progress) return;
+
+    // No named boss for this zone
+    if (!BossManager._getBossData()) return;
 
     // Already defeated this zone's boss
     if (progress.bossesDefeated.includes(zone)) return;
@@ -62,6 +75,7 @@ const BossManager = {
     const zone = state.currentZone;
     const progress = state.areaProgress[area];
     if (!progress) return false;
+    if (!BossManager._getBossData()) return false;
     if (progress.bossesDefeated.includes(zone)) return false;
 
     const kills = progress.zoneClearKills[zone] || 0;
@@ -69,54 +83,40 @@ const BossManager = {
     return kills >= threshold;
   },
 
-  /** Generate a boss template for the current zone. Returns an enemy-like object. */
+  /** Build a boss template from named boss data in bosses.js. Returns an enemy-like object. */
   generateBossTemplate() {
-    const state = Store.getState();
-    const area = state.currentArea;
-    const zone = state.currentZone;
-    const bossType = getBossType(area, zone);
-    const baseEnemy = getStrongestEnemy(area, zone);
+    const boss = BossManager._getBossData();
+    if (!boss) return null;
 
-    if (!baseEnemy) return null;
+    // Resolve BOSS_TYPES object from string key (e.g. 'MINI' → BOSS_TYPES.MINI)
+    const bossType = BOSS_TYPES[boss.bossType] || BOSS_TYPES.MINI;
 
-    const zoneScale = getZoneScaling(zone);
-    const baseHp = Number(baseEnemy.hp) * zoneScale;
-    const baseAtk = baseEnemy.attack * zoneScale;
-
-    const bossHp = Math.floor(baseHp * bossType.hpMult);
-    const bossAtk = Math.floor(baseAtk * bossType.atkMult);
-    const dropMult = getBossDropMultiplier(bossType);
-    const bossGold = Math.floor(Number(baseEnemy.goldDrop) * zoneScale * dropMult);
-    const bossXp = Math.floor(Number(baseEnemy.xpDrop) * zoneScale * dropMult);
-
-    // Boss name prefix
-    let prefix;
-    if (bossType === BOSS_TYPES.AREA) {
-      const areaData = getArea(area);
-      prefix = `${areaData.name} Guardian`;
-    } else if (bossType === BOSS_TYPES.ELITE) {
-      prefix = `Elite ${baseEnemy.name}`;
-    } else {
-      prefix = `${baseEnemy.name} Alpha`;
-    }
+    // Resolve base enemy for sprite data
+    const baseEnemy = getEnemyById(boss.baseEnemyId);
+    const baseSprites = boss.sprites || (baseEnemy?.sprites ?? null);
+    const baseSpriteSize = boss.spriteSize || (baseEnemy?.spriteSize ?? { w: 200, h: 250 });
+    const spriteOffsetY = boss.spriteOffsetY ?? (baseEnemy?.spriteOffsetY ?? 0);
 
     return {
-      id: `boss_a${area}z${zone}`,
-      name: prefix,
-      hp: String(bossHp),
-      attack: bossAtk,
-      goldDrop: String(bossGold),
-      xpDrop: String(bossXp),
+      id: boss.id,
+      name: boss.name,
+      title: boss.title || null,
+      description: boss.description || null,
+      hp: String(boss.hp),
+      attack: boss.attack,
+      goldDrop: String(boss.goldDrop),
+      xpDrop: String(boss.xpDrop),
       isBoss: true,
       bossType,
-      baseEnemyId: baseEnemy.id,
-      sprites: baseEnemy.sprites || null,
-      spriteSize: (() => {
-        const base = baseEnemy.spriteSize || { w: 200, h: 250 };
-        return { w: base.w * bossType.sizeMult, h: base.h * bossType.sizeMult };
-      })(),
-      spriteOffsetY: baseEnemy.spriteOffsetY || 0,
-      lootTable: baseEnemy.lootTable || [],
+      baseEnemyId: boss.baseEnemyId,
+      sprites: baseSprites,
+      spriteSize: { w: baseSpriteSize.w * bossType.sizeMult, h: baseSpriteSize.h * bossType.sizeMult },
+      spriteOffsetY,
+      lootTable: boss.lootTable || [],
+      defense: boss.defense ?? 0,
+      armorPen: boss.armorPen ?? 0,
+      attackSpeed: boss.attackSpeed ?? 1.0,
+      dot: boss.dot ?? null,
     };
   },
 
@@ -222,10 +222,17 @@ const BossManager = {
     };
   },
 
+  /** Get the named boss data for the current zone (or null). */
+  getCurrentBossData() {
+    return BossManager._getBossData();
+  },
+
   /** Get boss type label for the current zone. */
   getCurrentBossLabel() {
-    const state = Store.getState();
-    return getBossType(state.currentArea, state.currentZone).label;
+    const boss = BossManager._getBossData();
+    if (!boss) return BOSS_TYPES.MINI.label;
+    const bossType = BOSS_TYPES[boss.bossType] || BOSS_TYPES.MINI;
+    return bossType.label;
   },
 };
 

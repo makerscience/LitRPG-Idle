@@ -1,21 +1,27 @@
-// LootEngine — rolls loot drops on enemy kill.
-// Subscribes to COMBAT_ENEMY_KILLED, uses InventorySystem to add items.
+// LootEngine — V2 drop model. Zone-based item pools, slot-weighted selection, pity system.
+// Subscribes to COMBAT_ENEMY_KILLED (normal + boss drops) and BOSS_DEFEATED (pity advance).
 
 import Store from './Store.js';
 import { createScope, emit, EVENTS } from '../events.js';
-import { INVENTORY, LOOT, ECONOMY, CHEATS } from '../config.js';
+import { LOOT_V2 } from '../config.js';
+import { getItemsForZone } from '../data/items.js';
+import { getArea } from '../data/areas.js';
+import { getSlotUnlockZone, getPlayerGlobalZone, ACTIVE_SLOT_IDS } from '../data/equipSlots.js';
 import InventorySystem from './InventorySystem.js';
-import TerritoryManager from './TerritoryManager.js';
+
+// Maps equip slot IDs (Store.equipped keys) to item.slot values
+const EQUIP_TO_ITEM_SLOT = {
+  main_hand: 'weapon', chest: 'body', head: 'head',
+  legs: 'legs', boots: 'boots', gloves: 'gloves', amulet: 'amulet',
+};
 
 let scope = null;
 
 const LootEngine = {
   init() {
     scope = createScope();
-    scope.on(EVENTS.COMBAT_ENEMY_KILLED, (data) => {
-      LootEngine._rollDrop(data);
-      LootEngine._rollFragmentDrop();
-    });
+    scope.on(EVENTS.COMBAT_ENEMY_KILLED, (data) => LootEngine._handleKill(data));
+    scope.on(EVENTS.BOSS_DEFEATED, () => LootEngine._advancePity());
   },
 
   destroy() {
@@ -23,61 +29,107 @@ const LootEngine = {
     scope = null;
   },
 
-  _rollDrop(data) {
-    const { lootTable } = data;
-    if (!lootTable || lootTable.length === 0) return;
+  // ── Kill dispatcher ──────────────────────────────────────────────
 
+  _handleKill(data) {
+    if (data.isBoss) {
+      LootEngine._handleBossKill(data);
+    } else {
+      LootEngine._handleNormalKill(data);
+    }
+  },
+
+  // ── Normal enemy kill: 10% drop chance ───────────────────────────
+
+  _handleNormalKill(_data) {
+    if (Math.random() > LOOT_V2.normalDropChance) return;
+
+    const item = LootEngine._pickItem();
+    if (!item) return;
+
+    const rarity = LootEngine._rollRarityV2();
+    LootEngine._awardDrop(item, rarity);
+  },
+
+  // ── Boss kill: guaranteed drop, first-kill vs repeat uncommon chance ──
+
+  _handleBossKill(_data) {
+    const item = LootEngine._pickItem();
+    if (!item) return;
+
+    // Determine if this is a first kill.
+    // COMBAT_ENEMY_KILLED fires synchronously, BossManager.onBossDefeated() is delayed 1300ms.
+    // So bossesDefeated has NOT been updated yet — if zone is absent, it's a first kill.
     const state = Store.getState();
     const area = state.currentArea;
-    const lootHoarderActive = state.activeCheats['loot_hoarder'] === true;
+    const zone = state.currentZone;
+    const progress = state.areaProgress[area];
+    const isFirstKill = !progress || !progress.bossesDefeated.includes(zone);
 
-    // Base drop chance, boosted if Loot Hoarder active (keyed by area)
-    let dropChance = INVENTORY.dropChanceByZone[area] ?? 0.20;
-    if (lootHoarderActive) {
-      dropChance = Math.min(dropChance * CHEATS.lootHoarder.dropChanceBoost, CHEATS.lootHoarder.dropChanceCap);
+    const uncommonChance = isFirstKill
+      ? LOOT_V2.bossFirstKillUncommonChance
+      : LOOT_V2.bossRepeatUncommonChance;
+
+    const rarity = Math.random() < uncommonChance ? 'uncommon' : 'common';
+    LootEngine._awardDrop(item, rarity);
+  },
+
+  // ── Item selection: zone pool + slot weighting + pity ────────────
+
+  _pickItem() {
+    const globalZone = getPlayerGlobalZone();
+    const allItems = getItemsForZone(globalZone);
+    if (allItems.length === 0) return null;
+
+    const state = Store.getState();
+    const pity = state.lootPity;
+
+    // Build weighted slot candidates from active slots that are unlocked
+    const slotCandidates = [];
+    for (const equipId of ACTIVE_SLOT_IDS) {
+      const unlockZone = getSlotUnlockZone(equipId);
+      if (globalZone < unlockZone) continue;
+
+      const itemSlot = EQUIP_TO_ITEM_SLOT[equipId];
+      const itemsForSlot = allItems.filter(i => i.slot === itemSlot);
+      if (itemsForSlot.length === 0) continue;
+
+      let weight = LOOT_V2.slotWeights[equipId] || 10;
+      // Double weight when pity threshold reached
+      if (pity[equipId] >= LOOT_V2.pityThreshold) {
+        weight *= 2;
+      }
+
+      slotCandidates.push({ equipId, itemSlot, items: itemsForSlot, weight });
     }
 
-    // Roll drop chance
-    if (Math.random() > dropChance) return;
+    if (slotCandidates.length === 0) return null;
 
-    // Weighted random pick from loot table
-    const totalWeight = lootTable.reduce((sum, entry) => sum + entry.weight, 0);
+    // Weighted random slot pick
+    const totalWeight = slotCandidates.reduce((sum, c) => sum + c.weight, 0);
     let roll = Math.random() * totalWeight;
-    let selectedItemId = lootTable[0].itemId;
+    let chosen = slotCandidates[0];
 
-    for (const entry of lootTable) {
-      roll -= entry.weight;
+    for (const candidate of slotCandidates) {
+      roll -= candidate.weight;
       if (roll <= 0) {
-        selectedItemId = entry.itemId;
+        chosen = candidate;
         break;
       }
     }
 
-    // Roll cosmetic rarity
-    const rarity = LootEngine._rollRarity();
+    // Reset pity for the selected slot
+    Store.resetLootPity(chosen.equipId);
 
-    // Drop count boosted when Loot Hoarder active
-    const dropCount = lootHoarderActive ? CHEATS.lootHoarder.dropMultiplier : 1;
-
-    // Try to add to inventory (rarity determines which stack it goes into)
-    const added = InventorySystem.tryAddItem(selectedItemId, dropCount, rarity);
-
-    if (added) {
-      emit(EVENTS.LOOT_DROPPED, { itemId: selectedItemId, count: dropCount, rarity });
-    }
+    // Random item from the slot's pool
+    const item = chosen.items[Math.floor(Math.random() * chosen.items.length)];
+    return item;
   },
 
-  _rollFragmentDrop() {
-    const state = Store.getState();
-    if (!state.flags.crackTriggered) return;
-    const dropChance = ECONOMY.fragmentDropChance * TerritoryManager.getBuffMultiplier('fragmentDropRate');
-    if (Math.random() < dropChance) {
-      Store.addFragments(1);
-    }
-  },
+  // ── Rarity roll: weighted pick from rarityWeights ────────────────
 
-  _rollRarity() {
-    const weights = LOOT.rarityWeights;
+  _rollRarityV2() {
+    const weights = LOOT_V2.rarityWeights;
     const entries = Object.entries(weights);
     const totalWeight = entries.reduce((sum, [, w]) => sum + w, 0);
     let roll = Math.random() * totalWeight;
@@ -87,6 +139,21 @@ const LootEngine = {
       if (roll <= 0) return rarity;
     }
     return 'common';
+  },
+
+  // ── Award drop ───────────────────────────────────────────────────
+
+  _awardDrop(item, rarity) {
+    const added = InventorySystem.tryAddItem(item.id, 1, rarity);
+    if (added) {
+      emit(EVENTS.LOOT_DROPPED, { itemId: item.id, count: 1, rarity });
+    }
+  },
+
+  // ── Pity advance: increments all slot counters on boss defeat ────
+
+  _advancePity() {
+    Store.incrementAllPity();
   },
 };
 

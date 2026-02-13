@@ -1,90 +1,408 @@
-// World 1 enemy definitions — 5 areas, with `area` field (formerly `zone`).
-// IDs use w{world}z{zone}_{name} format (kept for backward compat).
+// V2 enemy definitions — Areas 1-3 (zones 1-30).
+// Schema: id, name, hp, attack, attackSpeed, defense, armorPen, dot, zones, goldDrop, xpDrop,
+//         sprites, spriteSize, spriteOffsetY, lootTable
 
-const WORLD_1_ENEMIES = [
-  // Area 1: Forest (HP 100–500)
-  { id: 'w1z1_rat',    name: 'Forest Rat',      area: 1, hp: '50',   attack: 6,  goldDrop: '5',   xpDrop: '8',
-    sprites: {
-      default:  'forestrat001_default',
-      reaction: 'forestrat001_reaction',
-      attack:   'forestrat001_attack',
-      dead:     'forestrat001_dead',
-    },
-    spriteSize: { w: 125, h: 125 },
-    lootTable: [
-    { itemId: 'iron_dagger', weight: 40 }, { itemId: 'iron_helm', weight: 30 }, { itemId: 'leather_tunic', weight: 30 },
-  ] },
-  { id: 'w1z1_slime',  name: 'Green Slime',     area: 1, hp: '200',  attack: 9,  goldDrop: '10',  xpDrop: '15',
-    sprites: {
-      default:  'slime001_default',
-      reaction: 'slime001_reaction',
-      attack:   'slime001_attack',
-      dead:     'slime001_dead',
-    },
-    lootTable: [
-    { itemId: 'iron_dagger', weight: 40 }, { itemId: 'iron_helm', weight: 30 }, { itemId: 'leather_tunic', weight: 30 },
-  ] },
-  { id: 'w1z1_goblin', name: 'Goblin Grunt',    area: 1, hp: '400',  attack: 15,  goldDrop: '20',  xpDrop: '30',
-    spriteOffsetY: -40,
-    sprites: {
-      default:  'goblin001_default',
-      reaction: 'goblin001_reaction',
-      attack:   'goblin001_attack',
-      dead:     'goblin001_dead',
-    },
-    lootTable: [
-    { itemId: 'iron_dagger', weight: 40 }, { itemId: 'iron_helm', weight: 30 }, { itemId: 'leather_tunic', weight: 30 },
-  ] },
-
-  // Area 2: Wilderness (HP 800–4000)
-  { id: 'w1z2_wolf',    name: 'Dire Wolf',        area: 2, hp: '800',   attack: 36,  goldDrop: '50',   xpDrop: '80',   lootTable: [
-    { itemId: 'steel_sword', weight: 25 }, { itemId: 'leather_cap', weight: 30 }, { itemId: 'chainmail_vest', weight: 25 }, { itemId: 'iron_greaves', weight: 20 },
-  ] },
-  { id: 'w1z2_skeleton',name: 'Skeleton Soldier',  area: 2, hp: '2000',  attack: 54,  goldDrop: '100',  xpDrop: '160',  lootTable: [
-    { itemId: 'steel_sword', weight: 25 }, { itemId: 'leather_cap', weight: 30 }, { itemId: 'chainmail_vest', weight: 25 }, { itemId: 'iron_greaves', weight: 20 },
-  ] },
-  { id: 'w1z2_bandit',  name: 'Bandit Captain',    area: 2, hp: '4000',  attack: 75,  goldDrop: '200',  xpDrop: '300',  lootTable: [
-    { itemId: 'steel_sword', weight: 25 }, { itemId: 'leather_cap', weight: 30 }, { itemId: 'chainmail_vest', weight: 25 }, { itemId: 'iron_greaves', weight: 20 },
-  ] },
-
-  // Area 3: Deep Caverns (HP 8K–60K)
-  { id: 'w1z3_orc',   name: 'Orc Berserker', area: 3, hp: '8000',    attack: 150,   goldDrop: '500',   xpDrop: '800',   lootTable: [
-    { itemId: 'mithril_blade', weight: 30 }, { itemId: 'steel_helm', weight: 35 }, { itemId: 'steel_greaves', weight: 35 },
-  ] },
-  { id: 'w1z3_troll', name: 'Cave Troll',    area: 3, hp: '30000',   attack: 240,   goldDrop: '1500',  xpDrop: '2500',  lootTable: [
-    { itemId: 'mithril_blade', weight: 30 }, { itemId: 'steel_helm', weight: 35 }, { itemId: 'steel_greaves', weight: 35 },
-  ] },
-  { id: 'w1z3_mage',  name: 'Dark Mage',     area: 3, hp: '60000',   attack: 360,  goldDrop: '3000',  xpDrop: '5000',  lootTable: [
-    { itemId: 'mithril_blade', weight: 30 }, { itemId: 'steel_helm', weight: 35 }, { itemId: 'steel_greaves', weight: 35 },
-  ] },
-
-  // Area 4: Volcanic Ruins (HP 250K–2.5M)
-  { id: 'w1z4_whelp',  name: 'Dragon Whelp', area: 4, hp: '250000',   attack: 900,   goldDrop: '10000',   xpDrop: '15000',  lootTable: [
-    { itemId: 'adamantine_axe', weight: 100 },
-  ] },
-  { id: 'w1z4_golem',  name: 'Iron Golem',   area: 4, hp: '1000000',  attack: 1500,   goldDrop: '50000',   xpDrop: '60000',  lootTable: [
-    { itemId: 'adamantine_axe', weight: 100 },
-  ] },
-  { id: 'w1z4_lich',   name: 'Lich Lord',    area: 4, hp: '2500000',  attack: 2400,   goldDrop: '100000',  xpDrop: '150000', lootTable: [
-    { itemId: 'adamantine_axe', weight: 100 },
-  ] },
-
-  // Area 5: Dragon's Lair (boss area)
-  { id: 'w1z5_dragon', name: 'Elder Dragon', area: 5, hp: '10000000', attack: 6000,  goldDrop: '500000',  xpDrop: '750000', lootTable: [
-    { itemId: 'dragonbone_blade', weight: 100 },
-  ] },
+const AREA_1_LOOT_TABLE = [
+  // Common items (slot weights from LOOT_V2.slotWeights)
+  { itemId: 'a1_sharpened_stick',      weight: 16 },  // weapon
+  { itemId: 'a1_scavenged_hide_wrap',  weight: 15 },  // body
+  { itemId: 'a1_bone_fragment_helm',   weight: 14 },  // head
+  // Uncommon items (reduced weight)
+  { itemId: 'a1_bone_shard_blade',     weight: 4 },   // weapon uncommon
+  { itemId: 'a1_thick_pelt_vest',      weight: 3 },   // body uncommon
+  { itemId: 'a1_hound_skull_cap',      weight: 3 },   // head uncommon
 ];
 
-// ── Backward-compat: expose `zone` as alias for `area` ─────────────
-for (const e of WORLD_1_ENEMIES) {
-  Object.defineProperty(e, 'zone', {
-    get() { return this.area; },
+const AREA_2_LOOT_TABLE = [
+  // Common Tier 1 (zones 6-10)
+  { itemId: 'a2_salvaged_cleaver',        weight: 16 },
+  { itemId: 'a2_patched_leather_vest',    weight: 15 },
+  { itemId: 'a2_hardened_leather_hood',   weight: 14 },
+  { itemId: 'a2_stitched_hide_leggings',  weight: 14 },
+  { itemId: 'a2_worn_travelers_boots',    weight: 14 },
+  // Common Tier 2 (zones 11-15)
+  { itemId: 'a2_sharpened_cleaver',       weight: 16 },
+  { itemId: 'a2_reinforced_leather_vest', weight: 15 },
+  { itemId: 'a2_boiled_leather_hood',     weight: 14 },
+  { itemId: 'a2_thick_hide_leggings',     weight: 14 },
+  { itemId: 'a2_mended_travelers_boots',  weight: 14 },
+  // Uncommon (zones 8-15)
+  { itemId: 'a2_frontier_hatchet',        weight: 4 },
+  { itemId: 'a2_rangers_coat',            weight: 3 },
+  { itemId: 'a2_scouts_halfhelm',         weight: 3 },
+  { itemId: 'a2_reinforced_trousers',     weight: 3 },
+  { itemId: 'a2_wayfinder_boots',         weight: 3 },
+];
+
+const AREA_3_LOOT_TABLE = [
+  // Common Tier A (zones 16-20)
+  { itemId: 'a3_reclaimed_shortsword',    weight: 16 },
+  { itemId: 'a3_road_wardens_hauberk',    weight: 15 },
+  { itemId: 'a3_stone_carved_halfhelm',   weight: 14 },
+  { itemId: 'a3_road_wardens_greaves',    weight: 14 },
+  { itemId: 'a3_ironshod_marching_boots', weight: 14 },
+  { itemId: 'a3_scavenged_gauntlets',     weight: 14 },
+  // Common Tier B (zones 21-25)
+  { itemId: 'a3_sentinels_blade',         weight: 16 },
+  { itemId: 'a3_sentinel_half_plate',     weight: 15 },
+  { itemId: 'a3_sentinels_visage',        weight: 14 },
+  { itemId: 'a3_sentinel_greaves',        weight: 14 },
+  { itemId: 'a3_sentinel_treads',         weight: 14 },
+  { itemId: 'a3_sentinel_gauntlets',      weight: 14 },
+  { itemId: 'a3_cracked_hearthstone',     weight: 13 },
+  // Common Tier C (zones 26-30)
+  { itemId: 'a3_keepers_longsword',       weight: 16 },
+  { itemId: 'a3_keepers_wardplate',       weight: 15 },
+  { itemId: 'a3_keepers_crown',           weight: 14 },
+  { itemId: 'a3_keepers_legguards',       weight: 14 },
+  { itemId: 'a3_keepers_stride',          weight: 14 },
+  { itemId: 'a3_keepers_grip',            weight: 14 },
+  { itemId: 'a3_warm_hearthstone',        weight: 13 },
+  // Uncommon
+  { itemId: 'a3_wardens_oath',            weight: 4 },
+  { itemId: 'a3_ancient_sentinel_plate',  weight: 3 },
+  { itemId: 'a3_visage_of_the_first',     weight: 3 },
+  { itemId: 'a3_stoneguard_legplates',    weight: 3 },
+  { itemId: 'a3_pathfinders_stride',      weight: 3 },
+  { itemId: 'a3_irongrip_gauntlets',      weight: 3 },
+  { itemId: 'a3_heartstone_pendant',      weight: 3 },
+];
+
+const ENEMIES = [
+  // ── Area 1: The Harsh Threshold (zones 1-5) ────────────────────────
+  {
+    id: 'a1_feral_hound',
+    name: 'Feral Hound',
+    hp: 20,
+    attack: 9,
+    attackSpeed: 1.2,
+    defense: 0,
+    armorPen: 0,
+    dot: null,
+    zones: [1, 3],
+    goldDrop: 5,
+    xpDrop: 5,
+    sprites: null,
+    spriteSize: null,
+    spriteOffsetY: 0,
+    lootTable: AREA_1_LOOT_TABLE,
+  },
+  {
+    id: 'a1_thornback_boar',
+    name: 'Thornback Boar',
+    hp: 40,
+    attack: 15,
+    attackSpeed: 0.8,
+    defense: 0,
+    armorPen: 0,
+    dot: null,
+    zones: [2, 4],
+    goldDrop: 10,
+    xpDrop: 10,
+    sprites: null,
+    spriteSize: null,
+    spriteOffsetY: 0,
+    lootTable: AREA_1_LOOT_TABLE,
+  },
+  {
+    id: 'a1_blighted_stalker',
+    name: 'Blighted Stalker',
+    hp: 55,
+    attack: 21,
+    attackSpeed: 1.0,
+    defense: 0,
+    armorPen: 0,
+    dot: null,
+    zones: [3, 5],
+    goldDrop: 14,
+    xpDrop: 14,
+    sprites: null,
+    spriteSize: null,
+    spriteOffsetY: 0,
+    lootTable: AREA_1_LOOT_TABLE,
+  },
+
+  // ── Area 2: The Overgrown Frontier (zones 6-15) ────────────────────
+  {
+    id: 'a2_rot_vine_crawler',
+    name: 'Rot Vine Crawler',
+    hp: 65,
+    attack: 24,
+    attackSpeed: 1.0,
+    defense: 0,
+    armorPen: 0,
+    dot: null,
+    zones: [6, 9],
+    goldDrop: 16,
+    xpDrop: 16,
+    sprites: null,
+    spriteSize: null,
+    spriteOffsetY: 0,
+    lootTable: AREA_2_LOOT_TABLE,
+  },
+  {
+    id: 'a2_mire_lurker',
+    name: 'Mire Lurker',
+    hp: 95,
+    attack: 36,
+    attackSpeed: 0.7,
+    defense: 0,
+    armorPen: 0,
+    dot: null,
+    zones: [8, 12],
+    goldDrop: 24,
+    xpDrop: 24,
+    sprites: null,
+    spriteSize: null,
+    spriteOffsetY: 0,
+    lootTable: AREA_2_LOOT_TABLE,
+  },
+  {
+    id: 'a2_wisp_swarm',
+    name: 'Wisp Swarm',
+    hp: 45,
+    attack: 18,
+    attackSpeed: 1.5,
+    defense: 0,
+    armorPen: 0,
+    dot: null,
+    zones: [9, 13],
+    goldDrop: 11,
+    xpDrop: 11,
+    sprites: null,
+    spriteSize: null,
+    spriteOffsetY: 0,
+    lootTable: AREA_2_LOOT_TABLE,
+  },
+  {
+    id: 'a2_blight_stalker_evolved',
+    name: 'Blight Stalker (Evolved)',
+    hp: 85,
+    attack: 30,
+    attackSpeed: 1.0,
+    defense: 0,
+    armorPen: 0,
+    dot: 2,
+    zones: [11, 14],
+    goldDrop: 21,
+    xpDrop: 21,
+    sprites: null,
+    spriteSize: null,
+    spriteOffsetY: 0,
+    lootTable: AREA_2_LOOT_TABLE,
+  },
+  {
+    id: 'a2_bog_revenant',
+    name: 'Bog Revenant',
+    hp: 130,
+    attack: 42,
+    attackSpeed: 0.9,
+    defense: 0,
+    armorPen: 0,
+    dot: null,
+    zones: [13, 15],
+    goldDrop: 33,
+    xpDrop: 33,
+    sprites: null,
+    spriteSize: null,
+    spriteOffsetY: 0,
+    lootTable: AREA_2_LOOT_TABLE,
+  },
+
+  // ── Area 3: The Broken Road (zones 16-30) ──────────────────────────
+
+  // Sub-Region A: The Weathered Path (zones 16-20)
+  {
+    id: 'a3_stone_sentry',
+    name: 'Stone Sentry',
+    hp: 170,
+    attack: 48,
+    attackSpeed: 0.6,
+    defense: 0,
+    armorPen: 0,
+    dot: null,
+    zones: [16, 20],
+    goldDrop: 43,
+    xpDrop: 43,
+    sprites: null,
+    spriteSize: null,
+    spriteOffsetY: 0,
+    lootTable: AREA_3_LOOT_TABLE,
+  },
+  {
+    id: 'a3_fractured_echo',
+    name: 'Fractured Echo',
+    hp: 75,
+    attack: 27,
+    attackSpeed: 2.0,
+    defense: 0,
+    armorPen: 0,
+    dot: null,
+    zones: [16, 19],
+    goldDrop: 19,
+    xpDrop: 19,
+    sprites: null,
+    spriteSize: null,
+    spriteOffsetY: 0,
+    lootTable: AREA_3_LOOT_TABLE,
+  },
+  {
+    id: 'a3_ruin_pilgrim',
+    name: 'Ruin Pilgrim',
+    hp: 120,
+    attack: 39,
+    attackSpeed: 1.1,
+    defense: 0,
+    armorPen: 0,
+    dot: null,
+    zones: [18, 20],
+    goldDrop: 30,
+    xpDrop: 30,
+    sprites: null,
+    spriteSize: null,
+    spriteOffsetY: 0,
+    lootTable: AREA_3_LOOT_TABLE,
+  },
+
+  // Sub-Region B: The Outer Ruins (zones 21-25)
+  {
+    id: 'a3_shade_remnant',
+    name: 'Shade Remnant',
+    hp: 130,
+    attack: 48,
+    attackSpeed: 1.0,
+    defense: 0,
+    armorPen: 0.3,
+    dot: null,
+    zones: [21, 25],
+    goldDrop: 33,
+    xpDrop: 33,
+    sprites: null,
+    spriteSize: null,
+    spriteOffsetY: 0,
+    lootTable: AREA_3_LOOT_TABLE,
+  },
+  {
+    id: 'a3_blighted_guardian',
+    name: 'Blighted Guardian',
+    hp: 190,
+    attack: 63,
+    attackSpeed: 0.9,
+    defense: 0,
+    armorPen: 0,
+    dot: null,
+    zones: [22, 25],
+    goldDrop: 48,
+    xpDrop: 48,
+    sprites: null,
+    spriteSize: null,
+    spriteOffsetY: 0,
+    lootTable: AREA_3_LOOT_TABLE,
+  },
+  {
+    id: 'a3_ruin_pilgrim_frenzied',
+    name: 'Ruin Pilgrim (Frenzied)',
+    hp: 140,
+    attack: 45,
+    attackSpeed: 1.3,
+    defense: 0,
+    armorPen: 0,
+    dot: null,
+    zones: [21, 24],
+    goldDrop: 35,
+    xpDrop: 35,
+    sprites: null,
+    spriteSize: null,
+    spriteOffsetY: 0,
+    lootTable: AREA_3_LOOT_TABLE,
+  },
+
+  // Sub-Region C: The Inner Sanctum (zones 26-30)
+  {
+    id: 'a3_hearthguard_construct',
+    name: 'Hearthguard Construct',
+    hp: 250,
+    attack: 66,
+    attackSpeed: 0.7,
+    defense: 0,
+    armorPen: 0,
+    dot: null,
+    zones: [26, 30],
+    goldDrop: 63,
+    xpDrop: 63,
+    sprites: null,
+    spriteSize: null,
+    spriteOffsetY: 0,
+    lootTable: AREA_3_LOOT_TABLE,
+  },
+  {
+    id: 'a3_blighted_scholar',
+    name: 'Blighted Scholar',
+    hp: 160,
+    attack: 54,
+    attackSpeed: 1.0,
+    defense: 0,
+    armorPen: 0.25,
+    dot: 3,
+    zones: [27, 30],
+    goldDrop: 40,
+    xpDrop: 40,
+    sprites: null,
+    spriteSize: null,
+    spriteOffsetY: 0,
+    lootTable: AREA_3_LOOT_TABLE,
+  },
+  {
+    id: 'a3_corruption_tendril',
+    name: 'Corruption Tendril',
+    hp: 100,
+    attack: 36,
+    attackSpeed: 1.8,
+    defense: 0,
+    armorPen: 0,
+    dot: null,
+    zones: [26, 29],
+    goldDrop: 25,
+    xpDrop: 25,
+    sprites: null,
+    spriteSize: null,
+    spriteOffsetY: 0,
+    lootTable: AREA_3_LOOT_TABLE,
+  },
+  {
+    id: 'a3_shade_of_the_keeper',
+    name: 'Shade of the Keeper',
+    hp: 200,
+    attack: 60,
+    attackSpeed: 0.9,
+    defense: 0,
+    armorPen: 0.35,
+    dot: null,
+    zones: [28, 30],
+    goldDrop: 50,
+    xpDrop: 50,
+    sprites: null,
+    spriteSize: null,
+    spriteOffsetY: 0,
+    lootTable: AREA_3_LOOT_TABLE,
+  },
+];
+
+// ── Backward-compat: `area` getter derived from zones ─────────────
+for (const e of ENEMIES) {
+  Object.defineProperty(e, 'area', {
+    get() {
+      // Derive area from zone start: zones 1-5 = area 1, 6-15 = area 2, 16-30 = area 3
+      if (this.zones[0] <= 5) return 1;
+      if (this.zones[0] <= 15) return 2;
+      return 3;
+    },
     enumerable: false,
   });
 }
 
 export function getEnemiesForZone(zone) {
-  return WORLD_1_ENEMIES.filter(e => e.area === zone);
+  return ENEMIES.filter(e => zone >= e.zones[0] && zone <= e.zones[1]);
 }
 
 export function getRandomEnemy(zone) {
@@ -94,7 +412,8 @@ export function getRandomEnemy(zone) {
 }
 
 export function getEnemyById(id) {
-  return WORLD_1_ENEMIES.find(e => e.id === id);
+  return ENEMIES.find(e => e.id === id) ?? null;
 }
 
-export { WORLD_1_ENEMIES };
+// Primary export + backward-compat alias
+export { ENEMIES, ENEMIES as WORLD_1_ENEMIES };

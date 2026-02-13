@@ -1,5 +1,94 @@
 # CHANGELOG
 
+## 2026-02-13 — Inventory UX Overhaul: Drag, Tooltips, Sell Zone
+- **Equip slot highlighting**: hovering or selecting an inventory item highlights the target equipment slot with an amber border
+- **Drag-to-equip**: drag an inventory item onto its target equipment slot to equip it; ghost text follows cursor during drag
+- **Drag-to-sell**: SELL drop zone in the upper-right of inventory; drag any item onto it to sell the full stack; highlights on hover during drag
+- **Cursor-following tooltips**: compact tooltip (280px) follows the mouse instead of fixed at panel bottom; shows stats with inline green/red comparison diffs, description, and "vs." reference line
+- **Font size increase**: all inventory panel text bumped +2px for readability
+- **Crisp text rendering**: added `roundPixels: true` to Phaser game config, fixing sub-pixel blur on centered text
+
+---
+
+## 2026-02-13 — Inventory Hover Tooltip with Equipment Comparison
+- **Hover tooltips**: hovering any equipped or inventory item shows full stats and description in a tooltip at the bottom of the panel
+- **Equipment comparison**: hovering an inventory item shows stat diffs (green +N / red -N) vs. the currently equipped item in that slot; shows "Nothing equipped" when slot is empty
+- **All stats shown**: tooltip displays all non-zero stat bonuses (ATK, DEF, HP, REGEN, ATK SPD, STR) — weapons skip redundant STR when it equals ATK
+
+---
+
+## 2026-02-13 (GDD Hard Pivot — Phase 7: Balance, QA, and Release Hardening)
+- **DoT bug fixed**: `CombatEngine._startDot()` and `SystemLog` now read `dot` as a plain number instead of `dot.dmgPerSec` — DoT damage actually works now (was dealing 0 since Phase 5)
+- **Balance pass**: enemy ATK tripled, boss ATK ×3.5, enemy XP reduced to ~25% of HP, boss XP to ~50% of HP — survival ratios now meaningful instead of infinite
+- **Balance simulation script**: `npm run balance:sim` — standalone Node ESM script that models zone-by-zone idle progression with exact combat formulas, gear, and upgrades
+- **Final boss validated**: THE FIRST KEEPER survival ratio 1.8x (target 1.1-2.0x), all 30 bosses beatable, level/HP checkpoints within ~10% of GDD targets
+- **Build clean**: `npm run validate:data` 0 errors/0 warnings, `npm run build` passes
+
+---
+
+## 2026-02-13 (GDD Hard Pivot — Phase 6: UI and UX Alignment)
+- **Area names fixed**: ZoneNav now shows V2 area names ("The Harsh Threshold", "The Overgrown Frontier", "The Broken Road") instead of old ZONE_THEMES names; dead theme entries 4-5 removed
+- **Combat mechanic feedback**: enemy spawn log warns about Armor Penetration and DoT; DoT ticks shown every 5 seconds in SystemLog; new `COMBAT_DOT_TICK` event
+- **Dialogue V2 alignment**: ZONE_ENTRANCE, COMBAT_COMMENTARY, and FINAL_BOSS_DEFEATED rewritten for V2 area names and enemies; dead entries 4-5 removed; final boss check fixed from area 5 to area 3
+- **Equip log upgraded**: now shows all non-zero stat bonuses (STR, DEF, HP, Regen, AtkSpd) instead of just ATK/DEF; zone change log shows area name
+- **First-launch welcome**: new players see "Welcome to the Harsh Threshold. Survive." in SystemLog and SYSTEM dialogue
+
+---
+
+## 2026-02-13 (GDD Hard Pivot — Phase 5: Area 2-3 Content Rollout)
+- **15 new enemies**: 5 Area 2 (Rot Vine Crawler, Mire Lurker, Wisp Swarm, Blight Stalker Evolved, Bog Revenant) + 10 Area 3 (Stone Sentry, Fractured Echo, Ruin Pilgrim, Shade Remnant, Blighted Guardian, Ruin Pilgrim Frenzied, Hearthguard Construct, Blighted Scholar, Corruption Tendril, Shade of the Keeper) — introduces DoT at zone 11, armorPen at zone 21
+- **39 new items**: Area 2 has 2 common tiers (zones 6-10, 11-15) + uncommons (zones 8-15) for 5 slots; Area 3 has 3 common tiers (zones 16-20, 21-25, 26-30) + uncommons for all 7 slots including gloves/amulet
+- **25 new bosses**: 10 Area 2 (Rootmaw through THE LOST WARDEN) + 15 Area 3 (The Forgotten through THE FIRST KEEPER) — hand-tuned stats from GDD, ELITE at zones 10/20/25, AREA at zones 15/30
+- **Full zone coverage**: all 30 zones now have enemies, items, and named bosses; validator passes with 0 errors, 0 warnings
+
+---
+
+## 2026-02-13 (GDD Hard Pivot — Phase 4: Loot and Equipment V2)
+- **V2 drop model** (`LootEngine.js`): replaced V1 per-area drop rates + per-enemy loot tables with V2 system — 10% normal drop chance, 100% boss drops, zone-based item pools filtered by `item.zones` range
+- **Boss loot differentiation**: first-kill = guaranteed drop with 30% uncommon chance; repeat-kill = guaranteed drop with 11% uncommon chance (exploits BossManager's 1300ms delayed `recordBossDefeated` for timing)
+- **Pity system** (`Store.js` + `LootEngine.js`): per-slot pity counters increment on every boss defeat, reset on drop; after 5 boss kills without a drop for a slot, that slot's selection weight doubles
+- **7 active equipment slots** (`equipSlots.js`): zone-based unlock replaces tier-based — head/chest/main_hand at zone 1, legs at zone 6, boots at zone 9, gloves at zone 17, amulet at zone 22; no accessory row
+- **Data validator**: item zone coverage check ensures every Area 1 zone has droppable items (warns for Areas 2-3)
+
+---
+
+## 2026-02-12 (GDD Hard Pivot — Phase 3: BossManager V2)
+- **Named boss lookup** (`BossManager.js`): `generateBossTemplate()` now looks up hand-authored bosses from `bosses.js` via `getBossForZone()` instead of auto-generating from enemy template multipliers
+- **Boss data gating**: `isChallengeReady()` and `_checkThreshold()` now verify a named boss exists for the zone before enabling the challenge button
+- **BossChallenge UI** (`BossChallenge.js`): challenge button shows named boss name (e.g. "CHALLENGE ROTFANG", "CHALLENGE THE HOLLOW") instead of generic "CHALLENGE BOSS"
+- **Sprite resolution**: bosses inherit sprites from `baseEnemyId` enemy with `bossType.sizeMult` scaling; boss data can override with its own sprites
+
+---
+
+## 2026-02-12 (GDD Hard Pivot — Phase 2: Combat and Stat Engine V2)
+- **V2 stat model** (`Store.js`): player stats switched from str/vit/luck to str/def/hp/regen — createInitialState, hydrateState, applyLevelUp, resetPlayerStats all use `PROGRESSION_V2`
+- **ComputedStats rewrite** (`ComputedStats.js`): equipment stat summing via `getEquipmentStatSum()`, new exports `getEffectiveDef`, `getPlayerAtkSpeed`, `getPlayerAutoAttackInterval`, `getHpRegen` — flat regen model replaces %-of-maxHP
+- **V2 combat engine** (`CombatEngine.js`): V2 damage formulas (`COMBAT_V2.playerDamage/enemyDamage`), per-enemy attack speed timers, gear-based player attack speed, DoT system (`combat:enemyDot` ticker), defense/armorPen on enemy spawn
+- **BossManager V2 fields**: boss templates now pass through defense, armorPen, attackSpeed, dot from base enemies
+- **StatsPanel V2 UI**: base stats show DEF/HP/REGEN instead of VIT/LUCK; combat descriptions updated for V2 formulas
+- **V1 constant purge**: all `COMBAT`/`PROGRESSION` imports replaced with V2 equivalents across OfflineProgress, UpgradeManager, GameScene — no remaining V1 combat/progression references in src/
+
+---
+
+## 2026-02-12 (GDD Hard Pivot — Phase 1: Data Contracts + Area 1 Content)
+- **V2 constants** (`config.js`): added `PROGRESSION_V2`, `COMBAT_V2`, `LOOT_V2` alongside V1 constants — new stat model (str/def/hp/regen/atkSpeed), combat formulas, and loot tuning
+- **V2 enemies** (`enemies.js`): replaced 13 V1 enemies with 3 Area 1 enemies (Feral Hound, Thornback Boar, Blighted Stalker) — new schema adds attackSpeed, defense, armorPen, dot, zone-range filtering
+- **V2 items** (`items.js`): replaced 12 V1 items with 6 Area 1 items (3 common, 3 uncommon) — new schema adds str/hp/regen/atkSpeed stats, `atk` alias for backward compat; `getScaledItem()` now scales all stat fields
+- **V2 bosses** (`bosses.js`): new file with 5 named Area 1 bosses (Rotfang → THE HOLLOW) — not consumed until Phase 3 BossManager rewrite
+- **V2 areas** (`areas.js`): 3 areas (The Harsh Threshold / The Overgrown Frontier / The Broken Road, zones 1-30) with zone-range enemy filtering replacing progressive-unlock model
+- **Data validator** (`scripts/validate-data.js`): schema + cross-reference validator for enemies, items, bosses, areas; `npm run validate:data`
+
+---
+
+## 2026-02-12 (GDD Hard Pivot — Phase 0: Cutover Scaffold)
+- **Feature gates** (`src/config/features.js`): prestige, territory, town, cheats all disabled for the vertical slice
+- **New save namespace** `litrpg_idle_vslice_save` with schema v1 — fresh start, no progression carryover; legacy saves archived non-destructively under `litrpg_idle_legacy_archive`
+- **Boot guards**: PrestigeManager, CheatManager, FirstCrackDirector only init when feature-enabled; PrestigePanel, CheatDeck, MAP button conditionally hidden in UIScene
+- **OverworldScene** excluded from Phaser scene list when territory disabled
+- **Build verified** clean — game boots and runs combat loop with all disabled systems safely inert
+
+---
+
 ## 2026-02-12 (Character Silhouette Equipment Screen)
 - **Equipment slot data** (`src/data/equipSlots.js`): declarative definitions for 33 equipment slots across 8 tiers (0–7), with body anchors, side placement, and tier-gated unlock helpers
 - **Silhouette paper-doll layout**: inventory panel left side now shows a dimmed player sprite with equipment slots in left/right columns connected by lines to body anchor points, plus accessory grid below

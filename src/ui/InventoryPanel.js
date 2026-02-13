@@ -6,7 +6,8 @@ import { EVENTS } from '../events.js';
 import { COLORS } from '../config.js';
 import { getItem, getScaledItem } from '../data/items.js';
 import {
-  getMaxEquipTier, getLeftSlots, getRightSlots, getAccessorySlots,
+  getPlayerGlobalZone, getLeftSlots, getRightSlots, getAccessorySlots,
+  getEquipSlotForItem, getSlotById,
 } from '../data/equipSlots.js';
 import Store from '../systems/Store.js';
 import InventorySystem from '../systems/InventorySystem.js';
@@ -23,10 +24,10 @@ const SLOT_SIZE = 64;
 const SLOT_GAP = 6;
 const SLOT_STEP = SLOT_SIZE + SLOT_GAP; // 70px
 
-// Equipment slot dimensions (small boxes around silhouette)
-const EQ_W = 84;
-const EQ_H = 32;
-const EQ_GAP = 4;
+// Equipment slot dimensions (boxes around silhouette — enlarged for 7-slot V2 layout)
+const EQ_W = 100;
+const EQ_H = 38;
+const EQ_GAP = 6;
 
 // Accessory slot dimensions (bottom row)
 const ACC_W = 72;
@@ -54,6 +55,13 @@ export default class InventoryPanel extends ModalPanel {
     });
 
     this._selectedItemId = null;
+    this._tooltipContainer = null;
+    this._tooltipMoveHandler = null;
+    this._equipSlotBgs = {};   // slotId → { bg, borderWidth, borderColor }
+    this._dragGhost = null;
+    this._dragData = null;      // { stackKey, equipSlotId }
+    this._pendingClick = null;  // { action: 'select'|'equip', stackKey }
+    this._sellZone = null;      // sell drop-zone rectangle
   }
 
   _getTitle() { return 'INVENTORY'; }
@@ -91,7 +99,7 @@ export default class InventoryPanel extends ModalPanel {
     const eqX = panelLeft + 20;
     const eqY = this._cy - PANEL_H / 2 + 50;
     this._eqLabel = this.scene.add.text(eqX, eqY, 'Equipment', {
-      fontFamily: 'monospace', fontSize: '13px', color: '#818cf8',
+      fontFamily: 'monospace', fontSize: '15px', color: '#818cf8',
     });
     this._modalObjects.push(this._eqLabel);
 
@@ -104,7 +112,7 @@ export default class InventoryPanel extends ModalPanel {
     const invX = panelLeft + 360;
     const invY = this._cy - PANEL_H / 2 + 50;
     this._invLabel = this.scene.add.text(invX, invY, 'Inventory', {
-      fontFamily: 'monospace', fontSize: '13px', color: '#818cf8',
+      fontFamily: 'monospace', fontSize: '15px', color: '#818cf8',
     });
     this._modalObjects.push(this._invLabel);
   }
@@ -115,24 +123,42 @@ export default class InventoryPanel extends ModalPanel {
   }
 
   _close() {
+    this._hideTooltip();
+    if (this._dragGhost) { this._dragGhost.destroy(); this._dragGhost = null; }
+    this._dragData = null;
+    this._pendingClick = null;
     this._selectedItemId = null;
     super._close();
   }
 
   _buildContent() {
+    this._hideTooltip();
+    this._equipSlotBgs = {};
+    if (this._dragGhost) { this._dragGhost.destroy(); this._dragGhost = null; }
+    this._dragData = null;
+    this._pendingClick = null;
     this._renderEquipmentSilhouette();
     this._renderInventoryGrid();
     this._renderItemDetail();
+
+    // Re-apply equip slot highlight for selected item (survives refresh)
+    if (this._selectedItemId) {
+      const selItem = getItem(this._selectedItemId);
+      if (selItem) {
+        const selSlotId = getEquipSlotForItem(selItem.slot);
+        if (selSlotId) this._highlightEquipSlot(selSlotId);
+      }
+    }
   }
 
   // --- Equipment Silhouette (left zone) ---
 
   _renderEquipmentSilhouette() {
     const state = Store.getState();
-    const maxTier = getMaxEquipTier();
-    const leftSlots = getLeftSlots(maxTier);
-    const rightSlots = getRightSlots(maxTier);
-    const accSlots = getAccessorySlots(maxTier);
+    const globalZone = getPlayerGlobalZone();
+    const leftSlots = getLeftSlots(globalZone);
+    const rightSlots = getRightSlots(globalZone);
+    const accSlots = getAccessorySlots();
 
     const silCx = this._silCx;
     const silCy = this._silCy;
@@ -176,7 +202,7 @@ export default class InventoryPanel extends ModalPanel {
       const item = stackKey ? getItem(stackKey) : null;
       const rarity = stackKey ? parseStackKey(stackKey).rarity : null;
 
-      this._createEquipSlotSmall(x, y, slotDef, item, rarity);
+      this._createEquipSlotSmall(x, y, slotDef, item, rarity, stackKey);
 
       // Connector line from slot edge to body anchor (clamped to panel bounds)
       if (slotDef.anchor) {
@@ -227,7 +253,7 @@ export default class InventoryPanel extends ModalPanel {
   /**
    * Small equipment slot box (84x32) for body slots around silhouette.
    */
-  _createEquipSlotSmall(x, y, slotDef, item, rarity) {
+  _createEquipSlotSmall(x, y, slotDef, item, rarity, stackKey) {
     const displayRarity = rarity || (item ? item.rarity : null);
     const rarityColor = displayRarity ? (RARITY_HEX[displayRarity] || 0xa1a1aa) : 0x333333;
     const borderWidth = item ? 2 : 1;
@@ -238,10 +264,11 @@ export default class InventoryPanel extends ModalPanel {
     bg.setStrokeStyle(borderWidth, rarityColor);
     bg.setInteractive({ useHandCursor: !!item });
     this._dynamicObjects.push(bg);
+    this._equipSlotBgs[slotDef.id] = { bg, borderWidth, borderColor: rarityColor };
 
     // Slot label (top-left, 8px grey)
     const label = this.scene.add.text(x + 3, y + 2, slotDef.label.toUpperCase(), {
-      fontFamily: 'monospace', fontSize: '8px', color: '#666666',
+      fontFamily: 'monospace', fontSize: '10px', color: '#666666',
     });
     this._dynamicObjects.push(label);
 
@@ -249,7 +276,7 @@ export default class InventoryPanel extends ModalPanel {
       const nameText = this.scene.add.text(
         x + EQ_W / 2, y + EQ_H / 2 + 4, item.name,
         {
-          fontFamily: 'monospace', fontSize: '9px',
+          fontFamily: 'monospace', fontSize: '11px',
           color: COLORS.rarity[displayRarity] || '#a1a1aa',
           fontStyle: 'bold', align: 'center',
           wordWrap: { width: EQ_W - 8 },
@@ -258,12 +285,18 @@ export default class InventoryPanel extends ModalPanel {
       this._dynamicObjects.push(nameText);
 
       bg.on('pointerdown', () => InventorySystem.unequipItem(slotDef.id));
-      bg.on('pointerover', () => bg.setStrokeStyle(3, 0xffffff));
-      bg.on('pointerout', () => bg.setStrokeStyle(borderWidth, rarityColor));
+      bg.on('pointerover', () => {
+        bg.setStrokeStyle(3, 0xffffff);
+        this._showTooltip(stackKey, rarity, slotDef, true);
+      });
+      bg.on('pointerout', () => {
+        bg.setStrokeStyle(borderWidth, rarityColor);
+        this._hideTooltip();
+      });
     } else {
       const emptyText = this.scene.add.text(
         x + EQ_W / 2, y + EQ_H / 2 + 4, 'empty',
-        { fontFamily: 'monospace', fontSize: '8px', color: '#444444' }
+        { fontFamily: 'monospace', fontSize: '10px', color: '#444444' }
       ).setOrigin(0.5);
       this._dynamicObjects.push(emptyText);
     }
@@ -285,7 +318,7 @@ export default class InventoryPanel extends ModalPanel {
     this._dynamicObjects.push(bg);
 
     const label = this.scene.add.text(x + 3, y + 1, slotDef.label.toUpperCase(), {
-      fontFamily: 'monospace', fontSize: '7px', color: '#666666',
+      fontFamily: 'monospace', fontSize: '9px', color: '#666666',
     });
     this._dynamicObjects.push(label);
 
@@ -293,7 +326,7 @@ export default class InventoryPanel extends ModalPanel {
       const nameText = this.scene.add.text(
         x + ACC_W / 2, y + ACC_H / 2 + 3, item.name,
         {
-          fontFamily: 'monospace', fontSize: '8px',
+          fontFamily: 'monospace', fontSize: '10px',
           color: COLORS.rarity[displayRarity] || '#a1a1aa',
           fontStyle: 'bold', align: 'center',
           wordWrap: { width: ACC_W - 6 },
@@ -307,7 +340,7 @@ export default class InventoryPanel extends ModalPanel {
     } else {
       const emptyText = this.scene.add.text(
         x + ACC_W / 2, y + ACC_H / 2 + 3, 'empty',
-        { fontFamily: 'monospace', fontSize: '7px', color: '#444444' }
+        { fontFamily: 'monospace', fontSize: '9px', color: '#444444' }
       ).setOrigin(0.5);
       this._dynamicObjects.push(emptyText);
     }
@@ -328,9 +361,26 @@ export default class InventoryPanel extends ModalPanel {
     const countText = this.scene.add.text(
       this._cx + PANEL_W / 2 - 20, this._cy - PANEL_H / 2 + 50,
       `${entries.length}/20`,
-      { fontFamily: 'monospace', fontSize: '11px', color: '#a1a1aa' }
+      { fontFamily: 'monospace', fontSize: '13px', color: '#a1a1aa' }
     ).setOrigin(1, 0);
     this._dynamicObjects.push(countText);
+
+    // Sell drop-zone (upper-right of inventory area)
+    const sellX = this._cx + PANEL_W / 2 - 70;
+    const sellY = this._cy - PANEL_H / 2 + 42;
+    const sellW = 56;
+    const sellH = 38;
+    const sellBg = this.scene.add.rectangle(
+      sellX + sellW / 2, sellY + sellH / 2, sellW, sellH, 0x1a1a1a
+    );
+    sellBg.setStrokeStyle(1, 0x8b5e1a);
+    this._dynamicObjects.push(sellBg);
+    const sellLabel = this.scene.add.text(
+      sellX + sellW / 2, sellY + sellH / 2, 'SELL',
+      { fontFamily: 'monospace', fontSize: '12px', color: '#eab308', fontStyle: 'bold' }
+    ).setOrigin(0.5);
+    this._dynamicObjects.push(sellLabel);
+    this._sellZone = sellBg;
 
     for (let row = 0; row < GRID_ROWS; row++) {
       for (let col = 0; col < GRID_COLS; col++) {
@@ -379,7 +429,7 @@ export default class InventoryPanel extends ModalPanel {
     const nameText = this.scene.add.text(
       x + SLOT_SIZE / 2, y + SLOT_SIZE / 2 - (count > 1 ? 5 : 0), item.name,
       {
-        fontFamily: 'monospace', fontSize: '9px',
+        fontFamily: 'monospace', fontSize: '11px',
         color: COLORS.rarity[rarity] || '#a1a1aa',
         fontStyle: 'bold', align: 'center',
         wordWrap: { width: SLOT_SIZE - 6 },
@@ -390,25 +440,107 @@ export default class InventoryPanel extends ModalPanel {
     if (count > 1) {
       const badge = this.scene.add.text(
         x + SLOT_SIZE - 4, y + SLOT_SIZE - 4, `x${count}`,
-        { fontFamily: 'monospace', fontSize: '10px', color: '#eab308', fontStyle: 'bold' }
+        { fontFamily: 'monospace', fontSize: '12px', color: '#eab308', fontStyle: 'bold' }
       ).setOrigin(1, 1);
       this._dynamicObjects.push(badge);
     }
 
+    // Defer select/equip to pointerup so the bg survives long enough for drag
     bg.on('pointerdown', (pointer) => {
       if (pointer.event.shiftKey) {
         InventorySystem.sellItem(stackKey, count);
-      } else if (this._selectedItemId === stackKey) {
-        InventorySystem.equipItem(stackKey);
+        return;
+      }
+      this._pendingClick = this._selectedItemId === stackKey
+        ? { action: 'equip', stackKey }
+        : { action: 'select', stackKey };
+    });
+    bg.on('pointerup', () => {
+      const pending = this._pendingClick;
+      this._pendingClick = null;
+      if (!pending) return;
+      if (pending.action === 'equip') {
+        InventorySystem.equipItem(pending.stackKey);
         this._selectedItemId = null;
       } else {
-        this._selectedItemId = stackKey;
+        this._selectedItemId = pending.stackKey;
         this._refresh();
       }
     });
 
-    bg.on('pointerover', () => { if (!isSelected) bg.setStrokeStyle(2, 0xffffff); });
-    bg.on('pointerout', () => { if (!isSelected) bg.setStrokeStyle(borderWidth, borderColor); });
+    const equipSlotId = getEquipSlotForItem(item.slot);
+    const slotDef = equipSlotId ? getSlotById(equipSlotId) : null;
+    bg.on('pointerover', () => {
+      if (!isSelected) bg.setStrokeStyle(2, 0xffffff);
+      this._showTooltip(stackKey, rarity, slotDef, false);
+      if (equipSlotId) this._highlightEquipSlot(equipSlotId);
+    });
+    bg.on('pointerout', () => {
+      if (!isSelected) bg.setStrokeStyle(borderWidth, borderColor);
+      this._hideTooltip();
+      if (equipSlotId) this._unhighlightEquipSlot(equipSlotId);
+    });
+
+    // Drag-to-equip
+    this.scene.input.setDraggable(bg);
+
+    bg.on('dragstart', (pointer) => {
+      this._pendingClick = null; // cancel click — user is dragging
+      this._dragData = { stackKey, equipSlotId, count };
+      this._dragGhost = this.scene.add.text(pointer.x, pointer.y, item.name, {
+        fontFamily: 'monospace', fontSize: '12px',
+        color: COLORS.rarity[rarity] || '#a1a1aa',
+        fontStyle: 'bold', backgroundColor: '#1a1a2e',
+        padding: { x: 4, y: 2 },
+      }).setOrigin(0.5).setDepth(300).setAlpha(0.9);
+      if (equipSlotId) this._highlightEquipSlot(equipSlotId);
+      if (this._sellZone) this._sellZone.setStrokeStyle(2, 0xeab308);
+    });
+
+    bg.on('drag', (pointer) => {
+      if (this._dragGhost) this._dragGhost.setPosition(pointer.x, pointer.y);
+      // Highlight sell zone on hover
+      if (this._sellZone) {
+        const over = this._sellZone.getBounds().contains(pointer.x, pointer.y);
+        this._sellZone.setStrokeStyle(over ? 3 : 2, 0xeab308);
+        this._sellZone.setFillStyle(over ? 0x3d2a0a : 0x1a1a1a);
+      }
+    });
+
+    bg.on('dragend', (pointer) => {
+      if (this._dragGhost) { this._dragGhost.destroy(); this._dragGhost = null; }
+
+      const data = this._dragData;
+      this._dragData = null;
+
+      if (!data) return;
+
+      // Check sell zone
+      if (this._sellZone && this._sellZone.getBounds().contains(pointer.x, pointer.y)) {
+        InventorySystem.sellItem(data.stackKey, data.count);
+        if (this._selectedItemId === data.stackKey) this._selectedItemId = null;
+        if (data.equipSlotId) this._unhighlightEquipSlot(data.equipSlotId);
+        this._sellZone.setStrokeStyle(1, 0x8b5e1a);
+        this._sellZone.setFillStyle(0x1a1a1a);
+        return;
+      }
+
+      // Check equip slot
+      if (data.equipSlotId) {
+        const entry = this._equipSlotBgs[data.equipSlotId];
+        if (entry && entry.bg.getBounds().contains(pointer.x, pointer.y)) {
+          InventorySystem.equipItem(data.stackKey);
+          this._selectedItemId = null;
+        }
+        this._unhighlightEquipSlot(data.equipSlotId);
+      }
+
+      // Reset sell zone style
+      if (this._sellZone) {
+        this._sellZone.setStrokeStyle(1, 0x8b5e1a);
+        this._sellZone.setFillStyle(0x1a1a1a);
+      }
+    });
   }
 
   _createEmptySlot(x, y) {
@@ -447,14 +579,14 @@ export default class InventoryPanel extends ModalPanel {
     const headerText = this.scene.add.text(
       detailX, detailY,
       `${scaled.name}  ${rarity} ${scaled.slot}  ${statStr}`,
-      { fontFamily: 'monospace', fontSize: '11px', color: rarityColor }
+      { fontFamily: 'monospace', fontSize: '13px', color: rarityColor }
     );
     this._dynamicObjects.push(headerText);
 
     const descText = this.scene.add.text(
       detailX, detailY + 16, `"${scaled.description}"`,
       {
-        fontFamily: 'monospace', fontSize: '10px', color: '#888888',
+        fontFamily: 'monospace', fontSize: '12px', color: '#888888',
         fontStyle: 'italic', wordWrap: { width: PANEL_W - 400 },
       }
     );
@@ -497,5 +629,167 @@ export default class InventoryPanel extends ModalPanel {
       },
     });
     this._dynamicObjects.push(equipBtn);
+  }
+
+  // --- Equip Slot Highlighting ---
+
+  _highlightEquipSlot(slotId) {
+    const entry = this._equipSlotBgs[slotId];
+    if (!entry) return;
+    entry.bg.setStrokeStyle(3, 0xfbbf24); // bright amber
+  }
+
+  _unhighlightEquipSlot(slotId) {
+    const entry = this._equipSlotBgs[slotId];
+    if (!entry) return;
+    entry.bg.setStrokeStyle(entry.borderWidth, entry.borderColor);
+  }
+
+  // --- Hover Tooltip ---
+
+  _hideTooltip() {
+    if (this._tooltipMoveHandler) {
+      this.scene.input.off('pointermove', this._tooltipMoveHandler);
+      this._tooltipMoveHandler = null;
+    }
+    if (this._tooltipContainer) {
+      this._tooltipContainer.destroy();
+      this._tooltipContainer = null;
+    }
+  }
+
+  _showTooltip(stackKey, rarity, slotDef, isEquipped) {
+    this._hideTooltip();
+
+    const scaled = getScaledItem(stackKey, rarity);
+    if (!scaled) return;
+
+    const STAT_LABELS = {
+      atk: 'ATK', def: 'DEF', hp: 'HP',
+      regen: 'REGEN', atkSpeed: 'SPD', str: 'STR',
+    };
+    const DEPTH = 200;
+    const TT_W = 280;
+    const PAD = 8;
+
+    // Look up equipped item for comparison
+    let equippedScaled = null;
+    let eqRarity = null;
+    if (!isEquipped && slotDef) {
+      const equippedKey = Store.getState().equipped[slotDef.id];
+      if (equippedKey) {
+        eqRarity = parseStackKey(equippedKey).rarity;
+        equippedScaled = getScaledItem(equippedKey, eqRarity);
+      }
+    }
+
+    const container = this.scene.add.container(0, 0);
+    container.setDepth(DEPTH);
+
+    const _tt = (x, y, text, style) => {
+      const t = this.scene.add.text(x, y, text, { fontFamily: 'monospace', ...style });
+      container.add(t);
+      return t;
+    };
+
+    // Row 1: Name + rarity/slot
+    const rarityColor = COLORS.rarity[rarity] || '#a1a1aa';
+    const slotLabel = slotDef ? slotDef.label : scaled.slot;
+    const nameT = _tt(PAD, PAD, scaled.name, {
+      fontSize: '12px', color: rarityColor, fontStyle: 'bold',
+    });
+    _tt(nameT.x + nameT.width + 6, PAD + 1, `${rarity} ${slotLabel}`, {
+      fontSize: '10px', color: '#888888',
+    });
+
+    // Row 2: Stats with inline comparison diffs
+    const stats = scaled.statBonuses;
+    const isWpn = scaled.slot === 'weapon';
+    const compStats = equippedScaled ? equippedScaled.statBonuses : null;
+    const maxStatW = TT_W - PAD * 2;
+    let sx = PAD;
+    let sy = PAD + 16;
+
+    for (const [key, val] of Object.entries(stats)) {
+      if (val === 0) continue;
+      if (isWpn && key === 'str' && stats.atk === stats.str) continue;
+
+      const label = STAT_LABELS[key] || key.toUpperCase();
+      const mainT = _tt(sx, sy, `+${val} ${label}`, {
+        fontSize: '11px', color: '#cccccc',
+      });
+      sx += mainT.width + 3;
+
+      if (compStats) {
+        const eqVal = compStats[key] || 0;
+        const diff = val - eqVal;
+        if (diff > 0) {
+          const d = _tt(sx, sy, `+${diff}`, { fontSize: '11px', color: '#22c55e' });
+          sx += d.width + 6;
+        } else if (diff < 0) {
+          const d = _tt(sx, sy, `${diff}`, { fontSize: '11px', color: '#ef4444' });
+          sx += d.width + 6;
+        } else {
+          sx += 6;
+        }
+      } else {
+        sx += 6;
+      }
+
+      if (sx > PAD + maxStatW - 50) {
+        sx = PAD;
+        sy += 12;
+      }
+    }
+
+    // Row 3: Description
+    sy += 14;
+    const descT = _tt(PAD, sy, `"${scaled.description}"`, {
+      fontSize: '10px', color: '#666666', fontStyle: 'italic',
+      wordWrap: { width: TT_W - PAD * 2 },
+    });
+
+    // Row 4: Comparison reference line
+    sy += descT.height + 4;
+    if (equippedScaled) {
+      const eqColor = COLORS.rarity[eqRarity] || '#a1a1aa';
+      const vsT = _tt(PAD, sy, `vs. ${equippedScaled.name}`, {
+        fontSize: '10px', color: eqColor,
+      });
+      sy += vsT.height + 2;
+    } else if (!isEquipped && slotDef) {
+      const emptyT = _tt(PAD, sy, 'Empty slot', {
+        fontSize: '10px', color: '#555555',
+      });
+      sy += emptyT.height + 2;
+    }
+
+    // Background (behind all content)
+    const ttH = sy + PAD;
+    const bg = this.scene.add.rectangle(TT_W / 2, ttH / 2, TT_W, ttH, 0x111122);
+    bg.setStrokeStyle(1, 0x555566);
+    container.addAt(bg, 0);
+
+    // Position at cursor
+    const pointer = this.scene.input.activePointer;
+    this._positionTooltip(container, pointer.x, pointer.y, TT_W, ttH);
+
+    // Follow cursor movement
+    this._tooltipMoveHandler = (p) => {
+      this._positionTooltip(container, p.x, p.y, TT_W, ttH);
+    };
+    this.scene.input.on('pointermove', this._tooltipMoveHandler);
+
+    this._tooltipContainer = container;
+  }
+
+  _positionTooltip(container, px, py, w, h) {
+    let x = px + 12;
+    let y = py + 16;
+    if (x + w > 1280) x = px - w - 4;
+    if (y + h > 720) y = py - h - 4;
+    if (x < 0) x = 0;
+    if (y < 0) y = 0;
+    container.setPosition(x, y);
   }
 }

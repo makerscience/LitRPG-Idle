@@ -6,6 +6,7 @@ import TimeEngine from './TimeEngine.js';
 import { createScope, emit, EVENTS } from '../events.js';
 import { getCheat } from '../data/cheats.js';
 import {
+  FIRST_LAUNCH,
   FIRST_KILL, FIRST_LEVEL_UP, FIRST_EQUIP, FIRST_FRAGMENT, FIRST_SELL,
   ZONE_ENTRANCE, KILL_MILESTONES, COMBAT_COMMENTARY, EXPLOIT_UPGRADE,
   CHEAT_TOGGLE_ON, CHEAT_TOGGLE_OFF,
@@ -213,7 +214,7 @@ const DialogueManager = {
     // ── Area boss defeated ─────────────────────────────────────────
     scope.on(EVENTS.AREA_BOSS_DEFEATED, (data) => {
       // Check if this is the final boss (area 5)
-      if (data.area === 5) {
+      if (data.area === 3) {
         say(pick(FINAL_BOSS_DEFEATED), 'impressed', 'GAME COMPLETE');
       } else {
         say(pick(AREA_BOSS_DEFEATED), 'neutral', `${data.name} cleared!`);
@@ -237,8 +238,15 @@ const DialogueManager = {
       TimeEngine.setEnabled('dialogue:ambient', true);
     }, 180000);
 
-    // ── Offline return quip (>5 min away) ─────────────────────────
+    // ── First launch welcome (one-shot) ─────────────────────────────
+    const state0 = Store.getState();
     const offlineResult = OfflineProgress.getLastResult();
+    if (!offlineResult && state0.totalKills === 0 && !state0.flags.firstLaunch) {
+      Store.setFlag('firstLaunch', true);
+      say(pick(FIRST_LAUNCH), 'neutral', 'Welcome');
+    }
+
+    // ── Offline return quip (>5 min away) ─────────────────────────
     if (offlineResult && offlineResult.elapsedMs > 5 * 60 * 1000) {
       say(pick(OFFLINE_RETURN), 'sarcastic', `Away ${offlineResult.durationText}`);
     }

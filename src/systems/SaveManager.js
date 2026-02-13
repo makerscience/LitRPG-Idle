@@ -4,139 +4,24 @@
 import { SAVE } from '../config.js';
 import { emit, on, EVENTS } from '../events.js';
 
-const PRIMARY_KEY = 'litrpg_idle_save';
-const BACKUP_KEY = 'litrpg_idle_save_backup';
+const PRIMARY_KEY = 'litrpg_idle_vslice_save';
+const BACKUP_KEY = 'litrpg_idle_vslice_save_backup';
+
+// Legacy save keys — archived on first boot, never written to again
+const LEGACY_PRIMARY_KEY = 'litrpg_idle_save';
+const LEGACY_BACKUP_KEY = 'litrpg_idle_save_backup';
+const LEGACY_ARCHIVED_KEY = 'litrpg_idle_legacy_archive';
 
 let store = null;
 let autosaveTimer = null;
 let boundBeforeUnload = null;
 let saveRequestedUnsub = null;
 
-/** Migration functions keyed by target schemaVersion. */
+/** Migration functions keyed by target schemaVersion.
+ *  Fresh save track for the vertical slice — starts at v1, no legacy migrations.
+ */
 const migrations = {
-  2: (data) => {
-    data.purchasedUpgrades = data.purchasedUpgrades || {};
-    data.totalKills = data.totalKills || 0;
-    if (data.flags) {
-      data.flags.firstFragment = data.flags.firstFragment ?? false;
-    }
-    data.schemaVersion = 2;
-    return data;
-  },
-  3: (data) => {
-    data.activeCheats = data.activeCheats || {};
-    data.unlockedCheats = data.unlockedCheats || [];
-    if (data.flags) data.flags.firstMerge = data.flags.firstMerge ?? false;
-    data.schemaVersion = 3;
-    return data;
-  },
-  4: (data) => {
-    data.furthestZone = data.furthestZone ?? data.currentZone ?? 1;
-    if (data.flags) data.flags.firstPrestige = data.flags.firstPrestige ?? false;
-    data.schemaVersion = 4;
-    return data;
-  },
-  5: (data) => {
-    if (data.flags) {
-      data.flags.firstSell = data.flags.firstSell ?? false;
-      data.flags.reachedZone3 = data.flags.reachedZone3 ?? false;
-      data.flags.reachedZone4 = data.flags.reachedZone4 ?? false;
-      data.flags.reachedZone5 = data.flags.reachedZone5 ?? false;
-      data.flags.kills100 = data.flags.kills100 ?? false;
-      data.flags.kills500 = data.flags.kills500 ?? false;
-      data.flags.kills1000 = data.flags.kills1000 ?? false;
-      data.flags.kills5000 = data.flags.kills5000 ?? false;
-    }
-    data.schemaVersion = 5;
-    return data;
-  },
-  6: (data) => {
-    data.killsPerEnemy = data.killsPerEnemy || {};
-    data.territories = data.territories || {};
-    if (data.flags) data.flags.firstTerritoryClaim = data.flags.firstTerritoryClaim ?? false;
-    data.schemaVersion = 6;
-    return data;
-  },
-  7: (data) => {
-    // Area/zone hierarchy migration.
-    // Map old flat zone progression to new area/zone system generously.
-    const oldZone = data.currentZone ?? 1;
-    const oldFurthest = data.furthestZone ?? oldZone;
-
-    data.currentArea = oldZone;
-    data.currentZone = 1;              // Start at zone 1 of the area
-    data.furthestArea = oldFurthest;
-
-    // Build areaProgress — generous: mark all cleared areas as fully complete
-    const areaCounts = { 1: 5, 2: 7, 3: 7, 4: 10, 5: 5 };
-    data.areaProgress = {};
-    for (let a = 1; a <= 5; a++) {
-      if (a < oldFurthest) {
-        // Fully cleared area
-        const zc = areaCounts[a];
-        const bosses = [];
-        for (let z = 1; z <= zc; z++) bosses.push(z);
-        data.areaProgress[a] = { furthestZone: zc, bossesDefeated: bosses, zoneClearKills: {} };
-      } else if (a === oldFurthest) {
-        // Current frontier area — unlocked but at zone 1
-        data.areaProgress[a] = { furthestZone: 1, bossesDefeated: [], zoneClearKills: {} };
-      } else {
-        // Locked area
-        data.areaProgress[a] = { furthestZone: 0, bossesDefeated: [], zoneClearKills: {} };
-      }
-    }
-
-    // Add area entrance flags
-    if (data.flags) {
-      data.flags.reachedArea2 = data.flags.reachedArea2 ?? (oldFurthest >= 2);
-      data.flags.reachedArea3 = data.flags.reachedArea3 ?? (oldFurthest >= 3);
-      data.flags.reachedArea4 = data.flags.reachedArea4 ?? (oldFurthest >= 4);
-      data.flags.reachedArea5 = data.flags.reachedArea5 ?? (oldFurthest >= 5);
-    }
-
-    data.schemaVersion = 7;
-    return data;
-  },
-  8: (data) => {
-    // Migrate inventory stack keys from 'itemId' to 'itemId::rarity' composite format.
-    // Old stacks had no rarity field — default to the item's definition rarity or 'common'.
-    const ITEM_RARITIES = {
-      iron_dagger: 'common', iron_helm: 'common', leather_tunic: 'common',
-      steel_sword: 'uncommon', leather_cap: 'common', chainmail_vest: 'uncommon',
-      iron_greaves: 'common', mithril_blade: 'rare', steel_helm: 'uncommon',
-      steel_greaves: 'uncommon', adamantine_axe: 'epic', dragonbone_blade: 'epic',
-    };
-
-    if (data.inventoryStacks) {
-      const oldStacks = data.inventoryStacks;
-      const newStacks = {};
-      for (const [key, stack] of Object.entries(oldStacks)) {
-        if (key.includes('::')) {
-          // Already migrated
-          newStacks[key] = stack;
-        } else {
-          const rarity = stack.rarity || ITEM_RARITIES[key] || 'common';
-          const newKey = `${key}::${rarity}`;
-          newStacks[newKey] = { ...stack, rarity };
-        }
-      }
-      data.inventoryStacks = newStacks;
-    }
-
-    // Migrate equipped item IDs to composite stack keys
-    if (data.equipped) {
-      for (const slot of ['head', 'body', 'weapon', 'legs']) {
-        const val = data.equipped[slot];
-        if (val && !val.includes('::')) {
-          const rarity = ITEM_RARITIES[val] || 'common';
-          data.equipped[slot] = `${val}::${rarity}`;
-        }
-      }
-    }
-
-    data.schemaVersion = 8;
-    return data;
-  },
+  // Future v-slice migrations go here (e.g. 2: (data) => { ... })
 };
 
 /** Run all applicable migrations in order. */
@@ -159,6 +44,9 @@ const SaveManager = {
    */
   init(storeRef) {
     store = storeRef;
+
+    // One-time: archive legacy saves (old namespace) so they aren't lost
+    this._archiveLegacySaves();
 
     // Attempt to load existing save
     this.load();
@@ -258,6 +146,21 @@ const SaveManager = {
   deleteSave() {
     localStorage.removeItem(PRIMARY_KEY);
     localStorage.removeItem(BACKUP_KEY);
+  },
+
+  /** Archive legacy saves under a dedicated key (one-time, non-destructive). */
+  _archiveLegacySaves() {
+    if (localStorage.getItem(LEGACY_ARCHIVED_KEY)) return; // already done
+    const legacyPrimary = localStorage.getItem(LEGACY_PRIMARY_KEY);
+    const legacyBackup = localStorage.getItem(LEGACY_BACKUP_KEY);
+    if (legacyPrimary || legacyBackup) {
+      const archive = { primary: legacyPrimary, backup: legacyBackup, archivedAt: Date.now() };
+      localStorage.setItem(LEGACY_ARCHIVED_KEY, JSON.stringify(archive));
+      console.log('[SaveManager] Legacy saves archived under', LEGACY_ARCHIVED_KEY);
+    } else {
+      // No legacy saves — just mark as checked so we don't re-check
+      localStorage.setItem(LEGACY_ARCHIVED_KEY, 'none');
+    }
   },
 };
 

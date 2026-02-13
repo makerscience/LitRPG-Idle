@@ -17,6 +17,7 @@ import DialogueManager from '../systems/DialogueManager.js';
 import FirstCrackDirector from '../systems/FirstCrackDirector.js';
 import CheatManager from '../systems/CheatManager.js';
 import PrestigeManager from '../systems/PrestigeManager.js';
+import { FEATURES } from '../config/features.js';
 import { LAYOUT, COLORS } from '../config.js';
 
 export default class UIScene extends Phaser.Scene {
@@ -48,38 +49,58 @@ export default class UIScene extends Phaser.Scene {
     this.bossChallenge = new BossChallenge(this);
     this.inventoryPanel = new InventoryPanel(this);
     this.upgradePanel = new UpgradePanel(this);
-    this.prestigePanel = new PrestigePanel(this);
     this.settingsPanel = new SettingsPanel(this);
     this.statsPanel = new StatsPanel(this);
-    this.cheatDeck = new CheatDeck(this);
 
     // Modal registry for mutual exclusion
     this._modals = [
-      this.inventoryPanel, this.upgradePanel, this.prestigePanel,
+      this.inventoryPanel, this.upgradePanel,
       this.settingsPanel, this.statsPanel,
     ];
 
-    // Initialize dialogue triggers + First Crack director + cheat manager + prestige
+    // Gated: prestige panel
+    this.prestigePanel = null;
+    if (FEATURES.prestigeEnabled) {
+      this.prestigePanel = new PrestigePanel(this);
+      this._modals.push(this.prestigePanel);
+    }
+
+    // Gated: cheat deck
+    this.cheatDeck = null;
+    if (FEATURES.cheatsEnabled) {
+      this.cheatDeck = new CheatDeck(this);
+    }
+
+    // Initialize dialogue triggers
     DialogueManager.init();
-    FirstCrackDirector.init();
-    CheatManager.init();
-    PrestigeManager.init();
 
-    // MAP button in bottom bar
+    // Gated system managers
+    if (FEATURES.cheatsEnabled) {
+      FirstCrackDirector.init();
+      CheatManager.init();
+    }
+    if (FEATURES.prestigeEnabled) {
+      PrestigeManager.init();
+    }
+
+    // MAP button in bottom bar (gated on territory)
     this._mapOpen = false;
-    const mapBx = bb.x + bb.w / 2 - 240;
-    const mapBy = bb.y + bb.h / 2;
-    this._mapBtn = this.add.text(mapBx, mapBy, 'MAP [M]', {
-      fontFamily: 'monospace', fontSize: '14px', color: '#38bdf8',
-      backgroundColor: '#333333', padding: { x: 12, y: 6 },
-    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-    this._mapBtn.on('pointerdown', () => this._toggleMap());
-    this._mapBtn.on('pointerover', () => this._mapBtn.setStyle({ backgroundColor: '#555555' }));
-    this._mapBtn.on('pointerout', () => this._mapBtn.setStyle({ backgroundColor: '#333333' }));
+    this._mapBtn = null;
+    this._mKey = null;
+    if (FEATURES.territoryEnabled) {
+      const mapBx = bb.x + bb.w / 2 - 240;
+      const mapBy = bb.y + bb.h / 2;
+      this._mapBtn = this.add.text(mapBx, mapBy, 'MAP [M]', {
+        fontFamily: 'monospace', fontSize: '14px', color: '#38bdf8',
+        backgroundColor: '#333333', padding: { x: 12, y: 6 },
+      }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+      this._mapBtn.on('pointerdown', () => this._toggleMap());
+      this._mapBtn.on('pointerover', () => this._mapBtn.setStyle({ backgroundColor: '#555555' }));
+      this._mapBtn.on('pointerout', () => this._mapBtn.setStyle({ backgroundColor: '#333333' }));
 
-    // M key binding
-    this._mKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.M);
-    this._mKey.on('down', () => this._toggleMap());
+      this._mKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.M);
+      this._mKey.on('down', () => this._toggleMap());
+    }
 
     this.events.on('shutdown', () => this._shutdown());
 
@@ -96,6 +117,7 @@ export default class UIScene extends Phaser.Scene {
   }
 
   _toggleMap() {
+    if (!FEATURES.territoryEnabled) return;
     this.closeAllModals();
 
     const overworldScene = this.scene.get('OverworldScene');
@@ -129,9 +151,13 @@ export default class UIScene extends Phaser.Scene {
     this._modals = [];
     if (this.cheatDeck) { this.cheatDeck.destroy(); this.cheatDeck = null; }
     DialogueManager.destroy();
-    FirstCrackDirector.destroy();
-    CheatManager.destroy();
-    PrestigeManager.destroy();
+    if (FEATURES.cheatsEnabled) {
+      FirstCrackDirector.destroy();
+      CheatManager.destroy();
+    }
+    if (FEATURES.prestigeEnabled) {
+      PrestigeManager.destroy();
+    }
     console.log('[UIScene] shutdown — cleaned up');
   }
 }

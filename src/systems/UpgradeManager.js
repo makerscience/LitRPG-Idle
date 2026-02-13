@@ -4,7 +4,7 @@
 import Store from './Store.js';
 import { D } from './BigNum.js';
 import { emit, EVENTS } from '../events.js';
-import { COMBAT } from '../config.js';
+import { COMBAT_V2 } from '../config.js';
 import { getUpgrade, getAllUpgrades } from '../data/upgrades.js';
 import TerritoryManager from './TerritoryManager.js';
 
@@ -57,7 +57,7 @@ const UpgradeManager = {
     const newLevel = Store.upgradeLevel(upgradeId);
 
     // Apply immediate flat stat bonus (e.g. STR)
-    if (upgrade.effect.type === 'flat' && ['str', 'vit', 'luck'].includes(upgrade.effect.target)) {
+    if (upgrade.effect.type === 'flat' && ['str', 'def', 'hp', 'regen'].includes(upgrade.effect.target)) {
       Store.addFlatStat(upgrade.effect.target, upgrade.effect.valuePerLevel);
     }
 
@@ -99,7 +99,8 @@ const UpgradeManager = {
   getAutoAttackInterval() {
     const speedBonus = this.getMultiplier('autoAttackSpeed') - 1; // strip the base 1
     const territoryBonus = TerritoryManager.getBuffValue('autoAttackSpeed');
-    const interval = COMBAT.autoAttackInterval * (1 - speedBonus - territoryBonus);
+    const baseInterval = Math.floor(1000 / COMBAT_V2.playerBaseAtkSpeed);
+    const interval = baseInterval * (1 - speedBonus - territoryBonus);
     return Math.max(200, interval);
   },
 };

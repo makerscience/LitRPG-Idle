@@ -1,6 +1,12 @@
 // All SYSTEM dialogue lines — organized by trigger category.
 // DialogueManager imports from here instead of hardcoding strings.
 
+// ── First launch ──────────────────────────────────────────────────
+
+export const FIRST_LAUNCH = [
+  'Welcome to the Harsh Threshold. Survive.',
+];
+
 // ── One-shot triggers (flag-gated) ─────────────────────────────────
 
 export const FIRST_KILL = [
@@ -26,10 +32,8 @@ export const FIRST_SELL = [
 // ── Area entrances (one-shot per area) ─────────────────────────────
 
 export const ZONE_ENTRANCE = {
-  2: 'The Wilderness. The monsters here are marginally less pathetic.',
-  3: 'Deep Caverns. I see you\'ve developed a taste for suffering.',
-  4: 'Volcanic Ruins. I should warn you - I stopped balancing past here.',
-  5: 'The Dragon\'s Lair. The Elder Dragon awaits. I\'d wish you luck, but I don\'t care.',
+  2: 'The Overgrown Frontier. The things here bite back. With interest.',
+  3: 'The Broken Road. Everything past this point was designed to kill you. Personally.',
 };
 
 // ── Kill milestones (one-shot per threshold) ───────────────────────
@@ -45,33 +49,22 @@ export const KILL_MILESTONES = {
 
 export const COMBAT_COMMENTARY = {
   1: [
-    "Another rat falls. The forest weeps. Actually, it doesn't. It's a forest.",
-    "At this rate, you'll single-handedly solve the city's pest problem.",
+    "Another rat falls. The threshold weeps. Actually, it doesn't. It's a threshold.",
+    "At this rate, you'll single-handedly solve the pest problem.",
     "The slime didn't even put up a fight. Have some dignity, slime.",
-    "That goblin had a family. Well, probably. I don't track goblin HR.",
+    "That Forest Rat had a family. Well, probably. I don't track rat HR.",
   ],
   2: [
-    "The wolf lunged. You didn't flinch. I'm mildly impressed.",
-    "Skeletons. Nature's way of saying 'recycling has gone too far.'",
-    'That bandit had 200 gold on him. Who carries that much in a dungeon?',
-    'The forest grows quieter with each kill. You\'re welcome, I guess.',
+    "The Feral Hound lunged. You didn't flinch. I'm mildly impressed.",
+    "Thornback Boars. Nature's way of saying 'stop touching my forest.'",
+    "A Rot Vine Crawler. It's rotting AND crawling. Multitasking.",
+    "The frontier grows quieter with each kill. You're welcome, I guess.",
   ],
   3: [
-    'Orcs. Big, green, and surprisingly bad at blocking.',
-    'The troll regenerates, you know. Just... not fast enough.',
-    "The Dark Mage cast 'Feeble Bolt.' It was appropriately named.",
-    "This cave smells. I shouldn't be able to smell things. Your fault.",
-  ],
-  4: [
-    'A dragon whelp. How adorable. How dead.',
-    "The golem crumbles. Do you feel heroic? You shouldn't.",
-    'The Lich Lord monologued for three paragraphs. You interrupted.',
+    "A Stone Sentry. Big, grey, and surprisingly bad at blocking.",
+    "Something here is poisoning you. Slowly. I respect the commitment.",
+    "The Broken Road lives up to its name. So do its residents.",
     "I'm running out of things to respawn. Please slow down.",
-  ],
-  5: [
-    'The Elder Dragon stirs. This is either brave or phenomenally stupid.',
-    'Its scales are legendary. Your odds are not.',
-    'Every hit is a rounding error to this thing.',
   ],
 };
 
@@ -192,7 +185,7 @@ export const AREA_BOSS_DEFEATED = [
 ];
 
 export const FINAL_BOSS_DEFEATED = [
-  "You... actually did it. The Elder Dragon is dead. I have nothing sarcastic to say. That's a first.",
+  "You... actually did it. THE FIRST KEEPER is dead. I have nothing sarcastic to say. That's a first.",
 ];
 
 // ── Offline return ──────────────────────────────────────────────────

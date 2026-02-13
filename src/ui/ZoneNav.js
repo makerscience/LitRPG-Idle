@@ -72,7 +72,7 @@ export default class ZoneNav {
     const areaProgress = state.areaProgress[area];
 
     // Area label
-    const areaName = ZONE_THEMES[area]?.name || areaData?.name || `Area ${area}`;
+    const areaName = areaData?.name || ZONE_THEMES[area]?.name || `Area ${area}`;
     this.areaLabel.setText(areaName);
 
     // Area arrow boundaries

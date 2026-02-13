@@ -1,52 +1,37 @@
-// Area definitions — each area contains multiple zones with progressive enemy unlocks.
-// Enemies are sorted by base HP ascending (weakest first) for progressive unlock order.
+// V2 area definitions — 3 areas, 30 total zones.
+// Enemies use zone-range filtering instead of area field matching.
 
-import { WORLD_1_ENEMIES } from './enemies.js';
+import { ENEMIES } from './enemies.js';
 
-/**
- * Area configurations.
- * - enemies: sorted weakest→strongest (unlock order)
- * - zoneCount: total zones in this area
- * - bossStructure: defines boss type per zone
- */
 const AREAS = {
   1: {
     id: 1,
-    name: 'Forest',
+    name: 'The Harsh Threshold',
     zoneCount: 5,
+    zoneStart: 1,
     enemies: () => getEnemiesForArea(1),
   },
   2: {
     id: 2,
-    name: 'Wilderness',
-    zoneCount: 7,
+    name: 'The Overgrown Frontier',
+    zoneCount: 10,
+    zoneStart: 6,
     enemies: () => getEnemiesForArea(2),
   },
   3: {
     id: 3,
-    name: 'Deep Caverns',
-    zoneCount: 7,
+    name: 'The Broken Road',
+    zoneCount: 15,
+    zoneStart: 16,
     enemies: () => getEnemiesForArea(3),
-  },
-  4: {
-    id: 4,
-    name: 'Volcanic Ruins',
-    zoneCount: 10,
-    enemies: () => getEnemiesForArea(4),
-  },
-  5: {
-    id: 5,
-    name: "Dragon's Lair",
-    zoneCount: 5,
-    enemies: () => getEnemiesForArea(5),
   },
 };
 
 /** Total zones across all areas. */
-export const TOTAL_ZONES = Object.values(AREAS).reduce((sum, a) => sum + a.zoneCount, 0); // 34
+export const TOTAL_ZONES = 30;
 
 /** Number of areas. */
-export const AREA_COUNT = Object.keys(AREAS).length; // 5
+export const AREA_COUNT = 3;
 
 // ── Boss multipliers ────────────────────────────────────────────────
 
@@ -93,24 +78,30 @@ export function getBossType(areaId, zoneNum) {
 // ── Enemy access helpers ────────────────────────────────────────────
 
 /**
- * Get all enemies for an area, sorted by HP ascending (unlock order).
- * Uses the existing `area` field on enemy definitions (renamed from `zone`).
+ * Get all enemies whose zone range overlaps with an area's zone range.
+ * Sorted by HP ascending (unlock order).
  */
 function getEnemiesForArea(areaId) {
-  return WORLD_1_ENEMIES
-    .filter(e => e.area === areaId)
-    .sort((a, b) => Number(a.hp) - Number(b.hp));
+  const area = AREAS[areaId];
+  if (!area) return [];
+  const start = area.zoneStart;
+  const end = start + area.zoneCount - 1;
+  return ENEMIES
+    .filter(e => e.zones[1] >= start && e.zones[0] <= end)
+    .sort((a, b) => a.hp - b.hp);
 }
 
 /**
- * Get the enemies unlocked at a specific zone within an area.
- * Zone 1: enemy #1 only. Zone 2: enemies #1-#2. Zone 3+: all enemies.
- * Capped by the number of enemies available in that area.
+ * Get the enemies available at a specific zone within an area.
+ * Uses zone-range filtering: enemy is available if globalZone falls within its [min, max] range.
  */
 export function getUnlockedEnemies(areaId, zoneNum) {
-  const areaEnemies = getEnemiesForArea(areaId);
-  const unlockCount = Math.min(zoneNum, areaEnemies.length);
-  return areaEnemies.slice(0, unlockCount);
+  const area = AREAS[areaId];
+  if (!area) return [];
+  const globalZone = area.zoneStart + zoneNum - 1;
+  return ENEMIES
+    .filter(e => globalZone >= e.zones[0] && globalZone <= e.zones[1])
+    .sort((a, b) => a.hp - b.hp);
 }
 
 /**

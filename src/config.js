@@ -87,10 +87,49 @@ export const CHEATS = {
 };
 
 export const SAVE = {
-  schemaVersion: 8,
+  schemaVersion: 1,           // reset for v-slice save track
   autosaveInterval: 30_000,   // ms
   minOfflineTime: 60_000,                // 60s — skip if quicker reload
   maxOfflineTime: 12 * 60 * 60 * 1000,  // 12 hours in ms
+};
+
+// ── V2 constants (GDD vertical slice) ─────────────────────────────
+
+export const PROGRESSION_V2 = {
+  xpTable: [50,75,110,155,210,280,360,450,560,680,
+            820,980,1160,1360,1580,1830,2100,2400,2750,3120,
+            3530,3980,4480,5020,5620,6280,7000,7800,8680,9640,
+            10700,11870,13150,14560,16100],
+  xpForLevel(level) {
+    if (level <= 0) return 50;
+    if (level <= 35) return this.xpTable[level - 1];
+    return Math.floor(this.xpTable[34] * (1.1 ** (level - 35)));
+  },
+  statGrowthPerLevel: { str: 2, def: 2, hp: 12, regen: 0.1 },
+  startingStats: { str: 10, def: 5, hp: 100, regen: 1, atkSpeed: 1.0, level: 1, xp: 0 },
+};
+
+export const COMBAT_V2 = {
+  playerDamage: (str, enemyDef) => Math.max(str - (enemyDef * 0.3), 1),
+  enemyDamage: (dmg, playerDef, armorPen = 0) => {
+    const effDef = playerDef * (1 - armorPen);
+    return Math.max(dmg - (effDef * 0.5), 1);
+  },
+  playerBaseAtkSpeed: 1.0,
+  spawnDelay: 1000,
+  playerDeathRespawnDelay: 1500,
+};
+
+export const LOOT_V2 = {
+  normalDropChance: 0.10,
+  bossFirstKillDrops: 1,
+  bossFirstKillUncommonChance: 0.30,
+  bossRepeatDrops: 1,
+  bossRepeatUncommonChance: 0.11,
+  rarityWeights: { common: 89, uncommon: 11 },
+  rarityMultiplier: { common: 1, uncommon: 1.5 },
+  slotWeights: { main_hand: 16, chest: 15, head: 14, legs: 14, boots: 14, gloves: 14, amulet: 13 },
+  pityThreshold: 5,
 };
 
 // Re-export layout and theme for backward compatibility.

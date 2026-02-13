@@ -61,21 +61,19 @@ export default class StatsPanel extends ModalPanel {
 
   _getBaseStatRows(state) {
     const ps = state.playerStats;
+    const stats = ComputedStats.getAllStats();
     const territoryStr = TerritoryManager.getBuffValue('flatStr');
-    const territoryVit = TerritoryManager.getBuffValue('flatVit');
 
     const strVal = territoryStr > 0
-      ? `${ps.str + territoryStr}  (${ps.str} + ${territoryStr})`
+      ? `${stats.effectiveStr}  (${ps.str} + ${territoryStr})`
       : `${ps.str}`;
-    const vitVal = territoryVit > 0
-      ? `${ps.vit + territoryVit}  (${ps.vit} + ${territoryVit})`
-      : `${ps.vit}`;
 
     return [
-      { label: 'LEVEL', value: `${ps.level}`, desc: 'Increases STR, VIT, LUCK on level up.' },
+      { label: 'LEVEL', value: `${ps.level}`, desc: 'Increases STR, DEF, HP, Regen on level up.' },
       { label: 'STR', value: strVal, desc: 'Scales base damage dealt to enemies.' },
-      { label: 'VIT', value: vitVal, desc: 'Each point gives 10 max HP.' },
-      { label: 'LUCK', value: `${ps.luck}`, desc: 'Affects loot drop rolls and rarity chances.' },
+      { label: 'DEF', value: `${stats.effectiveDef}`, desc: 'Reduces incoming enemy damage.' },
+      { label: 'HP', value: `${ps.hp}`, desc: 'Base max hit points from levels.' },
+      { label: 'REGEN', value: `${ps.regen.toFixed(1)}/s`, desc: 'Base HP regeneration per second.' },
     ];
   }
 
@@ -84,9 +82,9 @@ export default class StatsPanel extends ModalPanel {
     const atkSpeed = (1000 / stats.autoAttackInterval).toFixed(2);
 
     return [
-      { label: 'MAX HP', value: format(stats.effectiveMaxHp), desc: 'VIT x 10, scaled by territory buffs.' },
-      { label: 'HP REGEN', value: `${format(stats.hpRegen)}/s`, desc: '2% of max HP/s, boosted by buffs.' },
-      { label: 'BASE DMG', value: `${Math.floor(stats.baseDamage)}`, desc: `STR x 1.2 + weapon ATK (${stats.weaponDamage}).` },
+      { label: 'MAX HP', value: format(stats.effectiveMaxHp), desc: 'Base HP + gear HP.' },
+      { label: 'HP REGEN', value: `${format(stats.hpRegen)}/s`, desc: 'Flat HP/s from levels + gear.' },
+      { label: 'BASE DMG', value: `${Math.floor(stats.baseDamage)}`, desc: 'Effective STR (base + gear).' },
       { label: 'AUTO DMG', value: `${stats.effectiveDamage}`, desc: 'Auto-attack damage per hit.' },
       { label: 'CLICK DMG', value: `${stats.clickDamage}`, desc: 'Manual click damage per hit.' },
       { label: 'CRIT %', value: `${(stats.critChance * 100).toFixed(1)}%`, desc: 'Chance each attack is a critical hit.' },

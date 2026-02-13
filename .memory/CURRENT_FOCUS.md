@@ -1,57 +1,66 @@
 # CURRENT_FOCUS
 
 ## One-liner
-- Codebase redesign COMPLETE. Character silhouette equipment screen implemented. Post-redesign: balance testing, content, polish.
+- GDD Hard Pivot PHASE 7 COMPLETE. Balance tuned, DoT fixed, all 30 bosses beatable, final boss survival ratio 1.8x. Vertical slice shippable.
 
 ## Active Objectives (max 3)
-1. **Silhouette equipment screen done:** 33 slots defined, paper-doll layout with connector lines, tier-gated rendering
-2. **Post-redesign:** Balance testing, territory buff integration, new content
-3. **Polish:** Boss sprites, cosmetic cleanup, gameplay testing
+1. **GDD Vertical Slice (Areas 1-3, Zones 1-30):** ALL 7 PHASES COMPLETE — shippable vertical slice
+2. **Next:** Playtesting in-browser to validate feel, then publish to Itch.io
+3. **Future:** Phase 8+ — town/territory re-enablement, prestige loop, art assets
 
 ## Next Actions
-- [ ] Visual test: open inventory panel in-game, verify silhouette + 4 tier-0 slots render correctly
-- [ ] Test equip/unequip cycle with old saves (body→chest, weapon→main_hand migration)
-- [ ] Add items for new slot types (tier 1+ content, future task)
-- [ ] Integrate `allIncome` and `prestigeMultiplier` territory buffs
-- [ ] Balance test: territory maxHP buff, offline progress rewards
-- [ ] Boss sprites — currently reuse base enemy sprites
+- [ ] Playtest in-browser: verify DoT damage visible in SystemLog for Blight Stalker Evolved (z11+) and Blighted Scholar (z27+)
+- [ ] Playtest Area 1 difficulty: THE HOLLOW should be a tight fight (~1.2x survival) at level 8-9
+- [ ] Playtest Area 3: verify gear progression feels meaningful (new slot unlocks at z17 gloves, z22 amulet)
+- [ ] Polish: add sprites for Area 2-3 enemies/bosses (currently null — uses placeholder)
+- [ ] Consider Phase 8: re-enable prestige/territory systems with V2 balance
+- [ ] Itch.io deployment prep: build, test dist/, create page
 
 ## Open Loops / Blockers
-- No items exist yet for tier 1+ equipment slots (shoulders, amulet, bag, meal, etc.)
-- `allIncome` and `prestigeMultiplier` territory buffs defined but NOT integrated
-- InventoryPanel still has local `RARITY_HEX` dict (cosmetic, low priority)
-- Boss sprites currently reuse base enemy sprites
-- Circular import: equipSlots↔Store is safe (lazy function calls only) but worth noting
+- Prestige, territory, cheats disabled via feature gates — re-enable post-playtesting
+- Legacy saves archived under `litrpg_idle_legacy_archive` key
+- Store.equipped keeps all 33 keys for hydration compat — only 7 are used at runtime
+- territories.js references old V1 enemy IDs (disabled, not a runtime issue)
+- UpgradeManager.getAutoAttackInterval() is now dead code (ComputedStats owns interval computation)
+- `getBossType`, `getStrongestEnemy`, `getBossDropMultiplier` in areas.js are now dead code
+- All Area 2-3 enemies/bosses have `sprites: null` — need art assets
+- Balance sim assumes optimal upgrade purchasing — real players will be weaker (more safety margin)
 
 ## How to Resume in 30 Seconds
 - **Open:** `.memory/CURRENT_FOCUS.md`
-- **Last change:** Silhouette equipment screen — new `src/data/equipSlots.js`, expanded Store.equipped, InventoryPanel rewrite
-- **Architecture:** Progression.js owns XP/level + kill rewards. Store is pure state. EventScope pattern for subscriptions. ComputedStats for derived values.
-- **Equipment:** 33 slots defined in equipSlots.js, tier unlock = furthestArea - 1, InventorySystem resolves item.slot → equipped key
+- **Last change:** Inventory UX overhaul — drag-to-equip, drag-to-sell, cursor tooltips, font bump, roundPixels
+- **Architecture:** Progression.js owns XP/level + kill rewards. Store is pure state. EventScope pattern for subscriptions. ComputedStats for derived values. BossManager looks up named bosses via `getBossForZone()`. LootEngine uses zone-based item pools with slot weighting and pity.
+- **Plan:** `Plans/Redesign Plan.md` — 8-phase implementation, Phase 7 complete
+- **Balance tool:** `npm run balance:sim` — zone-by-zone idle progression simulation
 
 ## Key Context
 - Tech stack: Phaser 3, Vite 7, break_infinity.js, localStorage saves
 - Platform: Desktop-first, 1280x720, targeting Itch.io
 - Architecture: `ARCHITECTURE.md`
+- GDD Plan: `Plans/Redesign Plan.md`
 - Memory files: `.memory/CURRENT_FOCUS.md`, `.memory/DECISIONS.md`, `.memory/LESSONS_LEARNED.md`
 - Changelog: `CHANGELOG.md`
+- Feature gates: `src/config/features.js`
+- Save namespace: `litrpg_idle_vslice_save` (schema v1)
+- Data validator: `npm run validate:data`
+- Balance sim: `npm run balance:sim`
 
 ---
 
 ## Last Session Summary (max ~8 bullets)
-- Created `src/data/equipSlots.js`: 33 slot definitions with id, label, tier, side, anchor, itemSlot
-- Helper functions: getMaxEquipTier, getLeftSlots, getRightSlots, getAccessorySlots, getEquipSlotForItem
-- Expanded Store.equipped to 33 null-initialized slots via ALL_SLOT_IDS
-- Added save migration: old `body`→`chest`, `weapon`→`main_hand` in hydrateState
-- Added InventorySystem._resolveEquipSlot() with ring disambiguation
-- Updated getEquippedWeaponDamage() to use `main_hand` key
-- Rewrote InventoryPanel: 880x560 panel, silhouette sprite, column layout, connector lines, accessory grid
-- Build verified clean (npm run build passes)
+- Equip slot highlighting + drag-to-equip: amber highlight on hover/select, ghost text follows cursor, drop on slot to equip
+- Drag-to-sell: SELL drop zone in upper-right of inventory panel; drag items onto it to sell full stack
+- Cursor-following tooltips: compact 280px tooltip follows mouse; single-column layout with inline stat diffs and "vs." reference line
+- All inventory panel fonts bumped +2px for readability (8→10, 9→11, 10→12, 11→13, 13→15)
+- Added `roundPixels: true` to Phaser game config (`src/main.js`) — fixes sub-pixel text blur globally
+- Bug fix: deferred click actions to `pointerup` so `_refresh()` doesn't destroy bg before Phaser's drag fires `dragstart`
+- Tooltip uses Phaser Container + scene `pointermove` listener (replaces old `_tooltipObjects` array)
+- Files modified: `src/ui/InventoryPanel.js`, `src/main.js`
 
 ## Pinned References
 - Governance rules: `CLAUDE.md`
 - Architecture: `ARCHITECTURE.md`
-- MVP Plan: `MVP_PLAN.md`
+- GDD Plan: `Plans/Redesign Plan.md`
 - Lessons learned: `.memory/LESSONS_LEARNED.md`
 
 Hard rule: If "Key Context" becomes a wall of text, move it into real docs and link here.

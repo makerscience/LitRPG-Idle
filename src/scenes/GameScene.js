@@ -6,7 +6,7 @@ import TimeEngine from '../systems/TimeEngine.js';
 import Store from '../systems/Store.js';
 import { on, EVENTS } from '../events.js';
 import { format } from '../systems/BigNum.js';
-import { UI, LAYOUT, ZONE_THEMES, COMBAT, PARALLAX, TREE_ROWS, FERN_ROWS } from '../config.js';
+import { UI, LAYOUT, ZONE_THEMES, COMBAT_V2, PARALLAX, TREE_ROWS, FERN_ROWS } from '../config.js';
 import { getEnemyById } from '../data/enemies.js';
 
 export default class GameScene extends Phaser.Scene {
@@ -641,7 +641,7 @@ export default class GameScene extends Phaser.Scene {
       onComplete: () => {
         this.playerRect.setAlpha(1);
         // Refresh HP bar to full after respawn
-        this.time.delayedCall(COMBAT.playerDeathRespawnDelay, () => {
+        this.time.delayedCall(COMBAT_V2.playerDeathRespawnDelay, () => {
           this.playerHpBarFill.setDisplaySize(200, 16);
           this.playerHpBarFill.setFillStyle(0x22c55e);
         });

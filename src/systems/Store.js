@@ -2,7 +2,7 @@
 // State holds live Decimal instances; strings only exist in localStorage.
 
 import { D, fromJSON, Decimal } from './BigNum.js';
-import { PROGRESSION, ECONOMY, SAVE, COMBAT, PRESTIGE } from '../config.js';
+import { PROGRESSION_V2, ECONOMY, SAVE, PRESTIGE } from '../config.js';
 import { emit, EVENTS } from '../events.js';
 import { AREAS } from '../data/areas.js';
 import { ALL_SLOT_IDS } from '../data/equipSlots.js';
@@ -28,7 +28,7 @@ function createAreaProgress() {
 
 /** Build a fresh default state from config values. */
 function createInitialState() {
-  const stats = PROGRESSION.startingStats;
+  const stats = PROGRESSION_V2.startingStats;
   return {
     schemaVersion: SAVE.schemaVersion,
     gold: D(ECONOMY.startingGold),
@@ -36,13 +36,14 @@ function createInitialState() {
     mana: D(100),
     playerStats: {
       str: stats.str,
-      vit: stats.vit,
-      luck: stats.luck,
+      def: stats.def,
+      hp: stats.hp,
+      regen: stats.regen,
       level: stats.level,
       xp: D(stats.xp),
-      xpToNext: D(PROGRESSION.xpForLevel(stats.level)),
+      xpToNext: D(PROGRESSION_V2.xpForLevel(stats.level)),
     },
-    playerHp: D(stats.vit * COMBAT.playerHpPerVit),
+    playerHp: D(stats.hp),
     equipped: Object.fromEntries(ALL_SLOT_IDS.map(id => [id, null])),
     inventoryStacks: {},
     purchasedUpgrades: {},
@@ -60,13 +61,14 @@ function createInitialState() {
       crackTriggered: false, firstKill: false, firstLevelUp: false,
       reachedZone2: false, reachedZone3: false, reachedZone4: false, reachedZone5: false,
       firstEquip: false, firstFragment: false, firstMerge: false,
-      firstPrestige: false, firstSell: false,
+      firstPrestige: false, firstSell: false, firstLaunch: false,
       kills100: false, kills500: false, kills1000: false, kills5000: false,
       firstTerritoryClaim: false,
       // Area entrance flags
       reachedArea2: false, reachedArea3: false, reachedArea4: false, reachedArea5: false,
     },
     settings: { autoAttack: false },
+    lootPity: { head: 0, chest: 0, main_hand: 0, legs: 0, boots: 0, gloves: 0, amulet: 0 },
     killsPerEnemy: {},
     territories: {},
     timestamps: { lastSave: 0, lastOnline: 0 },
@@ -94,7 +96,7 @@ function hydrateState(saved) {
 
   // playerStats — plain numbers + Decimal sub-fields
   if (saved.playerStats) {
-    for (const key of ['str', 'vit', 'luck', 'level']) {
+    for (const key of ['str', 'def', 'hp', 'regen', 'level']) {
       if (saved.playerStats[key] != null) fresh.playerStats[key] = saved.playerStats[key];
     }
     for (const key of DECIMAL_STAT_FIELDS) {
@@ -129,6 +131,7 @@ function hydrateState(saved) {
   if (saved.flags) fresh.flags = { ...fresh.flags, ...saved.flags };
   if (saved.settings) fresh.settings = { ...fresh.settings, ...saved.settings };
   if (saved.timestamps) fresh.timestamps = { ...fresh.timestamps, ...saved.timestamps };
+  if (saved.lootPity) fresh.lootPity = { ...fresh.lootPity, ...saved.lootPity };
   if (saved.killsPerEnemy) fresh.killsPerEnemy = { ...saved.killsPerEnemy };
   if (saved.territories) fresh.territories = JSON.parse(JSON.stringify(saved.territories));
 
@@ -179,12 +182,13 @@ const Store = {
     state.playerStats.xp = state.playerStats.xp.minus(state.playerStats.xpToNext);
     state.playerStats.level += 1;
 
-    const growth = PROGRESSION.statGrowthPerLevel;
+    const growth = PROGRESSION_V2.statGrowthPerLevel;
     state.playerStats.str += growth.str;
-    state.playerStats.vit += growth.vit;
-    state.playerStats.luck += growth.luck;
+    state.playerStats.def += growth.def;
+    state.playerStats.hp += growth.hp;
+    state.playerStats.regen += growth.regen;
 
-    state.playerStats.xpToNext = D(PROGRESSION.xpForLevel(state.playerStats.level));
+    state.playerStats.xpToNext = D(PROGRESSION_V2.xpForLevel(state.playerStats.level));
 
     emit(EVENTS.PROG_LEVEL_UP, {
       level: state.playerStats.level,
@@ -298,7 +302,7 @@ const Store = {
 
   // ── Player stat mutations ───────────────────────────────────────
 
-  /** Add a flat bonus to a player stat (str, vit, luck). */
+  /** Add a flat bonus to a player stat (str, def, hp, regen). */
   addFlatStat(stat, amount) {
     state.playerStats[stat] += amount;
     emit(EVENTS.STATE_CHANGED, { changedKeys: ['playerStats'] });
@@ -306,13 +310,14 @@ const Store = {
 
   /** Reset player stats to starting values (used during prestige). */
   resetPlayerStats() {
-    const stats = PROGRESSION.startingStats;
+    const stats = PROGRESSION_V2.startingStats;
     state.playerStats.str = stats.str;
-    state.playerStats.vit = stats.vit;
-    state.playerStats.luck = stats.luck;
+    state.playerStats.def = stats.def;
+    state.playerStats.hp = stats.hp;
+    state.playerStats.regen = stats.regen;
     state.playerStats.level = stats.level;
     state.playerStats.xp = D(stats.xp);
-    state.playerStats.xpToNext = D(PROGRESSION.xpForLevel(stats.level));
+    state.playerStats.xpToNext = D(PROGRESSION_V2.xpForLevel(stats.level));
     emit(EVENTS.STATE_CHANGED, { changedKeys: ['playerStats'] });
   },
 
@@ -446,6 +451,22 @@ const Store = {
     if (!state.killsPerEnemy[enemyId]) state.killsPerEnemy[enemyId] = 0;
     state.killsPerEnemy[enemyId] += 1;
     // High frequency — no event emit (TerritoryManager reads directly)
+  },
+
+  // ── Loot pity mutations ──────────────────────────────────────────
+
+  /** Increment pity counters for all active slots. */
+  incrementAllPity() {
+    for (const slot of Object.keys(state.lootPity)) {
+      state.lootPity[slot] += 1;
+    }
+  },
+
+  /** Reset pity counter for a single slot. */
+  resetLootPity(slot) {
+    if (slot in state.lootPity) {
+      state.lootPity[slot] = 0;
+    }
   },
 
   conquerTerritory(territoryId) {

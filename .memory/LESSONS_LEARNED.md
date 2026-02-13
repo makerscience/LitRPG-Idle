@@ -1,99 +1,207 @@
 # Lessons Learned
 
-Honest retrospective on the LitRPG Idle project — what worked, what didn't, and what to do differently next time. Written after completing the full 9-phase codebase redesign.
+Honest retrospective on the LitRPG Idle project. Two major phases of work are covered:
+1. The original 9-phase **codebase redesign** (architectural cleanup of the MVP)
+2. The 7-phase **GDD hard pivot** (complete gameplay model replacement for the vertical slice)
 
 ---
 
-## What Worked Better Than Expected
+## Part 1: Codebase Redesign (Phases 1-9)
 
-### 1. Memory governance system (CLAUDE.md + .memory/)
+### What Worked Better Than Expected
+
+#### 1. Memory governance system (CLAUDE.md + .memory/)
 The lightweight session protocol — read CURRENT_FOCUS, check DECISIONS, produce a session plan — was the single biggest productivity multiplier. Expected it to be bureaucratic overhead; instead it **prevented re-debating the same architectural questions** across sessions. The "resume in 30 seconds" section alone saved at least 10 minutes per session. DECISIONS.md caught two cases where we were about to undo a prior choice.
 
 **Takeaway:** Invest in session continuity infrastructure early. The cost is ~5 minutes/session; the payoff is never losing context.
 
-### 2. Phased redesign with "always playable" constraint
+#### 2. Phased redesign with "always playable" constraint
 Each redesign phase was independently valuable and left the game fully functional. Could have stopped after Phase 2 and the code would still be better. The phased approach also made it psychologically easier to start — "just do Phase 1" is less daunting than "redesign everything."
 
 **Takeaway:** "Every phase leaves the game playable" is the right constraint for refactors. It prevents the trap of a multi-day rewrite that never converges.
 
-### 3. Event-driven architecture from day one
+#### 3. Event-driven architecture from day one
 The canonical `events.js` with namespaced events (`domain:action`) was established in Phase 0 of the original MVP plan. It paid dividends continuously — systems stayed decoupled, dialogue triggers were trivial to add, and the EventScope pattern in Phase 8 was possible because the event system was already clean.
 
 **Takeaway:** Event architecture is one of the few things worth getting right upfront. The cost of retrofitting it later is enormous.
 
-### 4. Store mutation boundary
+#### 4. Store mutation boundary
 Making all state writes go through named Store methods caught real bugs during the redesign. UpgradeManager was directly mutating `state.playerStats.str` — discovered and fixed during Phase 5. The boundary also made it trivial to add event emission to every write path.
 
 **Takeaway:** Centralized mutation is worth the verbosity. Every `addFlatStat()` method is one more place to hook logging, validation, or events.
 
-### 5. Data-driven dialogue
+#### 5. Data-driven dialogue
 80+ lines of SYSTEM personality, all in `dialogue.js`, all triggered by events with cooldowns. The game's entire personality lives in a data file. Adding new quips requires zero system changes — just append to an array.
 
 **Takeaway:** Personality should be data, not code. Trigger conditions in the system, content in the data file.
 
-### 6. ModalPanel base class (Phase 1)
+#### 6. ModalPanel base class (Phase 1)
 Eliminated ~500 lines of copy-pasted modal lifecycle code. After this, adding a new panel (StatsPanel) took 30 minutes instead of 2 hours. The mutual exclusion registry (`UIScene.closeAllModals()`) was the key insight — it replaced N² panel-to-panel coupling with a central registry.
 
 **Takeaway:** UI base classes have enormous leverage when panels share lifecycle patterns. Do this before the third panel, not after the fifth.
 
-### 7. Stored result pattern for offline progress
+#### 7. Stored result pattern for offline progress
 Instead of emitting an event that no UI scene would catch (Phaser scenes don't exist yet during boot), OfflineProgress stores its result and UI reads it when ready. Zero timing issues, zero new events needed.
 
 **Takeaway:** When the producer runs before the consumer exists, store-and-read beats emit-and-hope.
 
----
+### Mistakes Made
 
-## Mistakes Made
-
-### 1. Redesign came too late
+#### 1. Redesign came too late
 Built 8 feature phases, accumulated significant structural debt, THEN did a 9-phase redesign. The redesign would have been 60% cheaper if done after Phase 3-4 of the original MVP, when the architecture was simpler and fewer systems existed. By the time we redesigned, every change required understanding cross-system interactions.
 
 **Takeaway:** Schedule a "structural health check" after every 3-4 feature phases. Refactor while the codebase is small enough to hold in your head.
 
-### 2. GameScene is still a 945-line god object
+#### 2. GameScene is still a 945-line god object
 The redesign improved every system module but never touched GameScene — the single largest file. It mixes parallax rendering, combat visuals, damage number animations, particle effects, sprite management, and scene lifecycle. This is the file most likely to cause bugs in future development.
 
 **Takeaway:** Don't skip the hardest file in a redesign. If it's too scary to split, at least extract the clearly separable concerns (parallax could be its own module; damage numbers could be a utility).
 
-### 3. Hardcoded magic numbers in visual code
+#### 3. Hardcoded magic numbers in visual code
 Despite Phase 3 (config decomposition), GameScene and OverworldScene still have dozens of hardcoded Y positions, sizes, and spacing values. The config split extracted game balance and UI layout, but visual positioning was left scattered. Adding a 6th area would require hunting through multiple files.
 
 **Takeaway:** Visual layout constants deserve the same treatment as game balance constants. If a number controls where something appears on screen, it belongs in a config file.
 
-### 4. No automated tests
+#### 4. No automated tests
 Zero tests for any system. SaveManager migrations, Progression math, ComputedStats formulas, offline progress calculations — all verified manually by playing. One migration bug could corrupt every player's save with no automated way to catch it.
 
 **Takeaway:** At minimum, write tests for: (a) save migrations, (b) core math formulas (damage, XP, offline rewards), (c) state mutation boundaries. These are the highest-leverage tests — not UI tests, not integration tests, just pure-function unit tests.
 
-### 5. Zone/Area naming confusion persists
+#### 5. Zone/Area naming confusion persists
 The rename from flat "zones" to hierarchical "areas containing zones" left vestiges everywhere. `dropChanceByZone` is keyed by area number. `getZoneScaling()` scales within an area's zones. Function parameter names, comments, and config keys are inconsistent. The DECISIONS log records the rename but doesn't track cleanup.
 
 **Takeaway:** When renaming a core concept, do a full grep-and-rename pass in the same session. Leaving "cosmetic" naming mismatches creates cognitive load that compounds over time.
 
-### 6. Save schema version 8 before release
+#### 6. Save schema version 8 before release
 Eight schema migrations for a pre-release game. Each migration is code that will never execute for new players. The data model changed too frequently during development — inventory format alone went through 3 revisions (flat → stacks → rarity-keyed stacks).
 
 **Takeaway:** During early development, consider wiping saves between major changes instead of writing migrations. Save migrations have a purpose — protecting existing players' data. Before release, there are no existing players.
 
-### 7. Territory buff wiring left incomplete
+#### 7. Territory buff wiring left incomplete
 `allIncome` and `prestigeMultiplier` territory buffs are defined in territory data, cost real gold and kills to unlock, but **do nothing**. They're not wired into ComputedStats or any multiplier path. A player who claims these territories gets zero benefit. This is a broken promise in the game design.
 
 **Takeaway:** Don't ship (or commit) data that references unimplemented mechanics. Either wire the buffs or remove the data entries. "Deferred" is fine for a TODO, not for content the player can interact with.
 
-### 8. ARCHITECTURE.md drifted from reality
+#### 8. ARCHITECTURE.md drifted from reality
 The architecture doc still describes the original event payload shapes (e.g., `combat:enemyKilled` with just `{ enemyId }` instead of the current `{ enemyId, name, isBoss }`). It references `DialogueDirector` (renamed to `DialogueManager`). It doesn't mention ComputedStats, Progression, EventScope, or OfflineProgress. The doc became a historical artifact rather than a living reference.
 
 **Takeaway:** Architecture docs should be updated during the same session as architectural changes, or they become misleading. A wrong doc is worse than no doc.
 
-### 9. Over-built cheat infrastructure
+#### 9. Over-built cheat infrastructure
 The cheat system has a full unlock/toggle/persist lifecycle, CheatManager singleton, cheat data structure with dialogue hooks, a CheatDeck UI panel — all for a single cheat (Loot Hoarder). The infrastructure cost was probably 3x what a simple boolean flag would have been.
 
 **Takeaway:** Build the second abstraction when you need the second instance, not when you build the first. One cheat doesn't justify a cheat framework.
 
-### 10. BigNum boundary is blurry
+#### 10. BigNum boundary is blurry
 Some values are Decimal objects (gold, XP, HP), others are plain numbers (enemy HP, damage, stats). The conversion happens at inconsistent points — sometimes at the formula level, sometimes at the Store mutation level, sometimes at display time. This creates subtle bugs where `Number(decimal)` silently truncates.
 
 **Takeaway:** Define a clear boundary: "Decimal above X threshold, plain number below." Document which fields are which type. In this game, most values don't need BigNum until very late prestige cycles.
+
+---
+
+## Part 2: GDD Hard Pivot (Phases 0-7)
+
+The GDD pivot was a complete gameplay model replacement: new stat model, new combat formulas, new enemies/bosses/items, new loot system, new balance targets — built on top of the redesigned architecture. This section covers what the pivot taught that the redesign didn't.
+
+### What Worked
+
+#### 1. The prior redesign directly enabled the pivot
+The 9-phase codebase redesign created clean module boundaries (Store, ComputedStats, CombatEngine, Progression, LootEngine) that made swapping the entire gameplay model feasible in 7 phases. V2 combat formulas went into CombatEngine without touching dialogue. V2 stat models went into Store/ComputedStats without touching loot. V2 loot went into LootEngine without touching combat. Each system was replaceable independently because the redesign had already separated concerns.
+
+**Takeaway:** Architectural investment compounds when pivots happen. The redesign felt expensive at the time; the pivot would have been a full rewrite without it. Clean seams aren't just for readability — they're insurance against changing your mind.
+
+#### 2. Feature gates as a pivot enabler
+Phase 0 established a `features.js` module with boolean flags for prestige, territory, town, and cheats — all set to `false`. Boot guards checked these flags before initializing managers or rendering UI. This trivial pattern (4 booleans, ~20 guard checks) meant the pivot could happen incrementally without worrying about disabled systems interfering, throwing null errors, or confusing playtesters.
+
+**Takeaway:** Feature gates are the cheapest pivot insurance you can buy. Add them before you need them. The cost is near-zero; the benefit is the ability to disable any system instantly without deleting code.
+
+#### 3. Fresh save namespace instead of migrations
+Starting with `litrpg_idle_vslice_save` (schema v1) instead of migrating old saves was the single best scoping decision. The V1→V2 stat model change (vit/luck → def/hp/regen) would have required complex migration logic with ambiguous mapping. A fresh namespace made it a non-problem and validated the earlier lesson about not writing migrations pre-release — this time we actually followed it.
+
+**Takeaway:** When pivoting the data model fundamentally, a new save namespace is cheaper and safer than migration. Archive the old data non-destructively (we used `litrpg_idle_legacy_archive`) and move on.
+
+#### 4. Data validator as a scaling tool
+The `validate-data.js` script was created in Phase 1 (the earliest possible moment) and paid off every subsequent phase. It caught: missing `baseEnemyId` references on bosses, items with zone ranges outside their area, enemies with missing required fields, and zone coverage gaps. With 18 enemies, 45 items, and 30 bosses across 30 zones, manual cross-referencing would have been an error factory.
+
+**Takeaway:** Write the data validator before the second data file, not after the fifth. For data-heavy games, the validator is as important as the data itself. Run it after every edit (`npm run validate:data`).
+
+#### 5. Balance simulation before playtesting
+The `balance-sim.js` script (Phase 7) models all 30 zones end-to-end: player leveling, optimal gear equipping, upgrade purchasing, per-zone combat math with exact formulas, DoT, and armor pen. It immediately revealed two critical problems invisible during manual play:
+- Enemies were trivially weak (all dealt minimum 1 damage because ATK < DEF × 0.5)
+- XP was far too generous (player double-leveled vs GDD targets)
+
+Three balance iterations in the sim (enemy ATK ×3, boss ATK ×3.5, XP reduced) produced valid numbers in minutes. Manual playtesting would have taken hours to reach the same conclusions, and the problems wouldn't have been obvious until Area 3.
+
+**Takeaway:** Write the balance sim before content authoring, not after. Math-first balance validation is 10-100x faster than play-first. The sim also serves as documentation of your combat formulas — if the sim matches the game, the formulas are correct.
+
+#### 6. Content authoring conventions as a force multiplier
+Locking formulas before authoring (enemy gold = HP × 0.25, boss gold = HP, XP = HP, sell values scale 2-4x per area) made writing 18 enemies and 30 bosses systematic rather than bespoke. Each entity was a fill-in-the-blanks exercise. The data validator enforced invariants (e.g., weapon `atk` must equal `str`).
+
+**Takeaway:** Establish authoring conventions before the content sprint, not during it. When the formulas are locked, adding 10 enemies takes the same mental effort as adding 3.
+
+#### 7. "Frankenstein state" tolerance
+After Phase 1, the game ran V2 data with V1 combat (enemies died instantly). After Phase 2, V2 combat ran with V1 boss generation. After Phase 3, named bosses worked but loot was still V1. Each phase accepted a temporarily inconsistent state. This only worked because the "always playable" constraint ensured nothing crashed — the game was weird but functional.
+
+**Takeaway:** Don't try to make everything consistent at every phase boundary. Tolerate mixed V1/V2 states as long as the game boots and runs. Trying to keep everything aligned at all times creates a "big bang" rewrite in disguise.
+
+#### 8. Risk identification was accurate
+The plan identified 4 primary risks before Phase 0. All four manifested, and all four were controlled by the planned mitigations:
+- **Data volume risk** → validator caught schema/reference errors across 90+ data entries
+- **Combat regression risk** → DoT bug caught in Phase 7 (late, but before ship)
+- **Save/cutover confusion** → new namespace eliminated the entire problem class
+- **Scope drift** → feature gates kept 4 disabled systems from interfering
+
+**Takeaway:** Spend 15 minutes identifying risks and writing one-sentence controls before starting a multi-phase plan. The exercise forces you to think about what can go wrong while you can still prevent it cheaply.
+
+#### 9. Phase checkpoints enabled natural scope migration
+The plan allocated XP tables and stat gains to Phase 3, but they got done naturally in Phase 2 (because the stat engine was open anyway). Phase 3 shrank to just BossManager + BossChallenge. Phase 6 had many items pre-done from earlier phases. The plan was accurate for total scope but not per-phase allocation — and that was fine. Phase boundaries served as review checkpoints, not rigid contracts.
+
+**Takeaway:** Plan phases by theme (data, combat, bosses, loot, UI, balance), not by rigid task lists. Tasks will naturally migrate to whichever phase has the file open. The phase boundary's job is to force a pause-and-check, not to be a contract.
+
+### Mistakes Made
+
+#### 1. The DoT bug survived 2 phases undetected
+DoT was implemented in Phase 2 reading `enemy.dot.dmgPerSec`. In Phase 5, enemy data was authored with `dot` as a plain number (not an object). DoT silently dealt 0 damage from Phase 5 through Phase 7. The bug was invisible because DoT enemies still died from normal player attacks — the player just took less damage than designed.
+
+This is exactly the class of bug that automated tests would catch. A single test — `expect(dotDamage(enemy)).toBeGreaterThan(0)` — would have failed immediately when the data format changed.
+
+**Takeaway:** Silent failures in secondary mechanics are the hardest bugs to catch without tests. If a mechanic can fail to 0 without crashing, it **will** fail to 0 without anyone noticing. The balance sim eventually caught it, but 2 phases late. Priority test targets: any damage path that can silently produce 0.
+
+#### 2. Balance sim was written last instead of first
+The sim was created in Phase 7 (the final phase) as a validation tool. It should have been created in Phase 1 alongside the data validator. If the sim had existed when Phase 2 (combat engine) was completed, the ATK/XP imbalance would have been caught immediately instead of propagating through 5 phases of content authoring with wrong assumptions.
+
+Worse: the Phase 5 content was authored using the original conventions (XP = HP, ATK = original values). When the sim revealed these were wrong in Phase 7, every enemy and boss needed individual stat updates (ATK ×3/×3.5, XP ×0.25/×0.5). If the sim existed first, the conventions would have been correct from the start.
+
+**Takeaway:** The balance sim is a development tool, not a QA tool. Write it when you write the combat formulas, not when you're done with content. Convention → Sim → Validate → Author content. Not: Convention → Author content → Sim → Discover conventions were wrong → Re-author content.
+
+#### 3. Convention changes required batch updates
+When the Phase 7 balance pass changed conventions (ATK ×3, XP ×0.25), every entity authored under the old conventions needed individual updates. 18 enemies and 30 bosses had to be touched. The formulas were simple multipliers, but applying them manually to 48 entities was tedious and error-prone.
+
+The existing conventions entry in DECISIONS.md was updated with a "SUPERSEDED" note, which was good. But there was no tooling to propagate the change — it was all manual.
+
+**Takeaway:** If content authoring is formula-based, store the formula parameters in one place and derive the values, rather than baking computed values into each entity. Alternatively, write a script that can re-derive values from formulas when conventions change. The authoring convention should be the formula, not the result.
+
+#### 4. Dead code accumulated without a cleanup pass
+The pivot created dead code at every phase:
+- V1 constants in `config.js` (COMBAT, PROGRESSION, DAMAGE_FORMULAS) — still defined, zero runtime imports
+- `getBossType()`, `getStrongestEnemy()`, `getBossDropMultiplier()` in `areas.js` — from V1 boss auto-generation, bypassed by Phase 3
+- `UpgradeManager.getAutoAttackInterval()` — ownership transferred to ComputedStats in Phase 2, never deleted
+- Per-area loot tables duplicated in both `enemies.js` and `bosses.js` — LootEngine V2 doesn't read them at all
+- 33-key `Store.equipped` object when only 7 keys are used at runtime
+
+Every item is documented in CURRENT_FOCUS open loops, which is better than undocumented dead code. But documenting dead code is not the same as removing it. The cleanup pass was always "next" and never happened.
+
+**Takeaway:** Schedule a dead code cleanup at the end of the pivot, before moving to playtesting. Dead code that survives into the "ship it" phase tends to survive forever. The documented open loops in CURRENT_FOCUS are a ready-made cleanup checklist — use it.
+
+#### 5. No playtest gate in the plan
+Phases 0-7 were all code and data work. Playtesting appears only as a post-plan "next step." This meant 7 phases of mechanical work before any human feel-validation. The balance sim partially compensated (it caught formula-level problems), but it can't catch feel problems: Is the pace satisfying? Do drops feel rewarding? Is the boss challenge timing right? Does DoT feel threatening or just annoying?
+
+**Takeaway:** Insert a lightweight playtest checkpoint after the first area is mechanically complete (Phase 3 in this plan). It doesn't need to be formal — 15 minutes of playing through Area 1 would have caught the DoT bug, validated combat feel, and informed Phases 4-7. The balance sim validates math; only human play validates fun.
+
+#### 6. Sprites deferred to "later" and never happened
+Phase 5 authored 15 enemies and 25 bosses, all with `sprites: null`. The plan noted "Map placeholder sprites for all new enemies" as Phase 5 step 3, marked with a checkbox. It was never completed. Two phases later, the vertical slice is declared "shippable" but 83% of enemies render as colored rectangles.
+
+**Takeaway:** Visual placeholders matter more than you think for playtesting. A red rectangle doesn't communicate "Blight Stalker Evolved with DoT" — it communicates "placeholder." Even crude 2-color silhouettes would improve playtest quality. If sprites are deferred, set a hard gate: the slice is not "shippable" until enemies are visually distinguishable.
 
 ---
 
@@ -103,18 +211,39 @@ Some values are Decimal objects (gold, XP, HP), others are plain numbers (enemy 
 |---------|-----------|--------------|
 | Memory governance (CLAUDE.md + .memory/) | Project root | Cross-session continuity without tooling overhead |
 | Canonical event registry | events.js | Prevents ad-hoc string drift, enables validation |
-| EventScope | events.js → all systems | Groups subscriptions, prevents leaks on destroy |
+| EventScope | events.js + all systems | Groups subscriptions, prevents leaks on destroy |
 | Store mutation boundary | Store.js | Single write path = audit trail + event hooks |
 | ComputedStats pure functions | ComputedStats.js | One formula per derived value, zero duplication |
 | ModalPanel base class | ui/ModalPanel.js | Shared lifecycle eliminates 100+ lines per panel |
 | Stored result pattern | OfflineProgress.js | Producer stores, consumer reads when ready |
 | Data-driven triggers | dialogue.js + DialogueManager | Content in data files, logic in systems |
 | Phased redesign | Codebase Redesign Plan.md | Always-playable constraint prevents rewrite hell |
+| Feature gates | config/features.js | Boolean flags disable systems without deleting code |
+| Fresh save namespace on pivot | SaveManager.js | Avoids migration complexity for fundamental model changes |
+| Data validator | scripts/validate-data.js | Catches cross-reference and schema bugs at scale |
+| Balance simulation | scripts/balance-sim.js | Math-first validation before manual playtesting |
+| Authoring conventions | DECISIONS.md | Locked formulas make bulk content authoring systematic |
+| Risk identification upfront | Redesign Plan.md | 15 minutes of risk analysis prevents days of firefighting |
+
+---
+
+## Meta-Lesson: How the Two Phases Relate
+
+The codebase redesign and the GDD pivot were different kinds of work, but the second was only possible because of the first.
+
+The redesign created **replaceable modules** — Store holds state, ComputedStats derives values, CombatEngine runs combat, LootEngine rolls loot, Progression grants rewards. Each module has a clear API boundary and communicates through events.
+
+The pivot **replaced the internals** of those modules while keeping the boundaries stable. V2 combat formulas went into CombatEngine. V2 stat models went into Store + ComputedStats. V2 loot logic went into LootEngine. The UI code barely changed because it read from the same APIs.
+
+This is the strongest argument for doing architectural cleanup early: **you can't predict what will change, but you can make change cheap.** The redesign didn't know a GDD pivot was coming. It just made the code modular. When the pivot arrived, modularity was the difference between a 7-phase incremental replacement and a full rewrite.
+
+**The lesson is not "always redesign first." The lesson is: if your architecture makes it scary to change one system without breaking others, fix that before adding more systems.** The redesign cost ~9 sessions. The pivot cost ~7 sessions. Without the redesign, the pivot would have cost 15-20+ sessions — and probably would have been abandoned halfway.
 
 ---
 
 ## What To Do Differently On The Next Project
 
+### From the Redesign
 1. **Redesign at phase 3, not phase 8.** Schedule a structural checkpoint after the core loop works.
 2. **Tests for math and migrations.** 10 unit tests would catch 80% of the bugs that matter.
 3. **Extract GameScene early.** Visual rendering should be split into composable modules (parallax, combat renderer, damage display) before it hits 500 lines.
@@ -122,3 +251,12 @@ Some values are Decimal objects (gold, XP, HP), others are plain numbers (enemy 
 5. **Wire it or delete it.** No data entries for unimplemented mechanics. "Deferred" belongs in a TODO, not in the game.
 6. **Update ARCHITECTURE.md during the same session as architectural changes.** Treat it like a test — if it's out of date, the change isn't done.
 7. **Config-ify visual layout.** Every hardcoded pixel position is a future bug.
+
+### From the Pivot
+8. **Write the balance sim before content, not after.** Convention → Sim → Validate → Author. The sim is a development tool, not a QA tool.
+9. **Insert a playtest checkpoint after Area 1 is complete.** 15 minutes of play catches what math can't.
+10. **Store formulas, not results.** If entities are formula-derived, keep the formula parameterized so convention changes are a one-line fix, not a 48-entity batch update.
+11. **Feature gates on day one.** Every non-core system should have a boolean kill switch from inception.
+12. **Schedule the dead code cleanup.** Document it in open loops AND schedule a cleanup phase. Documentation without a deadline is just a graveyard with nice headstones.
+13. **Sprites before "shippable."** Visual identity matters for playtesting. Colored rectangles undermine feel-testing. Set a visual bar for "shippable" that's higher than "it doesn't crash."
+14. **Test any damage path that can silently produce 0.** If a mechanic's failure mode is "deals no damage but nothing crashes," it will fail undetected. These are the highest-priority test candidates.

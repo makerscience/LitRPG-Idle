@@ -3,6 +3,7 @@ import BootScene from './scenes/BootScene.js';
 import GameScene from './scenes/GameScene.js';
 import UIScene from './scenes/UIScene.js';
 import { WORLD } from './config.js';
+import { FEATURES } from './config/features.js';
 import Store from './systems/Store.js';
 import SaveManager from './systems/SaveManager.js';
 import TimeEngine from './systems/TimeEngine.js';
@@ -10,10 +11,10 @@ import CombatEngine from './systems/CombatEngine.js';
 import LootEngine from './systems/LootEngine.js';
 import InventorySystem from './systems/InventorySystem.js';
 import UpgradeManager from './systems/UpgradeManager.js';
-import CheatManager from './systems/CheatManager.js';
-import PrestigeManager from './systems/PrestigeManager.js';
-import TerritoryManager from './systems/TerritoryManager.js';
 import OfflineProgress from './systems/OfflineProgress.js';
+
+// Conditional imports for gated systems
+import TerritoryManager from './systems/TerritoryManager.js';
 import OverworldScene from './scenes/OverworldScene.js';
 
 // ── Boot sequence ───────────────────────────────────────────────────
@@ -21,8 +22,11 @@ Store.init();
 SaveManager.init(Store);
 TimeEngine.init();
 LootEngine.init();
-TerritoryManager.init();
+if (FEATURES.territoryEnabled) TerritoryManager.init();
 OfflineProgress.apply();
+
+const scenes = [BootScene, GameScene, UIScene];
+if (FEATURES.territoryEnabled) scenes.push(OverworldScene);
 
 const config = {
   type: Phaser.AUTO,
@@ -30,12 +34,13 @@ const config = {
   height: WORLD.height,
   parent: 'game',
   backgroundColor: '#1a1a1a',
+  roundPixels: true,
   scale: {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
   physics: { default: false },
-  scene: [BootScene, GameScene, UIScene, OverworldScene],
+  scene: scenes,
 };
 
 const game = new Phaser.Game(config);
@@ -49,8 +54,6 @@ if (import.meta.env.DEV) {
   window.LootEngine = LootEngine;
   window.InventorySystem = InventorySystem;
   window.UpgradeManager = UpgradeManager;
-  window.CheatManager = CheatManager;
-  window.PrestigeManager = PrestigeManager;
-  window.TerritoryManager = TerritoryManager;
   window.OfflineProgress = OfflineProgress;
+  if (FEATURES.territoryEnabled) window.TerritoryManager = TerritoryManager;
 }
