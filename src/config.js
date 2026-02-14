@@ -115,6 +115,7 @@ export const COMBAT_V2 = {
     const effDef = playerDef * (1 - armorPen);
     return Math.max(dmg - (effDef * 0.5), 1);
   },
+  baseAttackIntervalMs: 2000,
   playerBaseAtkSpeed: 1.0,
   spawnDelay: 1000,
   playerDeathRespawnDelay: 1500,

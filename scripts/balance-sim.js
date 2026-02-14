@@ -103,9 +103,9 @@ function getAtkSpeed() {
 
 function getAutoAttackInterval() {
   const speed = getAtkSpeed();
-  const baseInterval = 1000 / speed;
+  const baseInterval = 2000 / speed;
   const speedBonus = getUpgradeMultiplier('autoAttackSpeed') - 1;
-  return Math.max(200, Math.floor(baseInterval * (1 - speedBonus)));
+  return Math.max(400, Math.floor(baseInterval * (1 - speedBonus)));
 }
 
 // ── Upgrade helpers ────────────────────────────────────────────────────
@@ -191,7 +191,7 @@ function combatStats(enemyHp, enemyAtk, enemyAtkSpeed, enemyDef, enemyArmorPen, 
 
   // Enemy DPS
   const dmgPerEnemyHit = enemyDamage(enemyAtk, enemyArmorPen);
-  const enemyInterval = Math.max(0.2, 1 / enemyAtkSpeed);
+  const enemyInterval = Math.max(0.4, 2 / enemyAtkSpeed);
   const enemyDps = dmgPerEnemyHit / enemyInterval;
 
   // DoT is flat, bypasses defense

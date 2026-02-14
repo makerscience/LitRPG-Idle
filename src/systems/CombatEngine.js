@@ -116,7 +116,7 @@ const CombatEngine = {
   _registerEnemyAttackTimer() {
     if (!currentEnemy) return;
     const speed = currentEnemy.attackSpeed ?? 1.0;
-    const interval = Math.max(200, Math.floor(1000 / speed));
+    const interval = Math.max(400, Math.floor(COMBAT_V2.baseAttackIntervalMs / speed));
     TimeEngine.register(
       'combat:enemyAttack',
       () => CombatEngine.enemyAttack(),

@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## 2026-02-14 — Halve Attack Rate (baseAttackIntervalMs)
+- **Combat pacing**: all auto-attack and enemy attack intervals doubled (attacks happen half as often) via new `COMBAT_V2.baseAttackIntervalMs = 2000` constant
+- **Minimum interval floor**: raised from 200ms to 400ms for both player and enemies
+- **Balance preserved**: survival ratios unchanged (both sides slowed equally); all 30 bosses still pass
+
+---
+
 ## 2026-02-14 — Background Music + Volume Settings
 - **Background music**: ambient progression track loops automatically on game start via HTML5 Audio streaming (handles autoplay policy with retry on first click)
 - **Volume slider in Settings**: clickable/draggable horizontal bar with real-time percentage readout; changes apply instantly to audio

@@ -89,12 +89,12 @@ export function getPlayerAtkSpeed() {
 /** Player auto-attack interval in ms (gear speed + upgrade/territory bonuses). Floor 200ms. */
 export function getPlayerAutoAttackInterval() {
   const effectiveSpeed = getPlayerAtkSpeed();
-  const baseInterval = Math.floor(1000 / effectiveSpeed);
+  const baseInterval = Math.floor(COMBAT_V2.baseAttackIntervalMs / effectiveSpeed);
   // Apply upgrade and territory speed bonuses as reduction
   const speedBonus = UpgradeManager.getMultiplier('autoAttackSpeed') - 1;
   const territoryBonus = TerritoryManager.getBuffValue('autoAttackSpeed');
   const interval = baseInterval * (1 - speedBonus - territoryBonus);
-  return Math.max(200, Math.floor(interval));
+  return Math.max(400, Math.floor(interval));
 }
 
 /** Auto-attack interval in ms (delegates to getPlayerAutoAttackInterval). */

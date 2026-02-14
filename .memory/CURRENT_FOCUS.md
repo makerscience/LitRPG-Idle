@@ -49,14 +49,12 @@
 ---
 
 ## Last Session Summary (max ~8 bullets)
-- Added background music: `Sound/soundtrack/ambient progression.mp3` streams via HTML5 Audio element in GameScene (not Phaser Web Audio — file is 207MB/2.5hr, too large to decode into memory)
-- Added `Store.updateSetting(key, value)` generic mutation for settings with STATE_CHANGED emit
-- Added `musicVolume: 0.5` default to Store settings (old saves auto-merge via hydration)
-- GameScene subscribes to STATE_CHANGED to sync `_bgm.volume` in real-time; handles autoplay policy with retry on first click
-- SettingsPanel now has a SOUND section with clickable/draggable volume slider (200px track, green fill, percentage label)
-- Panel height increased from 340 to 420 to fit the new controls; danger zone pushed down
-- BGM cleaned up on scene shutdown (pause + clear src)
-- Files modified: `src/systems/Store.js`, `src/scenes/GameScene.js`, `src/ui/SettingsPanel.js`, `CHANGELOG.md`
+- Halved attack rate: introduced `COMBAT_V2.baseAttackIntervalMs = 2000` (was hardcoded `1000`)
+- Player and enemy auto-attack intervals now use this constant instead of hardcoded 1000
+- Minimum attack interval floor raised from 200ms → 400ms (player and enemies)
+- Balance sim updated with matching `2000` literal (standalone, no config import for this value)
+- All 30 bosses still pass; survival ratios unchanged (both sides slowed equally)
+- Files modified: `src/config.js`, `src/systems/ComputedStats.js`, `src/systems/CombatEngine.js`, `scripts/balance-sim.js`
 
 ## Pinned References
 - Governance rules: `CLAUDE.md`
