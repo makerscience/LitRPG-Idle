@@ -8,7 +8,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "validate:data": "node scripts/validate-data.js",
-    "balance:sim": "node scripts/balance-sim.js"
+    "balance:sim": "node scripts/balance-sim.js",
+    "thumbs": "node scripts/generate-thumbs.js"
   },
   "repository": {
     "type": "git",

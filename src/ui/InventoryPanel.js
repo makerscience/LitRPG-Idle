@@ -1,6 +1,7 @@
 // InventoryPanel — modal overlay for inventory and equipment.
 // Toggle via BAG button or I key. Silhouette equipment screen on left, inventory grid on right.
 
+import Phaser from 'phaser';
 import ModalPanel from './ModalPanel.js';
 import { EVENTS } from '../events.js';
 import { COLORS } from '../config.js';
@@ -20,13 +21,13 @@ const PANEL_H = 560;
 // Grid constants (inventory grid, right side)
 const GRID_COLS = 5;
 const GRID_ROWS = 4;
-const SLOT_SIZE = 64;
+const SLOT_SIZE = 86;
 const SLOT_GAP = 6;
-const SLOT_STEP = SLOT_SIZE + SLOT_GAP; // 70px
+const SLOT_STEP = SLOT_SIZE + SLOT_GAP;
 
-// Equipment slot dimensions (boxes around silhouette — enlarged for 7-slot V2 layout)
-const EQ_W = SLOT_SIZE;
-const EQ_H = SLOT_SIZE;
+// Equipment slot dimensions
+const EQ_W = 72;
+const EQ_H = 72;
 const EQ_GAP = 6;
 
 // Accessory slot dimensions (bottom row)
@@ -272,7 +273,7 @@ export default class InventoryPanel extends ModalPanel {
     const borderWidth = item ? 2 : 1;
 
     const bg = this.scene.add.rectangle(
-      x + EQ_W / 2, y + EQ_H / 2, EQ_W, EQ_H, 0x1a1a1a
+      x + EQ_W / 2, y + EQ_H / 2, EQ_W, EQ_H, 0x3a3a4e
     );
     bg.setStrokeStyle(borderWidth, rarityColor);
     bg.setInteractive({ useHandCursor: !!item });
@@ -290,6 +291,7 @@ export default class InventoryPanel extends ModalPanel {
         const thumb = this.scene.add.image(
           x + EQ_W / 2, y + EQ_H / 2, item.thumbnail
         );
+        thumb.texture.setFilter(Phaser.Textures.FilterMode.LINEAR);
         thumb.setDisplaySize(EQ_H - 6, EQ_H - 6);
         this._dynamicObjects.push(thumb);
       } else {
@@ -332,7 +334,7 @@ export default class InventoryPanel extends ModalPanel {
     const borderWidth = item ? 2 : 1;
 
     const bg = this.scene.add.rectangle(
-      x + ACC_W / 2, y + ACC_H / 2, ACC_W, ACC_H, 0x1a1a1a
+      x + ACC_W / 2, y + ACC_H / 2, ACC_W, ACC_H, 0x3a3a4e
     );
     bg.setStrokeStyle(borderWidth, rarityColor);
     bg.setInteractive({ useHandCursor: !!item });
@@ -392,7 +394,7 @@ export default class InventoryPanel extends ModalPanel {
     const sellW = 56;
     const sellH = 38;
     const sellBg = this.scene.add.rectangle(
-      sellX + sellW / 2, sellY + sellH / 2, sellW, sellH, 0x1a1a1a
+      sellX + sellW / 2, sellY + sellH / 2, sellW, sellH, 0x3a3a4e
     );
     sellBg.setStrokeStyle(1, 0x8b5e1a);
     this._dynamicObjects.push(sellBg);
@@ -432,7 +434,7 @@ export default class InventoryPanel extends ModalPanel {
     const borderColor = isSelected ? 0xffffff : rarityColor;
 
     const bg = this.scene.add.rectangle(
-      x + SLOT_SIZE / 2, y + SLOT_SIZE / 2, SLOT_SIZE, SLOT_SIZE, 0x1a1a1a
+      x + SLOT_SIZE / 2, y + SLOT_SIZE / 2, SLOT_SIZE, SLOT_SIZE, 0x3a3a4e
     );
     bg.setStrokeStyle(borderWidth, borderColor);
     bg.setInteractive({ useHandCursor: true });
@@ -451,6 +453,7 @@ export default class InventoryPanel extends ModalPanel {
       const thumb = this.scene.add.image(
         x + SLOT_SIZE / 2, y + SLOT_SIZE / 2, item.thumbnail
       );
+      thumb.texture.setFilter(Phaser.Textures.FilterMode.LINEAR);
       thumb.setDisplaySize(SLOT_SIZE - 12, SLOT_SIZE - 12);
       this._dynamicObjects.push(thumb);
     } else {
@@ -518,7 +521,8 @@ export default class InventoryPanel extends ModalPanel {
       this._dragData = { stackKey, equipSlotId, count };
       if (item.thumbnail && this.scene.textures.exists(item.thumbnail)) {
         this._dragGhost = this.scene.add.image(pointer.x, pointer.y, item.thumbnail);
-        this._dragGhost.setDisplaySize(SLOT_SIZE - 12, SLOT_SIZE - 12);
+        this._dragGhost.texture.setFilter(Phaser.Textures.FilterMode.LINEAR);
+        this._dragGhost.setDisplaySize((SLOT_SIZE - 12) * 1.5, (SLOT_SIZE - 12) * 1.5);
       } else {
         this._dragGhost = this.scene.add.text(pointer.x, pointer.y, item.name, {
           fontFamily: 'monospace', fontSize: '12px',
@@ -538,7 +542,7 @@ export default class InventoryPanel extends ModalPanel {
       if (this._sellZone) {
         const over = this._sellZone.getBounds().contains(pointer.x, pointer.y);
         this._sellZone.setStrokeStyle(over ? 3 : 2, 0xeab308);
-        this._sellZone.setFillStyle(over ? 0x3d2a0a : 0x1a1a1a);
+        this._sellZone.setFillStyle(over ? 0x3d2a0a : 0x3a3a4e);
       }
     });
 
@@ -556,7 +560,7 @@ export default class InventoryPanel extends ModalPanel {
         if (this._selectedItemId === data.stackKey) this._selectedItemId = null;
         if (data.equipSlotId) this._unhighlightEquipSlot(data.equipSlotId);
         this._sellZone.setStrokeStyle(1, 0x8b5e1a);
-        this._sellZone.setFillStyle(0x1a1a1a);
+        this._sellZone.setFillStyle(0x3a3a4e);
         if (this._refreshPending) { this._refreshPending = false; this._refresh(); }
         return;
       }
@@ -574,7 +578,7 @@ export default class InventoryPanel extends ModalPanel {
       // Reset sell zone style
       if (this._sellZone) {
         this._sellZone.setStrokeStyle(1, 0x8b5e1a);
-        this._sellZone.setFillStyle(0x1a1a1a);
+        this._sellZone.setFillStyle(0x3a3a4e);
       }
 
       // Flush any refresh that was deferred while dragging
@@ -587,7 +591,7 @@ export default class InventoryPanel extends ModalPanel {
 
   _createEmptySlot(x, y) {
     const bg = this.scene.add.rectangle(
-      x + SLOT_SIZE / 2, y + SLOT_SIZE / 2, SLOT_SIZE, SLOT_SIZE, 0x1a1a1a
+      x + SLOT_SIZE / 2, y + SLOT_SIZE / 2, SLOT_SIZE, SLOT_SIZE, 0x3a3a4e
     );
     bg.setStrokeStyle(1, 0x333333);
     this._dynamicObjects.push(bg);

@@ -31,6 +31,7 @@ const ITEMS = {
     statBonuses: { str: 0, def: 3, hp: 10, regen: 0, atkSpeed: 0, atk: 0 },
     sellValue: 5,
     mergesInto: null,
+    thumbnail: 'armor001_hide',
   },
   a1_bone_fragment_helm: {
     id: 'a1_bone_fragment_helm',
@@ -44,6 +45,7 @@ const ITEMS = {
     statBonuses: { str: 0, def: 2, hp: 5, regen: 0, atkSpeed: 0, atk: 0 },
     sellValue: 4,
     mergesInto: null,
+    thumbnail: 'helm001_bonefragment',
   },
 
   // ── Area 1 — Uncommon ─────────────────────────────────────────────
@@ -59,6 +61,7 @@ const ITEMS = {
     statBonuses: { str: 4, def: 1, hp: 0, regen: 0, atkSpeed: 0, atk: 4 },
     sellValue: 12,
     mergesInto: null,
+    thumbnail: 'weapon001_boneshardblade',
   },
   a1_thick_pelt_vest: {
     id: 'a1_thick_pelt_vest',
@@ -72,6 +75,7 @@ const ITEMS = {
     statBonuses: { str: 0, def: 4, hp: 15, regen: 0, atkSpeed: 0, atk: 0 },
     sellValue: 14,
     mergesInto: null,
+    thumbnail: 'armor001_pelt',
   },
   a1_hound_skull_cap: {
     id: 'a1_hound_skull_cap',
@@ -85,6 +89,7 @@ const ITEMS = {
     statBonuses: { str: 0, def: 3, hp: 8, regen: 0, atkSpeed: 0, atk: 0 },
     sellValue: 10,
     mergesInto: null,
+    thumbnail: 'helm001_houndskull',
   },
 
   // ── Area 2 — Common Tier 1 (zones 6-10) ───────────────────────────
@@ -100,6 +105,7 @@ const ITEMS = {
     statBonuses: { str: 7, def: 0, hp: 0, regen: 0, atkSpeed: 0, atk: 7 },
     sellValue: 10,
     mergesInto: null,
+    thumbnail: 'weapon002_salvagedcleaver',
   },
   a2_patched_leather_vest: {
     id: 'a2_patched_leather_vest',
@@ -113,6 +119,7 @@ const ITEMS = {
     statBonuses: { str: 0, def: 6, hp: 20, regen: 0, atkSpeed: 0, atk: 0 },
     sellValue: 10,
     mergesInto: null,
+    thumbnail: 'armor002_patchedleathervest',
   },
   a2_hardened_leather_hood: {
     id: 'a2_hardened_leather_hood',
@@ -126,6 +133,7 @@ const ITEMS = {
     statBonuses: { str: 0, def: 4, hp: 10, regen: 0, atkSpeed: 0, atk: 0 },
     sellValue: 8,
     mergesInto: null,
+    thumbnail: 'helm002_leatherhood',
   },
   a2_stitched_hide_leggings: {
     id: 'a2_stitched_hide_leggings',
@@ -139,6 +147,7 @@ const ITEMS = {
     statBonuses: { str: 0, def: 4, hp: 12, regen: 0, atkSpeed: 0, atk: 0 },
     sellValue: 9,
     mergesInto: null,
+    thumbnail: 'legs001_stitchedleggings',
   },
   a2_worn_travelers_boots: {
     id: 'a2_worn_travelers_boots',
@@ -152,6 +161,7 @@ const ITEMS = {
     statBonuses: { str: 0, def: 2, hp: 5, regen: 0, atkSpeed: 0, atk: 0 },
     sellValue: 8,
     mergesInto: null,
+    thumbnail: 'boots001_worntravelersboots',
   },
 
   // ── Area 2 — Common Tier 2 (zones 11-15) ──────────────────────────
@@ -167,6 +177,7 @@ const ITEMS = {
     statBonuses: { str: 9, def: 0, hp: 0, regen: 0, atkSpeed: 0, atk: 9 },
     sellValue: 16,
     mergesInto: null,
+    thumbnail: 'weapon002_sharpenedvcleaver',
   },
   a2_reinforced_leather_vest: {
     id: 'a2_reinforced_leather_vest',
@@ -180,6 +191,7 @@ const ITEMS = {
     statBonuses: { str: 0, def: 8, hp: 28, regen: 0, atkSpeed: 0, atk: 0 },
     sellValue: 18,
     mergesInto: null,
+    thumbnail: 'armor002_reinforcedleathervest',
   },
   a2_boiled_leather_hood: {
     id: 'a2_boiled_leather_hood',
@@ -193,6 +205,7 @@ const ITEMS = {
     statBonuses: { str: 0, def: 5, hp: 14, regen: 0, atkSpeed: 0, atk: 0 },
     sellValue: 14,
     mergesInto: null,
+    thumbnail: 'helm002_boiledleatherhood',
   },
   a2_thick_hide_leggings: {
     id: 'a2_thick_hide_leggings',
@@ -206,6 +219,7 @@ const ITEMS = {
     statBonuses: { str: 0, def: 5, hp: 16, regen: 0, atkSpeed: 0, atk: 0 },
     sellValue: 15,
     mergesInto: null,
+    thumbnail: 'legs001_thickhideleggings',
   },
   a2_mended_travelers_boots: {
     id: 'a2_mended_travelers_boots',
@@ -219,6 +233,7 @@ const ITEMS = {
     statBonuses: { str: 0, def: 3, hp: 8, regen: 0, atkSpeed: 0, atk: 0 },
     sellValue: 12,
     mergesInto: null,
+    thumbnail: 'boots001_mendedtravelersboots',
   },
 
   // ── Area 2 — Uncommon (zones 8-15) ────────────────────────────────
@@ -234,6 +249,7 @@ const ITEMS = {
     statBonuses: { str: 11, def: 0, hp: 0, regen: 0, atkSpeed: 0.05, atk: 11 },
     sellValue: 35,
     mergesInto: null,
+    thumbnail: 'weapon002_frontierhatchet',
   },
   a2_rangers_coat: {
     id: 'a2_rangers_coat',
@@ -247,6 +263,7 @@ const ITEMS = {
     statBonuses: { str: 0, def: 10, hp: 35, regen: 0, atkSpeed: 0, atk: 0 },
     sellValue: 38,
     mergesInto: null,
+    thumbnail: 'armor002_rangerscoat',
   },
   a2_scouts_halfhelm: {
     id: 'a2_scouts_halfhelm',
@@ -260,6 +277,7 @@ const ITEMS = {
     statBonuses: { str: 0, def: 7, hp: 18, regen: 0.2, atkSpeed: 0, atk: 0 },
     sellValue: 32,
     mergesInto: null,
+    thumbnail: 'helm002_scoutshelfhelm',
   },
   a2_reinforced_trousers: {
     id: 'a2_reinforced_trousers',
@@ -273,6 +291,7 @@ const ITEMS = {
     statBonuses: { str: 0, def: 7, hp: 22, regen: 0, atkSpeed: 0, atk: 0 },
     sellValue: 30,
     mergesInto: null,
+    thumbnail: 'legs001_reinforcedtrousers',
   },
   a2_wayfinder_boots: {
     id: 'a2_wayfinder_boots',
@@ -286,6 +305,7 @@ const ITEMS = {
     statBonuses: { str: 0, def: 3, hp: 0, regen: 0, atkSpeed: 0.05, atk: 0 },
     sellValue: 28,
     mergesInto: null,
+    thumbnail: 'boots001_wayfinderboots',
   },
 
   // ── Area 3 — Common Tier A (zones 16-20) ──────────────────────────
@@ -301,6 +321,7 @@ const ITEMS = {
     statBonuses: { str: 13, def: 0, hp: 0, regen: 0, atkSpeed: 0, atk: 13 },
     sellValue: 22,
     mergesInto: null,
+    thumbnail: 'weapon003_reclaimedshortsword',
   },
   a3_road_wardens_hauberk: {
     id: 'a3_road_wardens_hauberk',
@@ -314,6 +335,7 @@ const ITEMS = {
     statBonuses: { str: 0, def: 11, hp: 38, regen: 0, atkSpeed: 0, atk: 0 },
     sellValue: 24,
     mergesInto: null,
+    thumbnail: 'armor003_roadwardenshauberk',
   },
   a3_stone_carved_halfhelm: {
     id: 'a3_stone_carved_halfhelm',
@@ -327,6 +349,7 @@ const ITEMS = {
     statBonuses: { str: 0, def: 7, hp: 20, regen: 0, atkSpeed: 0, atk: 0 },
     sellValue: 18,
     mergesInto: null,
+    thumbnail: 'helm003_stone-carvedhalfhelm',
   },
   a3_road_wardens_greaves: {
     id: 'a3_road_wardens_greaves',
@@ -340,6 +363,7 @@ const ITEMS = {
     statBonuses: { str: 0, def: 7, hp: 24, regen: 0, atkSpeed: 0, atk: 0 },
     sellValue: 20,
     mergesInto: null,
+    thumbnail: 'legs002_roadwardensgreaves',
   },
   a3_ironshod_marching_boots: {
     id: 'a3_ironshod_marching_boots',
@@ -353,6 +377,7 @@ const ITEMS = {
     statBonuses: { str: 0, def: 4, hp: 10, regen: 0, atkSpeed: 0, atk: 0 },
     sellValue: 16,
     mergesInto: null,
+    thumbnail: 'boots002_ironshodmarchingboots',
   },
   a3_scavenged_gauntlets: {
     id: 'a3_scavenged_gauntlets',
@@ -366,6 +391,7 @@ const ITEMS = {
     statBonuses: { str: 3, def: 3, hp: 0, regen: 0, atkSpeed: 0, atk: 0 },
     sellValue: 16,
     mergesInto: null,
+    thumbnail: 'hands001_scavengedgauntlets',
   },
 
   // ── Area 3 — Common Tier B (zones 21-25) ──────────────────────────
@@ -381,6 +407,7 @@ const ITEMS = {
     statBonuses: { str: 17, def: 0, hp: 0, regen: 0, atkSpeed: 0, atk: 17 },
     sellValue: 32,
     mergesInto: null,
+    thumbnail: 'weapon003_sentinelsblade',
   },
   a3_sentinel_half_plate: {
     id: 'a3_sentinel_half_plate',
@@ -407,6 +434,7 @@ const ITEMS = {
     statBonuses: { str: 0, def: 9, hp: 26, regen: 0, atkSpeed: 0, atk: 0 },
     sellValue: 26,
     mergesInto: null,
+    thumbnail: 'helm003_sentinelsvisage',
   },
   a3_sentinel_greaves: {
     id: 'a3_sentinel_greaves',
@@ -433,6 +461,7 @@ const ITEMS = {
     statBonuses: { str: 0, def: 5, hp: 14, regen: 0, atkSpeed: 0, atk: 0 },
     sellValue: 22,
     mergesInto: null,
+    thumbnail: 'boots002_sentineltreads',
   },
   a3_sentinel_gauntlets: {
     id: 'a3_sentinel_gauntlets',
@@ -446,6 +475,7 @@ const ITEMS = {
     statBonuses: { str: 5, def: 4, hp: 0, regen: 0, atkSpeed: 0, atk: 0 },
     sellValue: 24,
     mergesInto: null,
+    thumbnail: 'hands001_sentinelgauntlets',
   },
   a3_cracked_hearthstone: {
     id: 'a3_cracked_hearthstone',
@@ -459,6 +489,7 @@ const ITEMS = {
     statBonuses: { str: 0, def: 0, hp: 15, regen: 0.4, atkSpeed: 0, atk: 0 },
     sellValue: 25,
     mergesInto: null,
+    thumbnail: 'amulet001_crackedhearthstone',
   },
 
   // ── Area 3 — Common Tier C (zones 26-30) ──────────────────────────
@@ -567,6 +598,7 @@ const ITEMS = {
     statBonuses: { str: 26, def: 6, hp: 0, regen: 0, atkSpeed: 0, atk: 26 },
     sellValue: 80,
     mergesInto: null,
+    thumbnail: 'weapon003_wardensoath',
   },
   a3_ancient_sentinel_plate: {
     id: 'a3_ancient_sentinel_plate',
@@ -619,6 +651,7 @@ const ITEMS = {
     statBonuses: { str: 0, def: 7, hp: 0, regen: 0, atkSpeed: 0.08, atk: 0 },
     sellValue: 55,
     mergesInto: null,
+    thumbnail: 'boots002_pathfindersstride',
   },
   a3_irongrip_gauntlets: {
     id: 'a3_irongrip_gauntlets',
@@ -632,6 +665,7 @@ const ITEMS = {
     statBonuses: { str: 9, def: 6, hp: 0, regen: 0, atkSpeed: 0, atk: 0 },
     sellValue: 65,
     mergesInto: null,
+    thumbnail: 'hands001_irongripgauntlets',
   },
   a3_heartstone_pendant: {
     id: 'a3_heartstone_pendant',

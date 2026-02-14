@@ -43,8 +43,42 @@ export default class BootScene extends Phaser.Scene {
     this.load.image('player001_walk1',          'Images/Player001_walk1.png');
     this.load.image('player001_walk3',          'Images/Player001_walk3.png');
 
-    // Equipment thumbnails
-    this.load.image('weapon001_sharpstick', 'Images/equipment/weapon001_sharpstick.png');
+    // Equipment thumbnails (128px pre-scaled for inventory/equip slots)
+    this.load.image('weapon001_sharpstick', 'Images/equipment/weapon001_sharpstick_thumb.png');
+    this.load.image('armor001_hide', 'Images/equipment/armor001_hide_thumb.png');
+    this.load.image('armor001_pelt', 'Images/equipment/armor001_pelt_thumb.png');
+    this.load.image('helm001_bonefragment', 'Images/equipment/helm001_bonefragment_thumb.png');
+    this.load.image('helm001_houndskull', 'Images/equipment/helm001_houndskull_thumb.png');
+    this.load.image('weapon001_boneshardblade', 'Images/equipment/weapon001_boneshardblade_thumb.png');
+    this.load.image('weapon002_salvagedcleaver', 'Images/equipment/weapon002_salvagedcleaver_thumb.png');
+    this.load.image('armor002_patchedleathervest', 'Images/equipment/armor002_patchedleathervest_thumb.png');
+    this.load.image('helm002_leatherhood', 'Images/equipment/helm002_leatherhood_thumb.png');
+    this.load.image('legs001_stitchedleggings', 'Images/equipment/legs001_stitchedleggings_thumb.png');
+    this.load.image('boots001_worntravelersboots', 'Images/equipment/boots001_worntravelersboots_thumb.png');
+    this.load.image('weapon002_frontierhatchet', 'Images/equipment/weapon002_frontierhatchet_thumb.png');
+    this.load.image('armor002_rangerscoat', 'Images/equipment/armor002_rangerscoat_thumb.png');
+    this.load.image('helm002_scoutshelfhelm', 'Images/equipment/helm002_scoutshelfhelm_thumb.png');
+    this.load.image('boots001_wayfinderboots', 'Images/equipment/boots001_wayfinderboots_thumb.png');
+    this.load.image('legs001_reinforcedtrousers', 'Images/equipment/legs001_reinforcedtrousers_thumb.png');
+    this.load.image('weapon002_sharpenedvcleaver', 'Images/equipment/weapon002_sharpenedvcleaver_thumb.png');
+    this.load.image('armor002_reinforcedleathervest', 'Images/equipment/armor002_reinforcedleathervest_thumb.png');
+    this.load.image('helm002_boiledleatherhood', 'Images/equipment/helm002_boiledleatherhood_thumb.png');
+    this.load.image('legs001_thickhideleggings', 'Images/equipment/legs001_thickhideleggings_thumb.png');
+    this.load.image('boots001_mendedtravelersboots', 'Images/equipment/boots001_mendedtravelersboots_thumb.png');
+    this.load.image('weapon003_reclaimedshortsword', 'Images/equipment/weapon003_reclaimedshortsword_thumb.png');
+    this.load.image('armor003_roadwardenshauberk', 'Images/equipment/armor003_roadwardenshauberk_thumb.png');
+    this.load.image('helm003_stone-carvedhalfhelm', 'Images/equipment/helm003_stone-carvedhalfhelm_thumb.png');
+    this.load.image('legs002_roadwardensgreaves', 'Images/equipment/legs002_roadwardensgreaves_thumb.png');
+    this.load.image('boots002_ironshodmarchingboots', 'Images/equipment/boots002_ironshodmarchingboots_thumb.png');
+    this.load.image('hands001_scavengedgauntlets', 'Images/equipment/hands001_scavengedgauntlets_thumb.png');
+    this.load.image('weapon003_sentinelsblade', 'Images/equipment/weapon003_sentinelsblade_thumb.png');
+    this.load.image('helm003_sentinelsvisage', 'Images/equipment/helm003_sentinelsvisage_thumb.png');
+    this.load.image('boots002_sentineltreads', 'Images/equipment/boots002_sentineltreads_thumb.png');
+    this.load.image('hands001_sentinelgauntlets', 'Images/equipment/hands001_sentinelgauntlets_thumb.png');
+    this.load.image('amulet001_crackedhearthstone', 'Images/equipment/amulet001_crackedhearthstone_thumb.png');
+    this.load.image('weapon003_wardensoath', 'Images/equipment/weapon003_wardensoath_thumb.png');
+    this.load.image('boots002_pathfindersstride', 'Images/equipment/boots002_pathfindersstride_thumb.png');
+    this.load.image('hands001_irongripgauntlets', 'Images/equipment/hands001_irongripgauntlets_thumb.png');
   }
 
   create() {
