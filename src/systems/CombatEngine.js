@@ -162,12 +162,11 @@ const CombatEngine = {
     if (!pool || pool.length === 0) return;
 
     const template = pool[Math.floor(Math.random() * pool.length)];
-    const zoneScale = getZoneScaling(zone);
 
-    const scaledHp = D(template.hp).times(zoneScale).floor();
-    const scaledAtk = Math.floor(template.attack * zoneScale);
-    const scaledGold = D(template.goldDrop).times(zoneScale).floor();
-    const scaledXp = D(template.xpDrop).times(zoneScale).floor();
+    const scaledHp = D(template.hp).times(getZoneScaling(zone, 'hp')).floor();
+    const scaledAtk = Math.floor(template.attack * getZoneScaling(zone, 'atk'));
+    const scaledGold = D(template.goldDrop).times(getZoneScaling(zone, 'gold')).floor();
+    const scaledXp = D(template.xpDrop).times(getZoneScaling(zone, 'xp')).floor();
 
     currentEnemy = {
       id: template.id,

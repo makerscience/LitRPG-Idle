@@ -294,7 +294,10 @@ console.log('');
 
 for (let globalZone = 1; globalZone <= 30; globalZone++) {
   const { areaId, localZone } = getAreaLocalZone(globalZone);
-  const zoneScale = getZoneScaling(localZone);
+  const hpScale = getZoneScaling(localZone, 'hp');
+  const atkScale = getZoneScaling(localZone, 'atk');
+  const goldScale = getZoneScaling(localZone, 'gold');
+  const xpScale = getZoneScaling(localZone, 'xp');
   const killThreshold = getBossKillThreshold(localZone);
   const boss = BOSSES.find(b => b.zone === globalZone);
   const enemies = getEnemiesForGlobalZone(globalZone);
@@ -308,14 +311,14 @@ for (let globalZone = 1; globalZone <= 30; globalZone++) {
     let totalHp = 0, totalAtk = 0, totalAtkSpd = 0, totalDef = 0, totalArmorPen = 0, totalDot = 0;
     let totalGold = 0, totalXp = 0;
     for (const e of enemies) {
-      totalHp += Math.floor(e.hp * zoneScale);
-      totalAtk += Math.floor(e.attack * TUNE.enemyAtkMult * zoneScale);
+      totalHp += Math.floor(e.hp * hpScale);
+      totalAtk += Math.floor(e.attack * TUNE.enemyAtkMult * atkScale);
       totalAtkSpd += e.attackSpeed;
       totalDef += e.defense || 0;
       totalArmorPen += e.armorPen || 0;
       totalDot += e.dot || 0;
-      totalGold += Math.floor(e.goldDrop * TUNE.goldMult * zoneScale);
-      totalXp += Math.floor(e.xpDrop * TUNE.enemyXpMult * zoneScale);
+      totalGold += Math.floor(e.goldDrop * TUNE.goldMult * goldScale);
+      totalXp += Math.floor(e.xpDrop * TUNE.enemyXpMult * xpScale);
     }
     const n = enemies.length;
     const avgHp = totalHp / n;

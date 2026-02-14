@@ -7,14 +7,10 @@ export default class BootScene extends Phaser.Scene {
   }
 
   preload() {
-    this.load.image('goblin001_default',  'Images/goblin001_default.png');
-    this.load.image('goblin001_reaction', 'Images/goblin001_reaction.png');
-    this.load.image('goblin001_attack',   'Images/goblin001_attack.png');
-    this.load.image('goblin001_dead',     'Images/goblin001_dead.png');
-    this.load.image('slime001_default',   'Images/slime001_default.png');
-    this.load.image('slime001_reaction',  'Images/slime001_reaction.png');
-    this.load.image('slime001_attack',    'Images/slime001_attack.png');
-    this.load.image('slime001_dead',      'Images/slime001_dead.png');
+    this.load.image('slime001_default',   'Images/Enemies/area1/slime001_default.png');
+    this.load.image('slime001_reaction',  'Images/Enemies/area1/slime001_reaction.png');
+    this.load.image('slime001_attack',    'Images/Enemies/area1/slime001_attack.png');
+    this.load.image('slime001_dead',      'Images/Enemies/area1/slime001_dead.png');
     this.load.image('bg002_rear',   'Images/background002_rear.png');
     this.load.image('bg002_mid',    'Images/background002_mid.png');
     this.load.image('bg002_front',  'Images/background002_front.png');
@@ -27,10 +23,20 @@ export default class BootScene extends Phaser.Scene {
     this.load.image('fg_tree002',   'Images/foreground001_tree002.png');
     this.load.image('fg_tree003',   'Images/foreground001_tree003.png');
     this.load.image('fg_tree004',   'Images/foreground001_tree004.png');
-    this.load.image('forestrat001_default',  'Images/forestrat001_default.png');
-    this.load.image('forestrat001_reaction', 'Images/forestrat001_reaction.png');
-    this.load.image('forestrat001_attack',   'Images/forestrat001_attack.png');
-    this.load.image('forestrat001_dead',     'Images/forestrat001_dead.png');
+    this.load.image('forestrat001_default',  'Images/Enemies/area1/forestrat001_default.png');
+    this.load.image('forestrat001_reaction', 'Images/Enemies/area1/forestrat001_reaction.png');
+    this.load.image('forestrat001_attack',   'Images/Enemies/area1/forestrat001_attack.png');
+    this.load.image('forestrat001_dead',     'Images/Enemies/area1/forestrat001_dead.png');
+
+    // Area 1 enemy sprites
+    this.load.image('feralhound_default',    'Images/Enemies/area1/feralhound_default.png');
+    this.load.image('feralhound_reaction',   'Images/Enemies/area1/feralhound_reaction.png');
+    this.load.image('feralhound_attack',     'Images/Enemies/area1/feralhound_attack.png');
+    this.load.image('feralhound_dead',       'Images/Enemies/area1/feralhound_dead.png');
+    this.load.image('thornbackboar_default',  'Images/Enemies/area1/thornbackboar_default.png');
+    this.load.image('thornbackboar_reaction', 'Images/Enemies/area1/thornbackboar_reaction.png');
+    this.load.image('thornbackboar_attack',   'Images/Enemies/area1/thornbackboar_attack.png');
+    this.load.image('thornbackboar_dead',     'Images/Enemies/area1/thornbackboar_dead.png');
     this.load.image('player001_default',        'Images/Player001_default.png');
     this.load.image('player001_strongpunch',    'Images/Player001_strongpunch.png');
     this.load.image('player001_jumpkick',       'Images/Player001_jumpkick.png');
@@ -82,6 +88,8 @@ export default class BootScene extends Phaser.Scene {
     this.load.image('armor003_sentinelhalfplate', 'Images/equipment/armor003_sentinelhalfplate_thumb.png');
     this.load.image('armor003_ancientsentinelplate', 'Images/equipment/armor003_ancientsentinelplate_thumb.png');
     this.load.image('legs002_sentinelgreaves', 'Images/equipment/legs002_sentinelgreaves_thumb.png');
+    this.load.image('legs002_stoneguardlegplates', 'Images/equipment/legs002_stoneguardlegplates_thumb.png');
+
   }
 
   create() {

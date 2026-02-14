@@ -9,7 +9,7 @@ const UPGRADES = [
     category: 'legit',
     currency: 'gold',
     maxLevel: 10,
-    costFormula: (level) => Math.floor(75 * 1.8 ** level),
+    costFormula: (level) => Math.floor(112 * 1.8 ** level),
     effect: { type: 'multiplier', target: 'clickDamage', valuePerLevel: 0.10 },
   },
   {
@@ -19,7 +19,7 @@ const UPGRADES = [
     category: 'legit',
     currency: 'gold',
     maxLevel: 10,
-    costFormula: (level) => Math.floor(120 * 1.8 ** level),
+    costFormula: (level) => Math.floor(180 * 1.8 ** level),
     effect: { type: 'flat', target: 'str', valuePerLevel: 2 },
   },
   {
@@ -29,7 +29,7 @@ const UPGRADES = [
     category: 'legit',
     currency: 'gold',
     maxLevel: 5,
-    costFormula: (level) => Math.floor(150 * 2 ** level),
+    costFormula: (level) => Math.floor(225 * 2 ** level),
     effect: { type: 'multiplier', target: 'autoAttackSpeed', valuePerLevel: 0.10 },
   },
   {
@@ -39,7 +39,7 @@ const UPGRADES = [
     category: 'legit',
     currency: 'gold',
     maxLevel: 10,
-    costFormula: (level) => Math.floor(60 * 1.7 ** level),
+    costFormula: (level) => Math.floor(90 * 1.7 ** level),
     effect: { type: 'multiplier', target: 'goldMultiplier', valuePerLevel: 0.15 },
   },
 

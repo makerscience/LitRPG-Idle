@@ -22,7 +22,6 @@ export default class SystemLog extends ScrollableLog {
     });
 
     this._currentEnemyName = '';
-    this._pendingKill = null;
 
     // Subscribe to events
     this._unsubs.push(on(EVENTS.COMBAT_ENEMY_SPAWNED, (data) => {
@@ -42,25 +41,6 @@ export default class SystemLog extends ScrollableLog {
       }
     }));
 
-    this._unsubs.push(on(EVENTS.COMBAT_ENEMY_KILLED, (data) => {
-      this._pendingKill = { name: data.name, gold: null, xp: null };
-    }));
-
-    this._unsubs.push(on(EVENTS.ECON_GOLD_GAINED, (data) => {
-      if (this._pendingKill) {
-        this._pendingKill.gold = format(data.amount);
-      } else {
-        this.addLine(`+${format(data.amount)} Gold`, 'gold');
-      }
-      this._flushKill();
-    }));
-
-    this._unsubs.push(on(EVENTS.PROG_XP_GAINED, (data) => {
-      if (this._pendingKill) {
-        this._pendingKill.xp = format(data.amount);
-      }
-      this._flushKill();
-    }));
 
     this._unsubs.push(on(EVENTS.PROG_LEVEL_UP, (data) => {
       this.addLine(`LEVEL UP! You are now Lv.${data.level}`, 'levelUp');
@@ -184,12 +164,6 @@ export default class SystemLog extends ScrollableLog {
     return { fontSize: '11px', fontStyle: 'normal', color: line.color };
   }
 
-  _flushKill() {
-    const k = this._pendingKill;
-    if (!k || !k.gold || !k.xp) return;
-    this.addLine(`${k.name} defeated! +${k.gold} Gold, +${k.xp} XP`, 'defeat');
-    this._pendingKill = null;
-  }
 
   addLine(text, type = 'default', colorOverride = null) {
     const now = new Date();

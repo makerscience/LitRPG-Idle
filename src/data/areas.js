@@ -43,9 +43,18 @@ export const BOSS_TYPES = {
 
 // ── Zone scaling ────────────────────────────────────────────────────
 
+/** Per-stat asymmetric scaling rates (replaces uniform 0.15). */
+export const ZONE_SCALING = {
+  hp:   0.10,  // Enemy HP scales slowly — creates snowball
+  atk:  0.12,  // Enemy ATK scales moderately — danger rises
+  gold: 0.18,  // Gold scales fast — rewards outpace difficulty
+  xp:   0.08,  // XP scales slowly — prevents over-leveling
+};
+
 /** Stat multiplier applied to regular enemies based on zone number within an area. */
-export function getZoneScaling(zoneNum) {
-  return 1 + (zoneNum - 1) * 0.15;
+export function getZoneScaling(zoneNum, stat) {
+  const rate = (stat && ZONE_SCALING[stat]) ?? 0.10;
+  return 1 + (zoneNum - 1) * rate;
 }
 
 /** Kill threshold to trigger "Challenge Boss" button. */

@@ -1,20 +1,20 @@
 # CURRENT_FOCUS
 
 ## One-liner
-- GDD Hard Pivot PHASE 7 COMPLETE. Balance tuned, DoT fixed, all 30 bosses beatable, final boss survival ratio 1.8x. Vertical slice shippable.
+- Balance overhaul complete: asymmetric zone scaling, enemy/boss stat calibration, gear jumps widened, upgrade costs raised. All 30 bosses pass, final boss 1.27x survival.
 
 ## Active Objectives (max 3)
-1. **GDD Vertical Slice (Areas 1-3, Zones 1-30):** ALL 7 PHASES COMPLETE — shippable vertical slice
-2. **Next:** Playtesting in-browser to validate feel, then publish to Itch.io
+1. **Balance Overhaul:** COMPLETE — asymmetric scaling, area-entry walls, gear check moments
+2. **Next:** Playtest in-browser to validate feel with new balance, then publish to Itch.io
 3. **Future:** Phase 8+ — town/territory re-enablement, prestige loop, art assets
 
 ## Next Actions
-- [ ] Playtest in-browser: verify DoT damage visible in SystemLog for Blight Stalker Evolved (z11+) and Blighted Scholar (z27+)
-- [ ] Playtest Area 1 difficulty: THE HOLLOW should be a tight fight (~1.2x survival) at level 8-9
-- [ ] Playtest Area 3: verify gear progression feels meaningful (new slot unlocks at z17 gloves, z22 amulet)
+- [ ] Playtest in-browser: verify area transitions feel like real walls (z6, z16 should feel noticeably harder)
+- [ ] Playtest Area 1: THE HOLLOW should be a tight fight (~1.02x survival) at level 8
+- [ ] Playtest armored enemies: Stone Sentry/Blighted Guardian/Hearthguard Construct should slow kills noticeably
+- [ ] Verify gear upgrades feel impactful — cross-tier drops should produce visible DPS jumps
+- [ ] Update GAME_DATA_REFERENCE.md with new balance numbers (enemy stats, gear stats, scaling rates)
 - [ ] Polish: add sprites for Area 2-3 enemies/bosses (currently null — uses placeholder)
-- [ ] Consider Phase 8: re-enable prestige/territory systems with V2 balance
-- [ ] Itch.io deployment prep: build, test dist/, create page
 
 ## Open Loops / Blockers
 - Prestige, territory, cheats disabled via feature gates — re-enable post-playtesting
@@ -25,13 +25,15 @@
 - `getBossType`, `getStrongestEnemy`, `getBossDropMultiplier` in areas.js are now dead code
 - All Area 2-3 enemies/bosses have `sprites: null` — need art assets
 - Balance sim assumes optimal upgrade purchasing — real players will be weaker (more safety margin)
+- GAME_DATA_REFERENCE.md is stale after balance overhaul — needs update
 
 ## How to Resume in 30 Seconds
 - **Open:** `.memory/CURRENT_FOCUS.md`
-- **Last change:** Bulk equipment thumbnails with Lanczos downscaling, thumb generator script
+- **Last change:** Balance overhaul — asymmetric scaling, enemy calibration, gear widening
 - **Architecture:** Progression.js owns XP/level + kill rewards. Store is pure state. EventScope pattern for subscriptions. ComputedStats for derived values. BossManager looks up named bosses via `getBossForZone()`. LootEngine uses zone-based item pools with slot weighting and pity.
 - **Plan:** `Plans/Redesign Plan.md` — 8-phase implementation, Phase 7 complete
 - **Balance tool:** `npm run balance:sim` — zone-by-zone idle progression simulation
+- **Balance guide:** `Plans/LitRPG_Idle_Game_Feel_Balance_Guide.md` — analysis + critique
 
 ## Key Context
 - Tech stack: Phaser 3, Vite 7, break_infinity.js, localStorage saves
@@ -49,12 +51,14 @@
 ---
 
 ## Last Session Summary (max ~8 bullets)
-- Halved attack rate: introduced `COMBAT_V2.baseAttackIntervalMs = 2000` (was hardcoded `1000`)
-- Player and enemy auto-attack intervals now use this constant instead of hardcoded 1000
-- Minimum attack interval floor raised from 200ms → 400ms (player and enemies)
-- Balance sim updated with matching `2000` literal (standalone, no config import for this value)
-- All 30 bosses still pass; survival ratios unchanged (both sides slowed equally)
-- Files modified: `src/config.js`, `src/systems/ComputedStats.js`, `src/systems/CombatEngine.js`, `scripts/balance-sim.js`
+- Implemented asymmetric zone scaling: HP +10%/zone, ATK +12%, Gold +18%, XP +8% (was uniform 15%)
+- Updated CombatEngine, OfflineProgress, and balance-sim to use per-stat scaling
+- Added DEF to armored enemies: Stone Sentry (10), Blighted Guardian (15), Hearthguard Construct (20), plus 5 bosses
+- Calibrated A2/A3 enemy base stats: ~30% HP increase, ~65-75% ATK increase for area-entry walls
+- Calibrated A2/A3 boss stats proportionally; final boss tightened from 2.2x to 1.27x survival
+- Increased upgrade base costs by 1.5x for early-game tension
+- Widened cross-tier gear jumps by 30-40% for satisfying breakthrough moments
+- All 30 bosses still pass, data validation clean
 
 ## Pinned References
 - Governance rules: `CLAUDE.md`

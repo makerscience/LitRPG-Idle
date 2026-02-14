@@ -224,6 +224,7 @@ Phase 5 authored 15 enemies and 25 bosses, all with `sprites: null`. The plan no
 | Balance simulation | scripts/balance-sim.js | Math-first validation before manual playtesting |
 | Authoring conventions | DECISIONS.md | Locked formulas make bulk content authoring systematic |
 | Risk identification upfront | Redesign Plan.md | 15 minutes of risk analysis prevents days of firefighting |
+| Claude Code skills for derived docs | .claude/skills/ | Regenerable docs never drift; skill = doc production recipe |
 
 ---
 
@@ -260,3 +261,14 @@ This is the strongest argument for doing architectural cleanup early: **you can'
 12. **Schedule the dead code cleanup.** Document it in open loops AND schedule a cleanup phase. Documentation without a deadline is just a graveyard with nice headstones.
 13. **Sprites before "shippable."** Visual identity matters for playtesting. Colored rectangles undermine feel-testing. Set a visual bar for "shippable" that's higher than "it doesn't crash."
 14. **Test any damage path that can silently produce 0.** If a mechanic's failure mode is "deals no damage but nothing crashes," it will fail undetected. These are the highest-priority test candidates.
+
+### From Ongoing Development
+15. **Codify regenerable docs as Claude Code skills.** When a reference doc (like `GAME_DATA_REFERENCE.md`) is derived from source files, create a `/skill` slash command that reads all sources and regenerates it. The skill definition captures *which* files to read, *what structure* to output, and *what verification* to run — so the doc never silently drifts from the data. The skill itself is the documentation of how the doc is produced.
+16. **Single-file game data references are high-leverage.** A comprehensive markdown file covering all formulas, stats, items, enemies, bosses, and balance sim output in one place eliminates the need to grep across 7+ source files when reasoning about balance or answering design questions. Worth the 10 minutes to regenerate after any data change.
+
+### From the Balance Overhaul
+17. **Uniform scaling hides structural problems.** When every enemy stat (HP, ATK, gold, XP) scales at the same rate, TTK curves are flat, rewards grow in lockstep with difficulty, and area transitions collapse. Asymmetric per-stat scaling (one formula change, four parameters) fixes multiple symptoms simultaneously: snowball within areas, rising danger, slower leveling, and gear mattering more. The root cause was one line of code; the symptoms looked like 8 separate issues.
+18. **Area transition balance requires explicit calibration, not just scaling.** Zone scaling only controls *within-area* difficulty growth. The *between-area* jump depends entirely on base stats vs. expected player power at arrival. These are fundamentally different problems: scaling is a formula, transitions are data tuning. The sim showed zone 16 enemies were literally unkillable-by (eSurv 25,000x) because their ATK couldn't overcome the player's DEF + regen — no amount of within-area scaling fixes a base stat that's wrong.
+19. **Enemy DEF is high-value, low-risk.** Adding DEF to a few armored archetypes creates gear-check moments that reward weapon upgrades, without touching any formula or scaling logic. Pure data change, immediate gameplay impact, zero cascade risk. When looking for safe balance improvements, data-only changes that activate unused formula branches are the best candidates.
+20. **Critique the guide before implementing the guide.** The balance guide proposed 8 fixes, several of which were dangerous (halving STR growth cascades through all bosses), overengineered (gold-gated bosses), or design changes disguised as balance fixes (zone regression on death). Writing a critique that separated correct analysis from wrong prescriptions saved significant rework. The critique identified that 8 symptoms shared one root cause (uniform scaling), which the guide missed because it analyzed each issue independently.
+21. **Run the sim after every change, not just at the end.** The initial asymmetric scaling change produced a sim with zone 16 eSurv of 25,560x — revealing the area-entry base stat problem immediately. A second sim after enemy calibration confirmed all 30 bosses passing with reasonable survival ratios. Each sim run takes 2 seconds and validates the entire 30-zone progression. There's no reason not to run it after every data change.

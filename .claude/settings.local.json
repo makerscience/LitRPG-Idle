@@ -32,7 +32,17 @@
       "Bash(__NEW_LINE_b6b6401924e6c34d__ grep -roh \"emit\\(EVENTS\\\\.[A-Z_]*\" src/**/*.js)",
       "Bash(ren:*)",
       "Bash(npm run validate:data:*)",
-      "Bash(npm run balance:sim:*)"
+      "Bash(npm run balance:sim:*)",
+      "Bash(python -c \" from pathlib import Path import struct def png_dimensions\\(path\\): with open\\(path, ''rb''\\) as f: f.read\\(16\\) w = struct.unpack\\(''>I'', f.read\\(4\\)\\)[0] h = struct.unpack\\(''>I'', f.read\\(4\\)\\)[0] return w, h for p in sorted\\(Path\\(''Images/Equipment''\\).glob\\(''*.png''\\)\\): w, h = png_dimensions\\(p\\) print\\(f''{w:4d}x{h:<4d} {p.name}''\\) \")",
+      "Bash(magick:*)",
+      "Bash(convert:*)",
+      "Bash(python:*)",
+      "Bash(pip install:*)",
+      "Bash(npm run thumbs:*)",
+      "Bash(ffprobe:*)",
+      "Bash(git lfs:*)"
     ]
-  }
+  },
+  "prefersReducedMotion": false,
+  "outputStyle": "default"
 }

@@ -1,5 +1,27 @@
 # CHANGELOG
 
+## 2026-02-14 — Balance Overhaul: Asymmetric Scaling + Enemy/Gear Calibration
+- **Asymmetric zone scaling**: `getZoneScaling(zone, stat)` now uses per-stat rates — HP +10%/zone, ATK +12%, Gold +18%, XP +8% (was uniform +15% for all). Creates snowball within areas and prevents over-leveling.
+- **Enemy DEF on armored archetypes**: Stone Sentry (10), Blighted Guardian (15), Hearthguard Construct (20), plus 5 armored bosses (8-12). Gear-check moments that reward weapon upgrades.
+- **Area-entry enemy stat calibration**: A2 and A3 enemies received ~30% HP and ~65-75% ATK increases so area transitions create meaningful walls (zone 6 eSurv 85x→7x, zone 16 eSurv 25,560x→14x).
+- **Boss stat calibration**: A2/A3 bosses proportionally increased. Final boss survival ratio tightened to 1.27x (was 2.2x). All 30 bosses still pass.
+- **Upgrade base costs +50%**: Battle Hardening 120→180, Auto-Attack Speed 150→225, Gold Find 60→90, Sharpen Blade 75→112. Creates early-game decision pressure.
+- **Cross-tier gear jumps +30-40%**: Weapons, armor DEF/HP widened across all tiers. New-tier drops now feel like clear upgrades.
+
+---
+
+## 2026-02-14 — Comprehensive Game Data Reference Document
+- **New file `GAME_DATA_REFERENCE.md`**: single-document reference covering all game data — combat formulas, player stats/growth, XP curve, upgrades with costs, equipment tables, all 20 enemies, all 30 bosses, zone scaling, loot system, and balance sim snapshot
+
+---
+
+## 2026-02-14 — Add Slime & Rat Enemies to Area 1
+- **2 new enemies**: Hollow Slime (zones 1-2, HP 12, ATK 5, slow) and Forest Rat (zones 1-3, HP 15, ATK 7, fast) — tutorial-tier fodder below Feral Hound
+- **Sprite loading updated**: slime001 and forestrat001 paths point to `Images/Enemies/area1/`; removed obsolete goblin001 sprite loads
+- **Balance unchanged**: all 30 bosses still pass; new enemies lower average zone 1-3 difficulty slightly
+
+---
+
 ## 2026-02-14 — Halve Attack Rate (baseAttackIntervalMs)
 - **Combat pacing**: all auto-attack and enemy attack intervals doubled (attacks happen half as often) via new `COMBAT_V2.baseAttackIntervalMs = 2000` constant
 - **Minimum interval floor**: raised from 200ms to 400ms for both player and enemies

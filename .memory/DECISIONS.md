@@ -11,6 +11,13 @@ Format:
 ---
 
 ## 2026-02-14
+- Tags: architecture
+- Decision: Replace uniform zone scaling (0.15 for all stats) with asymmetric per-stat scaling: HP 0.10, ATK 0.12, Gold 0.18, XP 0.08. `getZoneScaling(zoneNum, stat)` accepts a stat parameter.
+- Rationale: Uniform scaling produced flat TTK curves (HP and rewards grew in lockstep), zero snowball, and area transition collapse. Asymmetric scaling creates snowball (gold outpaces HP), rising danger (ATK outpaces HP), and prevents over-leveling (XP grows slowest).
+- Alternatives considered: Halving per-level STR growth (cascade breakage through all bosses), reducing uniform scaling to 0.09 (incomplete — doesn't address reward/difficulty coupling).
+- Consequences / Follow-ups: CombatEngine, OfflineProgress, and balance-sim all call `getZoneScaling(zone, 'hp'|'atk'|'gold'|'xp')`. Callers without a stat param default to 0.10 rate. Area-entry enemy stats calibrated to compensate — A2/A3 enemies got 30% HP and 65-75% ATK increases to create difficulty walls.
+
+## 2026-02-14
 - Tags: architecture, failure-mode
 - Decision: Use native HTML5 `Audio` element for BGM instead of Phaser's Web Audio sound system.
 - Rationale: Soundtrack is 207MB (~2.5hr MP3). Phaser's Web Audio decodes entire file into memory before playback — silently fails or hangs. HTML5 Audio streams from disk/network.

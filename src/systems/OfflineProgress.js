@@ -50,15 +50,17 @@ const OfflineProgress = {
     const enemies = getUnlockedEnemies(state.currentArea, state.currentZone);
     if (enemies.length === 0) return;
 
-    const scaling = getZoneScaling(state.currentZone);
+    const hpScale = getZoneScaling(state.currentZone, 'hp');
+    const goldScale = getZoneScaling(state.currentZone, 'gold');
+    const xpScale = getZoneScaling(state.currentZone, 'xp');
 
     let totalHp = 0;
     let totalGold = 0;
     let totalXp = 0;
     for (const e of enemies) {
-      totalHp += Number(e.hp) * scaling;
-      totalGold += Number(e.goldDrop) * scaling;
-      totalXp += Number(e.xpDrop) * scaling;
+      totalHp += Number(e.hp) * hpScale;
+      totalGold += Number(e.goldDrop) * goldScale;
+      totalXp += Number(e.xpDrop) * xpScale;
     }
     const avgHp = totalHp / enemies.length;
     const avgGold = totalGold / enemies.length;
