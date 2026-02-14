@@ -10,6 +10,13 @@ Format:
 
 ---
 
+## 2026-02-14
+- Tags: architecture, failure-mode
+- Decision: Use native HTML5 `Audio` element for BGM instead of Phaser's Web Audio sound system.
+- Rationale: Soundtrack is 207MB (~2.5hr MP3). Phaser's Web Audio decodes entire file into memory before playback — silently fails or hangs. HTML5 Audio streams from disk/network.
+- Alternatives considered: Phaser `this.sound.add()` (failed — too large to decode), splitting file into smaller chunks.
+- Consequences / Follow-ups: BGM lives outside Phaser's sound manager. Volume synced manually via `_bgm.volume`. If we add SFX later, those can use Phaser's sound system (small files).
+
 ## 2026-01-24
 - Tags: architecture, workflow
 - Decision: Governance-only memory (no MCP server) using CLAUDE.md + .memory files.

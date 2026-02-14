@@ -1,5 +1,21 @@
 # CHANGELOG
 
+## 2026-02-14 — Background Music + Volume Settings
+- **Background music**: ambient progression track loops automatically on game start via HTML5 Audio streaming (handles autoplay policy with retry on first click)
+- **Volume slider in Settings**: clickable/draggable horizontal bar with real-time percentage readout; changes apply instantly to audio
+- **Persistent volume**: `musicVolume` saved with game state; old saves without it default to 50%
+- **Store.updateSetting()**: new generic mutation method for settings, emits STATE_CHANGED
+
+---
+
+## 2026-02-14 — Bulk Equipment Thumbnails, Lanczos Downscaling, Thumb Generator
+- **12 new equipment thumbnails**: Sentinel set (blade, visage, treads, gauntlets, half-plate, greaves), Warden's Oath, Pathfinder's Stride, Irongrip Gauntlets, Cracked Hearthstone, Ancient Sentinel Plate, Stoneguard Legplates
+- **Crisp thumbnails**: source images (1024px) now pre-downscaled to 128px via Lanczos resampling; BootScene loads `_thumb.png` variants instead of full-size
+- **Linear texture filtering**: `FilterMode.LINEAR` applied to all thumbnail images in InventoryPanel for smooth rendering at slot sizes
+- **`npm run thumbs` script**: batch-generates 128px thumbnails from full-size source images in `Images/Equipment/`; skips up-to-date files; requires Pillow (`pip install Pillow`)
+
+---
+
 ## 2026-02-13 — Equipment Thumbnails, Inventory Bug Fixes, Smooth Parallax
 - **Equipment thumbnails**: items with a `thumbnail` field now display an image in inventory grid slots, equipment slots, and drag ghost instead of text; first thumbnail: Sharpened Stick
 - **Equipment slot layout**: slots resized to 64x64 (matching inventory grid) and pushed to far left/right edges of the equipment zone

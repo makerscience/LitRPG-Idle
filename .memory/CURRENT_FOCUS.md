@@ -28,7 +28,7 @@
 
 ## How to Resume in 30 Seconds
 - **Open:** `.memory/CURRENT_FOCUS.md`
-- **Last change:** Equipment thumbnails, inventory bug fixes, smooth parallax
+- **Last change:** Bulk equipment thumbnails with Lanczos downscaling, thumb generator script
 - **Architecture:** Progression.js owns XP/level + kill rewards. Store is pure state. EventScope pattern for subscriptions. ComputedStats for derived values. BossManager looks up named bosses via `getBossForZone()`. LootEngine uses zone-based item pools with slot weighting and pity.
 - **Plan:** `Plans/Redesign Plan.md` — 8-phase implementation, Phase 7 complete
 - **Balance tool:** `npm run balance:sim` — zone-by-zone idle progression simulation
@@ -44,16 +44,19 @@
 - Save namespace: `litrpg_idle_vslice_save` (schema v1)
 - Data validator: `npm run validate:data`
 - Balance sim: `npm run balance:sim`
+- Thumbnail generator: `npm run thumbs` (requires Pillow: `pip install Pillow`)
 
 ---
 
 ## Last Session Summary (max ~8 bullets)
-- Bug fix: inventory tooltip and drag ghost no longer vanish when loot drops while panel is open (deferred refresh while dragging, tooltip persists across rebuilds)
-- Smooth parallax: moved `roundPixels: true` from global game config to UIScene camera only — trees/ferns no longer jitter at slow scroll speeds
-- Equipment thumbnails: items can now have a `thumbnail` field pointing to a Phaser texture key; shown in inventory grid slots, equipment slots, and drag ghost
-- First thumbnail: Sharpened Stick (`weapon001_sharpstick`) loaded from `Images/equipment/`
-- Equipment slots resized to 64x64 (matching inventory grid slots) and pushed to far left/right edges of equipment zone
-- Files modified: `src/ui/InventoryPanel.js`, `src/main.js`, `src/scenes/BootScene.js`, `src/scenes/UIScene.js`, `src/data/items.js`
+- Added background music: `Sound/soundtrack/ambient progression.mp3` streams via HTML5 Audio element in GameScene (not Phaser Web Audio — file is 207MB/2.5hr, too large to decode into memory)
+- Added `Store.updateSetting(key, value)` generic mutation for settings with STATE_CHANGED emit
+- Added `musicVolume: 0.5` default to Store settings (old saves auto-merge via hydration)
+- GameScene subscribes to STATE_CHANGED to sync `_bgm.volume` in real-time; handles autoplay policy with retry on first click
+- SettingsPanel now has a SOUND section with clickable/draggable volume slider (200px track, green fill, percentage label)
+- Panel height increased from 340 to 420 to fit the new controls; danger zone pushed down
+- BGM cleaned up on scene shutdown (pause + clear src)
+- Files modified: `src/systems/Store.js`, `src/scenes/GameScene.js`, `src/ui/SettingsPanel.js`, `CHANGELOG.md`
 
 ## Pinned References
 - Governance rules: `CLAUDE.md`

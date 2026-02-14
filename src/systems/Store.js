@@ -67,7 +67,7 @@ function createInitialState() {
       // Area entrance flags
       reachedArea2: false, reachedArea3: false, reachedArea4: false, reachedArea5: false,
     },
-    settings: { autoAttack: false },
+    settings: { autoAttack: false, musicVolume: 0.5 },
     lootPity: { head: 0, chest: 0, main_hand: 0, legs: 0, boots: 0, gloves: 0, amulet: 0 },
     killsPerEnemy: {},
     territories: {},
@@ -472,6 +472,11 @@ const Store = {
   conquerTerritory(territoryId) {
     state.territories[territoryId] = { conquered: true, conqueredAt: Date.now() };
     emit(EVENTS.STATE_CHANGED, { changedKeys: ['territories'] });
+  },
+
+  updateSetting(key, value) {
+    state.settings[key] = value;
+    emit(EVENTS.STATE_CHANGED, { changedKeys: ['settings'] });
   },
 
   updateTimestamps(partial) {

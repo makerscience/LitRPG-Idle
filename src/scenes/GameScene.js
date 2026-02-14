@@ -134,7 +134,27 @@ export default class GameScene extends Phaser.Scene {
     // Launch OverworldScene (starts sleeping — toggled by UIScene via M key)
     this.scene.launch('OverworldScene');
 
-    console.log('[GameScene] create â€” combat initialized');
+    // Background music — use HTML5 Audio for streaming (file is ~200MB, too large for Web Audio decode)
+    this._bgm = new Audio('Sound/soundtrack/ambient progression.mp3');
+    this._bgm.loop = true;
+    this._bgm.volume = Store.getState().settings.musicVolume;
+    this._bgm.play().catch(() => {
+      // Autoplay blocked — retry on first user interaction
+      const resume = () => {
+        this._bgm.play().catch(() => {});
+        document.removeEventListener('pointerdown', resume);
+      };
+      document.addEventListener('pointerdown', resume);
+    });
+
+    // Sync volume when settings change
+    this._unsubs.push(on(EVENTS.STATE_CHANGED, ({ changedKeys }) => {
+      if (changedKeys.includes('settings') && this._bgm) {
+        this._bgm.volume = Store.getState().settings.musicVolume;
+      }
+    }));
+
+    console.log('[GameScene] create â€" combat initialized');
   }
 
   update(_time, delta) {
@@ -937,6 +957,7 @@ export default class GameScene extends Phaser.Scene {
   }
 
   _shutdown() {
+    if (this._bgm) { this._bgm.pause(); this._bgm.src = ''; this._bgm = null; }
     this.scene.stop('OverworldScene');
     this.scene.stop('UIScene');
     for (const unsub of this._unsubs) unsub();

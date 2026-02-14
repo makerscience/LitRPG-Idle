@@ -3,9 +3,10 @@
 
 import ModalPanel from './ModalPanel.js';
 import SaveManager from '../systems/SaveManager.js';
+import Store from '../systems/Store.js';
 
 const PANEL_W = 500;
-const PANEL_H = 340;
+const PANEL_H = 420;
 
 export default class SettingsPanel extends ModalPanel {
   constructor(scene) {
@@ -36,6 +37,7 @@ export default class SettingsPanel extends ModalPanel {
 
   _close() {
     this._wipePending = false;
+    this._draggingVolume = false;
     if (this._wipeTimer) {
       clearTimeout(this._wipeTimer);
       this._wipeTimer = null;
@@ -46,8 +48,56 @@ export default class SettingsPanel extends ModalPanel {
   _buildContent() {
     const centerX = this._cx;
 
-    // Danger Zone
-    const dangerY = this._cy - 30;
+    // ── SOUND section ──────────────────────────────────────────────
+    const soundY = this._cy - 80;
+    this._addLabel(centerX, soundY, 'SOUND', '#a1a1aa', '14px', true, true);
+
+    const sliderY = soundY + 35;
+    const trackW = 200;
+    const trackH = 12;
+    const trackX = centerX - 40;  // left edge of track
+    const vol = Store.getState().settings.musicVolume;
+
+    // "Music Volume" label
+    this._addLabel(trackX - 90, sliderY, 'Music Volume', '#d4d4d8', '13px', false, false);
+
+    // Track background
+    const trackBg = this.scene.add.rectangle(trackX, sliderY, trackW, trackH, 0x27272a).setOrigin(0, 0.5);
+    this._dynamicObjects.push(trackBg);
+
+    // Track fill
+    const trackFill = this.scene.add.rectangle(trackX, sliderY, trackW * vol, trackH, 0x22c55e).setOrigin(0, 0.5);
+    this._dynamicObjects.push(trackFill);
+
+    // Percentage label
+    const pctLabel = this._addLabel(trackX + trackW + 12, sliderY - 7, `${Math.round(vol * 100)}%`, '#d4d4d8', '13px', false, false);
+
+    // Invisible hit area for interaction (slightly taller for easier clicking)
+    const hitArea = this.scene.add.rectangle(trackX, sliderY, trackW, 28, 0x000000, 0.001).setOrigin(0, 0.5);
+    hitArea.setInteractive({ useHandCursor: true });
+    this._dynamicObjects.push(hitArea);
+
+    const setVolume = (pointer) => {
+      const localX = Math.max(0, Math.min(trackW, pointer.x - trackBg.x));
+      const newVol = Math.round((localX / trackW) * 100) / 100;
+      Store.updateSetting('musicVolume', newVol);
+      trackFill.setDisplaySize(trackW * newVol, trackH);
+      pctLabel.setText(`${Math.round(newVol * 100)}%`);
+    };
+
+    hitArea.on('pointerdown', (pointer) => {
+      setVolume(pointer);
+      this._draggingVolume = true;
+    });
+    this.scene.input.on('pointermove', (pointer) => {
+      if (this._draggingVolume) setVolume(pointer);
+    });
+    this.scene.input.on('pointerup', () => {
+      this._draggingVolume = false;
+    });
+
+    // ── Danger Zone ────────────────────────────────────────────────
+    const dangerY = this._cy + 20;
     this._addLabel(centerX, dangerY, '-- DANGER ZONE --', '#ef4444', '14px', true, true);
     this._addLabel(centerX, dangerY + 30, 'This will permanently delete your save file.', '#a1a1aa', '12px', false, true);
     this._addLabel(centerX, dangerY + 50, 'All progress will be lost. This cannot be undone.', '#a1a1aa', '12px', false, true);
