@@ -79,6 +79,9 @@ export default class BootScene extends Phaser.Scene {
     this.load.image('weapon003_wardensoath', 'Images/equipment/weapon003_wardensoath_thumb.png');
     this.load.image('boots002_pathfindersstride', 'Images/equipment/boots002_pathfindersstride_thumb.png');
     this.load.image('hands001_irongripgauntlets', 'Images/equipment/hands001_irongripgauntlets_thumb.png');
+    this.load.image('armor003_sentinelhalfplate', 'Images/equipment/armor003_sentinelhalfplate_thumb.png');
+    this.load.image('armor003_ancientsentinelplate', 'Images/equipment/armor003_ancientsentinelplate_thumb.png');
+    this.load.image('legs002_sentinelgreaves', 'Images/equipment/legs002_sentinelgreaves_thumb.png');
   }
 
   create() {

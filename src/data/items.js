@@ -421,6 +421,7 @@ const ITEMS = {
     statBonuses: { str: 0, def: 14, hp: 48, regen: 0, atkSpeed: 0, atk: 0 },
     sellValue: 35,
     mergesInto: null,
+    thumbnail: 'armor003_sentinelhalfplate',
   },
   a3_sentinels_visage: {
     id: 'a3_sentinels_visage',
@@ -448,6 +449,7 @@ const ITEMS = {
     statBonuses: { str: 0, def: 9, hp: 30, regen: 0, atkSpeed: 0, atk: 0 },
     sellValue: 28,
     mergesInto: null,
+    thumbnail: 'legs002_sentinelgreaves',
   },
   a3_sentinel_treads: {
     id: 'a3_sentinel_treads',
@@ -612,6 +614,7 @@ const ITEMS = {
     statBonuses: { str: 0, def: 20, hp: 70, regen: 0, atkSpeed: 0, atk: 0 },
     sellValue: 85,
     mergesInto: null,
+    thumbnail: 'armor003_ancientsentinelplate',
   },
   a3_visage_of_the_first: {
     id: 'a3_visage_of_the_first',
