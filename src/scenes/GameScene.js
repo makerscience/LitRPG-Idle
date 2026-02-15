@@ -329,9 +329,10 @@ export default class GameScene extends Phaser.Scene {
     this.tweens.killTweensOf(this.hpBarFill);
 
     const template = getEnemyById(data.enemyId);
+    this._currentEnemyId = data.enemyId;
     this._currentEnemySprites = template?.sprites || null;
-    this._spriteOffsetY = template?.spriteOffsetY || 0;
-    this._enemyLungeDist = template?.lungeDistance || 20;
+    this._spriteOffsetY = data.spriteOffsetY ?? template?.spriteOffsetY ?? 0;
+    this._enemyLungeDist = (template?.lungeDistance || 20) * 2;
     const size = data.spriteSize || template?.spriteSize || { w: 200, h: 250 };
     this._spriteW = size.w;
     this._spriteH = size.h;
@@ -347,7 +348,7 @@ export default class GameScene extends Phaser.Scene {
       // Show sprite with default pose (apply Y offset for living poses)
       this.enemySprite.setTexture(this._currentEnemySprites.default);
 
-      this.enemySprite.setScale(1);  // reset from death anim before resizing
+      this.enemySprite.setScale(1).setAngle(0).setOrigin(0.5, 0.5);  // reset from death anim before resizing
       this.enemySprite.setDisplaySize(this._spriteW, this._spriteH);
       this.enemySprite.y = this._enemyY + this._spriteOffsetY + this._bottomAlignOffsetY;
       this.enemySprite.setVisible(true);
@@ -423,7 +424,8 @@ export default class GameScene extends Phaser.Scene {
     // Delay enemy reaction so the player's lunge lands first
     const reactDelay = 60;
     if (this._currentEnemySprites) {
-      this.time.delayedCall(reactDelay, () => {
+      if (this._reactDelayTimer) this._reactDelayTimer.remove();
+      this._reactDelayTimer = this.time.delayedCall(reactDelay, () => {
         // Damage number on impact
         this._spawnDamageNumber(data.amount, data.isCrit);
         // Sprite: switch to reaction pose for 500ms
@@ -487,7 +489,8 @@ export default class GameScene extends Phaser.Scene {
     this.tweens.killTweensOf(this.enemyRect);
     if (this._hitReactionTween) { this._hitReactionTween.stop(); this._hitReactionTween = null; }
 
-    // Clear any pending pose revert
+    // Clear any pending reaction delay or pose revert
+    if (this._reactDelayTimer) { this._reactDelayTimer.remove(); this._reactDelayTimer = null; }
     if (this._poseRevertTimer) { this._poseRevertTimer.remove(); this._poseRevertTimer = null; }
 
     if (this._currentEnemySprites) {
@@ -498,26 +501,84 @@ export default class GameScene extends Phaser.Scene {
       this.enemySprite.y = this._enemyY + this._spriteOffsetY + this._bottomAlignOffsetY;
       this.enemySprite.disableInteractive();
 
-      // Death knockback then immediately slide away
+      if (this._currentEnemyId === 'a1_forest_rat') {
+        // Rats spin off into the upper-right
+        this.tweens.add({
+          targets: this.enemySprite,
+          x: this._enemyX + 350,
+          y: this._enemyY - 400,
+          angle: 720,
+          scaleX: 0.3,
+          scaleY: 0.3,
+          alpha: 0,
+          duration: 500,
+          ease: 'Quad.easeIn',
+        });
+      } else if (this._currentEnemyId === 'a1_hollow_slime') {
+        // Slime warbles toward the lower-right: alternating squash/stretch while sliding down
+        this.tweens.add({
+          targets: this.enemySprite,
+          x: this._enemyX + 200,
+          y: this._enemyY + 250,
+          alpha: 0,
+          duration: 700,
+          ease: 'Sine.easeIn',
+        });
+        // Horizontal squash-stretch wobble (relative to current display scale)
+        const baseScaleX = this.enemySprite.scaleX;
+        const baseScaleY = this.enemySprite.scaleY;
+        this.tweens.add({
+          targets: this.enemySprite,
+          scaleX: { from: baseScaleX * 1.15, to: baseScaleX * 0.8 },
+          scaleY: { from: baseScaleY * 0.85, to: baseScaleY * 1.2 },
+          duration: 140,
+          yoyo: true,
+          repeat: 2,
+          ease: 'Sine.easeInOut',
+        });
+      } else if (this._currentEnemyId === 'a1_blighted_stalker') {
+        // Stalker tips forward, pivoting from its bottom-left foot
+        const halfW = this.enemySprite.displayWidth / 2;
+        const halfH = this.enemySprite.displayHeight / 2;
+        this.enemySprite.setOrigin(0, 1);
+        this.enemySprite.x -= halfW;
+        this.enemySprite.y += halfH;
+        this.tweens.add({
+          targets: this.enemySprite,
+          angle: -85,
+          x: this.enemySprite.x + this.enemySprite.displayHeight,
+          y: this.enemySprite.y + 60,
+          duration: 400,
+          ease: 'Bounce.easeOut',
+        });
+        this.tweens.add({
+          targets: this.enemySprite,
+          alpha: 0,
+          delay: 500,
+          duration: 300,
+          ease: 'Linear',
+        });
+      } else {
+        // Default: knockback then immediately slide away
+        this.tweens.add({
+          targets: this.enemySprite,
+          x: this._enemyX + 40,
+          duration: 120,
+          ease: 'Quad.easeOut',
+          onComplete: () => {
+            this.tweens.add({
+              targets: this.enemySprite,
+              x: this._enemyX + 250,
+              alpha: 0,
+              duration: 200,
+              ease: 'Quad.easeIn',
+            });
+          },
+        });
+      }
       this.tweens.add({
-        targets: this.enemySprite,
-        x: this._enemyX + 40,
-        duration: 120,
-        ease: 'Quad.easeOut',
-        onComplete: () => {
-          // Slide away fast and fade out
-          this.tweens.add({
-            targets: this.enemySprite,
-            x: this._enemyX + 250,
-            alpha: 0,
-            duration: 200,
-            ease: 'Quad.easeIn',
-          });
-          this.tweens.add({
-            targets: [this.enemyNameText, this.hpBarBg, this.hpBarFill],
-            alpha: 0, duration: 150, ease: 'Power2',
-          });
-        },
+        targets: [this.enemyNameText, this.hpBarBg, this.hpBarFill],
+        alpha: 0, duration: 150, ease: 'Power2',
       });
     } else {
       // Rect death: knockback then immediately slide away
@@ -689,10 +750,14 @@ export default class GameScene extends Phaser.Scene {
 
       this.enemySprite.setDisplaySize(this._spriteW, this._spriteH);
       // Lunge toward player on attack
+      const isLeaper = this._currentEnemyId === 'a1_forest_rat' || this._currentEnemyId === 'a1_hollow_slime';
+      const lungeDist = isLeaper ? this._enemyLungeDist * 2 : this._enemyLungeDist;
+      const lungeProps = { x: this._enemyX - lungeDist };
+      if (isLeaper) lungeProps.y = this._combatY - 60;
       this.tweens.add({
         targets: this.enemySprite,
-        x: this._enemyX - this._enemyLungeDist,
-        duration: 80,
+        ...lungeProps,
+        duration: isLeaper ? 120 : 80,
         ease: 'Quad.easeOut',
         yoyo: true,
       });

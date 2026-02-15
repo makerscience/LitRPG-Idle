@@ -79,7 +79,7 @@ const BOSSES = [
     description: 'A scarred alpha with a rotting jaw. Still bites hard.',
     sprites: null,
     spriteSize: null,
-    spriteOffsetY: 0,
+    spriteOffsetY: -50,
     lootTable: AREA_1_LOOT_TABLE,
   },
   {
@@ -102,7 +102,7 @@ const BOSSES = [
     description: 'Tusks like iron nails. Charges without warning.',
     sprites: null,
     spriteSize: null,
-    spriteOffsetY: 0,
+    spriteOffsetY: -50,
     lootTable: AREA_1_LOOT_TABLE,
   },
   {
@@ -125,7 +125,7 @@ const BOSSES = [
     description: 'Moves wrong. Too many joints.',
     sprites: null,
     spriteSize: null,
-    spriteOffsetY: 0,
+    spriteOffsetY: -90,
     lootTable: AREA_1_LOOT_TABLE,
   },
   {

@@ -133,7 +133,7 @@ const ENEMIES = [
       dead: 'feralhound_dead',
     },
     spriteSize: { w: 256, h: 140 },
-    spriteOffsetY: 0,
+    spriteOffsetY: -20,
     lootTable: AREA_1_LOOT_TABLE,
   },
   {
@@ -155,8 +155,8 @@ const ENEMIES = [
       dead: 'thornbackboar_dead',
     },
     spriteSize: { w: 280, h: 153 },
-    spriteOffsetY: 0,
-    lungeDistance: 80,
+    spriteOffsetY: -50,
+    lungeDistance: 40,
     lootTable: AREA_1_LOOT_TABLE,
   },
   {

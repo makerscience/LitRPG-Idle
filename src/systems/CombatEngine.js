@@ -231,6 +231,7 @@ const CombatEngine = {
       isBoss: true,
       bossType: bossTemplate.bossType,
       spriteSize: bossTemplate.spriteSize || null,
+      spriteOffsetY: bossTemplate.spriteOffsetY ?? null,
       armorPen: currentEnemy.armorPen,
       dot: currentEnemy.dot,
       defense: currentEnemy.defense,
