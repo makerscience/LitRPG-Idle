@@ -54,6 +54,9 @@ export const EVENTS = {
   TERRITORY_CLAIMED:          'territory:claimed',
   TERRITORY_PROGRESS_UPDATED: 'territory:progressUpdated',
 
+  // Consumable
+  WATERSKIN_USED:       'waterskin:used',
+
   // Dialogue / UI
   DIALOGUE_QUEUED:      'dialogue:queued',
   DIALOGUE_DISPLAYED:   'dialogue:displayed',

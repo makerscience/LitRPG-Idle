@@ -7,6 +7,7 @@ import SystemDialogue from '../ui/SystemDialogue.js';
 import SystemLog from '../ui/SystemLog.js';
 import ZoneNav from '../ui/ZoneNav.js';
 import BossChallenge from '../ui/BossChallenge.js';
+import DrinkButton from '../ui/DrinkButton.js';
 import InventoryPanel from '../ui/InventoryPanel.js';
 import UpgradePanel from '../ui/UpgradePanel.js';
 import PrestigePanel from '../ui/PrestigePanel.js';
@@ -50,6 +51,7 @@ export default class UIScene extends Phaser.Scene {
     this.systemLog = new SystemLog(this);
     this.zoneNav = new ZoneNav(this);
     this.bossChallenge = new BossChallenge(this);
+    this.drinkButton = new DrinkButton(this);
     this.inventoryPanel = new InventoryPanel(this);
     this.upgradePanel = new UpgradePanel(this);
     this.settingsPanel = new SettingsPanel(this);
@@ -128,11 +130,13 @@ export default class UIScene extends Phaser.Scene {
       overworldScene.scene.wake();
       this.zoneNav.hide();
       this.bossChallenge.hide();
+      this.drinkButton.hide();
       this._mapOpen = true;
     } else {
       overworldScene.scene.sleep();
       this.zoneNav.show();
       this.bossChallenge.show();
+      this.drinkButton.show();
       this._mapOpen = false;
     }
   }
@@ -143,6 +147,7 @@ export default class UIScene extends Phaser.Scene {
     if (this.systemLog) { this.systemLog.destroy(); this.systemLog = null; }
     if (this.zoneNav) { this.zoneNav.destroy(); this.zoneNav = null; }
     if (this.bossChallenge) { this.bossChallenge.destroy(); this.bossChallenge = null; }
+    if (this.drinkButton) { this.drinkButton.destroy(); this.drinkButton = null; }
     for (const modal of this._modals || []) {
       if (modal) modal.destroy();
     }

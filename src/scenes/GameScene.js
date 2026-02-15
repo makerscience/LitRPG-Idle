@@ -430,10 +430,15 @@ export default class GameScene extends Phaser.Scene {
         this._spawnDamageNumber(data.amount, data.isCrit);
         // Sprite: switch to reaction pose for 500ms
         this.enemySprite.setTexture(this._currentEnemySprites.reaction);
-  
+
         this.enemySprite.setDisplaySize(this._spriteW, this._spriteH);
         this.enemySprite.setTint(0xffffff);
         this.time.delayedCall(80, () => this.enemySprite.clearTint());
+
+        // Reset position before knockback (prevents drift from interrupted lunge/knockback tweens)
+        this.tweens.killTweensOf(this.enemySprite);
+        this.enemySprite.x = this._enemyX;
+        this.enemySprite.y = this._enemyY + this._spriteOffsetY + this._bottomAlignOffsetY;
 
         // Knockback on hit
         this.tweens.add({
@@ -744,11 +749,18 @@ export default class GameScene extends Phaser.Scene {
     const color = ratio > 0.5 ? 0x22c55e : ratio > 0.25 ? 0xeab308 : 0xef4444;
     this.playerHpBarFill.setFillStyle(color);
 
+    // Skip attack animation for zero-damage events (heals/regen reuse this event for HP bar updates)
+    if (data.amount.lte(0)) return;
+
     // Show attack pose on enemy sprite for 500ms
     if (this._currentEnemySprites) {
       this.enemySprite.setTexture(this._currentEnemySprites.attack);
 
       this.enemySprite.setDisplaySize(this._spriteW, this._spriteH);
+      // Reset position before lunge (prevents drift from interrupted knockback/lunge tweens)
+      this.tweens.killTweensOf(this.enemySprite);
+      this.enemySprite.x = this._enemyX;
+      this.enemySprite.y = this._enemyY + this._spriteOffsetY + this._bottomAlignOffsetY;
       // Lunge toward player on attack
       const isLeaper = this._currentEnemyId === 'a1_forest_rat' || this._currentEnemyId === 'a1_hollow_slime';
       const lungeDist = isLeaper ? this._enemyLungeDist * 2 : this._enemyLungeDist;

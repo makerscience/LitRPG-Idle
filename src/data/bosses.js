@@ -81,6 +81,7 @@ const BOSSES = [
     spriteSize: null,
     spriteOffsetY: -50,
     lootTable: AREA_1_LOOT_TABLE,
+    guaranteedFirstKillItem: 'a1_rotfang_waterskin',
   },
   {
     id: 'boss_a1z2_irontusk',

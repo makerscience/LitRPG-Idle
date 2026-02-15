@@ -14,7 +14,7 @@ function error(msg) { errors++; console.error(`  ERROR: ${msg}`); }
 function warn(msg)  { warnings++; console.warn(`  WARN:  ${msg}`); }
 function section(title) { console.log(`\n── ${title} ──`); }
 
-const VALID_SLOTS = ['weapon', 'body', 'head', 'legs', 'boots', 'gloves', 'amulet'];
+const VALID_SLOTS = ['weapon', 'body', 'head', 'legs', 'boots', 'gloves', 'amulet', 'waterskin'];
 const VALID_RARITIES = ['common', 'uncommon', 'rare', 'epic'];
 const VALID_BOSS_TYPES = ['MINI', 'ELITE', 'AREA'];
 const STAT_KEYS = ['str', 'def', 'hp', 'regen', 'atkSpeed', 'atk'];

@@ -139,6 +139,10 @@ export default class SystemLog extends ScrollableLog {
       this.addLine(`Territory claimed: ${data.name} [${data.buff.label}]`, 'system');
     }));
 
+    this._unsubs.push(on(EVENTS.WATERSKIN_USED, (data) => {
+      this.addLine(`Drank from waterskin: +${data.healAmount} HP`, 'system');
+    }));
+
     // ── Welcome message (first launch) ──────────────────────────────
     const offlineResult = OfflineProgress.getLastResult();
     if (!offlineResult && Store.getState().totalKills === 0) {

@@ -1,5 +1,23 @@
 # CHANGELOG
 
+## 2026-02-14 — Waterskin Polish, Sprite Drift Fix, Loot Cleanup
+- **DRINK button repositioned**: moved to bottom-left of game area for better visibility
+- **Instant heal feedback**: waterskin heal now updates HP bar immediately instead of waiting for next damage tick
+- **Enemy sprite drift fix**: lunge/knockback tweens no longer leave sprites displaced when interrupted mid-animation (kill + reset before each new movement tween)
+- **Waterskin thumbnail**: `waterskin001.png` art wired up via thumbnail generator + BootScene
+- **Waterskin boss-only drop**: removed from normal loot pool (slotWeights, pity, EQUIP_TO_ITEM_SLOT) — now exclusively a Rotfang guaranteed first-kill drop
+
+---
+
+## 2026-02-14 — Waterskin Equipment System
+- **New equippable slot**: Waterskin — added to V2 active slots, loot pool, and pity system
+- **New item**: "Rotfang's Waterskin" — heals 20% max HP on use, 30s cooldown. Guaranteed first-kill drop from Rotfang (zone 1 boss)
+- **DRINK button**: Appears in game area when a waterskin is equipped. Shows cooldown countdown, resets on player death
+- **Guaranteed boss drops**: LootEngine now supports `guaranteedFirstKillItem` on any boss definition — bonus drop on top of normal loot
+- **SystemLog integration**: "Drank from waterskin" message on use
+
+---
+
 ## 2026-02-14 — Smooth Combat Sprites (Canvas Pre-Downscaling)
 - **Fixed pixelated sprites**: player and enemy combat sprites (928–2048px sources) were being downscaled 3–8× by WebGL bilinear which only samples 4 texels — caused blocky/aliased rendering
 - **BootScene canvas downscale**: after asset load, each combat sprite texture is redrawn to a 2× display-size canvas using the browser's high-quality Lanczos algorithm, then replaces the original texture

@@ -4,8 +4,9 @@
 import Store from './Store.js';
 import { createScope, emit, EVENTS } from '../events.js';
 import { LOOT_V2 } from '../config.js';
-import { getItemsForZone } from '../data/items.js';
+import { getItemsForZone, getItem } from '../data/items.js';
 import { getArea } from '../data/areas.js';
+import { getBossForZone } from '../data/bosses.js';
 import { getSlotUnlockZone, getPlayerGlobalZone, ACTIVE_SLOT_IDS } from '../data/equipSlots.js';
 import InventorySystem from './InventorySystem.js';
 
@@ -72,6 +73,18 @@ const LootEngine = {
 
     const rarity = Math.random() < uncommonChance ? 'uncommon' : 'common';
     LootEngine._awardDrop(item, rarity);
+
+    // Guaranteed first-kill bonus drop (e.g. waterskin from Rotfang)
+    if (isFirstKill) {
+      const globalZone = getPlayerGlobalZone();
+      const boss = getBossForZone(globalZone);
+      if (boss && boss.guaranteedFirstKillItem) {
+        const bonusItem = getItem(boss.guaranteedFirstKillItem);
+        if (bonusItem) {
+          LootEngine._awardDrop(bonusItem, 'common');
+        }
+      }
+    }
   },
 
   // ── Item selection: zone pool + slot weighting + pity ────────────

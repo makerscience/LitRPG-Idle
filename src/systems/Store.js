@@ -426,6 +426,11 @@ const Store = {
   healPlayer(amount) {
     const maxHp = getEffectiveMaxHp();
     state.playerHp = Decimal.min(state.playerHp.plus(D(amount)), maxHp);
+    emit(EVENTS.COMBAT_PLAYER_DAMAGED, {
+      amount: D(0),
+      remainingHp: state.playerHp,
+      maxHp,
+    });
   },
 
   getPlayerMaxHp() {

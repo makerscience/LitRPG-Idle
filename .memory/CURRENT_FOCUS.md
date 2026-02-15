@@ -1,17 +1,16 @@
 # CURRENT_FOCUS
 
 ## One-liner
-- Balance overhaul complete: asymmetric zone scaling, enemy/boss stat calibration, gear jumps widened, upgrade costs raised. All 30 bosses pass, final boss 1.27x survival.
+- Waterskin system polished: boss-only drop, thumbnail art, instant heal, DRINK button bottom-left. Combat sprite drift fixed. Ready for playtesting.
 
 ## Active Objectives (max 3)
-1. **Balance Overhaul:** COMPLETE — asymmetric scaling, area-entry walls, gear check moments
-2. **Next:** Playtest in-browser to validate feel with new balance, then publish to Itch.io
+1. **Playtesting:** Validate waterskin flow + balance feel in-browser, then publish to Itch.io
+2. **Polish:** Add sprites for Area 2-3 enemies/bosses (currently null — uses placeholder)
 3. **Future:** Phase 8+ — town/territory re-enablement, prestige loop, art assets
 
 ## Next Actions
+- [ ] Playtest waterskin flow: kill Rotfang → waterskin drops → equip → DRINK button appears → heals 20% max HP → 30s cooldown
 - [ ] Playtest in-browser: verify area transitions feel like real walls (z6, z16 should feel noticeably harder)
-- [ ] Playtest Area 1: THE HOLLOW should be a tight fight (~1.02x survival) at level 8
-- [ ] Playtest armored enemies: Stone Sentry/Blighted Guardian/Hearthguard Construct should slow kills noticeably
 - [ ] Verify gear upgrades feel impactful — cross-tier drops should produce visible DPS jumps
 - [ ] Update GAME_DATA_REFERENCE.md with new balance numbers (enemy stats, gear stats, scaling rates)
 - [ ] Polish: add sprites for Area 2-3 enemies/bosses (currently null — uses placeholder)
@@ -19,18 +18,16 @@
 ## Open Loops / Blockers
 - Prestige, territory, cheats disabled via feature gates — re-enable post-playtesting
 - Legacy saves archived under `litrpg_idle_legacy_archive` key
-- Store.equipped keeps all 33 keys for hydration compat — only 7 are used at runtime
+- Store.equipped keeps all 33 keys for hydration compat — only 8 are used at runtime (was 7, +waterskin)
 - territories.js references old V1 enemy IDs (disabled, not a runtime issue)
 - UpgradeManager.getAutoAttackInterval() is now dead code (ComputedStats owns interval computation)
-- `getBossType`, `getStrongestEnemy`, `getBossDropMultiplier` in areas.js are now dead code
 - All Area 2-3 enemies/bosses have `sprites: null` — need art assets
-- Balance sim assumes optimal upgrade purchasing — real players will be weaker (more safety margin)
 - GAME_DATA_REFERENCE.md is stale after balance overhaul — needs update
 
 ## How to Resume in 30 Seconds
 - **Open:** `.memory/CURRENT_FOCUS.md`
-- **Last change:** Combat movement polish — lunge/knockback/death slide for both player & enemy, staggered timing
-- **Architecture:** Progression.js owns XP/level + kill rewards. Store is pure state. EventScope pattern for subscriptions. ComputedStats for derived values. BossManager looks up named bosses via `getBossForZone()`. LootEngine uses zone-based item pools with slot weighting and pity.
+- **Last change:** Waterskin polish — boss-only drop, thumbnail, instant heal, sprite drift fix
+- **Architecture:** Progression.js owns XP/level + kill rewards. Store is pure state. EventScope pattern for subscriptions. ComputedStats for derived values. BossManager looks up named bosses via `getBossForZone()`. LootEngine uses zone-based item pools with slot weighting and pity. Bosses can have `guaranteedFirstKillItem` for bonus drops.
 - **Plan:** `Plans/Redesign Plan.md` — 8-phase implementation, Phase 7 complete
 - **Balance tool:** `npm run balance:sim` — zone-by-zone idle progression simulation
 - **Balance guide:** `Plans/LitRPG_Idle_Game_Feel_Balance_Guide.md` — analysis + critique
@@ -51,11 +48,12 @@
 ---
 
 ## Last Session Summary (max ~8 bullets)
-- Fixed pixelated combat sprites — root cause was 3-8× WebGL downscaling (source images 928-2048px, displayed at 125-375px)
-- Added `_downscaleCombatSprites()` to BootScene: canvas pre-downscale using browser Lanczos to 2× display size
-- All 11 player sprites downscaled to 600×750, all 20 enemy sprites to 2× their spriteSize
-- `setFilter(LINEAR)` approach was redundant (already the Phaser default) — removed all 11 calls from GameScene
-- Same pattern as equipment thumbnails but done at runtime instead of pre-generated PNGs
+- Moved DRINK button to bottom-left of game area (was centered)
+- Waterskin heal now updates HP bar instantly (Store.healPlayer emits COMBAT_PLAYER_DAMAGED with amount:0)
+- Fixed enemy sprite drift: tweens killed + position reset before new lunge/knockback animations
+- Waterskin thumbnail wired up: `waterskin001.png` → `npm run thumbs` → BootScene load → item data
+- Waterskin removed from normal loot pool — boss-only guaranteed first-kill drop (removed from slotWeights, EQUIP_TO_ITEM_SLOT, lootPity)
+- Fixed double attack animation caused by healPlayer reusing COMBAT_PLAYER_DAMAGED (early return on amount ≤ 0)
 
 ## Pinned References
 - Governance rules: `CLAUDE.md`

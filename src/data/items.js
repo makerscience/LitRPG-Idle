@@ -684,6 +684,23 @@ const ITEMS = {
     sellValue: 75,
     mergesInto: null,
   },
+  // ── Waterskin ────────────────────────────────────────────────────
+  a1_rotfang_waterskin: {
+    id: 'a1_rotfang_waterskin',
+    name: "Rotfang's Waterskin",
+    description: 'Leather waterskin salvaged from the alpha hound den. The water tastes faintly of iron.',
+    abbr: 'RfWS',
+    thumbnail: 'waterskin001',
+    slot: 'waterskin',
+    rarity: 'common',
+    tier: 1,
+    zones: [1, 5],
+    statBonuses: { str: 0, def: 0, hp: 0, regen: 0, atkSpeed: 0, atk: 0 },
+    sellValue: 10,
+    mergesInto: null,
+    healPercent: 0.20,
+    cooldownMs: 30000,
+  },
 };
 
 export function getItem(id) {

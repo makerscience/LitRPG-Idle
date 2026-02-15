@@ -17,6 +17,7 @@ const V2_ACTIVE_SLOTS = [
   { id: 'main_hand', label: 'Main Hand', unlockZone: 1,  side: 'right', anchor: { x: 126, y: -36 }, itemSlot: 'weapon' },
   { id: 'gloves',    label: 'Gloves',    unlockZone: 17, side: 'right', anchor: { x: 113, y: 23 },  itemSlot: 'gloves' },
   { id: 'amulet',    label: 'Amulet',    unlockZone: 22, side: 'right', anchor: { x: 0, y: -171 },  itemSlot: 'amulet' },
+  { id: 'waterskin', label: 'Waterskin', unlockZone: 1,  side: 'right', anchor: { x: 100, y: 150 }, itemSlot: 'waterskin' },
 ];
 
 /** IDs of the 7 active V2 equipment slots. */

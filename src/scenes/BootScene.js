@@ -93,6 +93,7 @@ export default class BootScene extends Phaser.Scene {
     this.load.image('armor003_ancientsentinelplate', 'Images/equipment/armor003_ancientsentinelplate_thumb.png');
     this.load.image('legs002_sentinelgreaves', 'Images/equipment/legs002_sentinelgreaves_thumb.png');
     this.load.image('legs002_stoneguardlegplates', 'Images/equipment/legs002_stoneguardlegplates_thumb.png');
+    this.load.image('waterskin001', 'Images/equipment/waterskin001_thumb.png');
 
   }
 
