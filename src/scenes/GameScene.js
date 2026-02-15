@@ -57,6 +57,7 @@ export default class GameScene extends Phaser.Scene {
         this._walkIndex = (this._walkIndex + 1) % this._walkFrames.length;
         const key = this._walkFrames[this._walkIndex];
         this.playerRect.setTexture(key);
+
         const scale = key === 'player001_walk3' ? 1.05 : 1;
         this.playerRect.setDisplaySize(300 * scale, 375 * scale);
       },
@@ -330,6 +331,7 @@ export default class GameScene extends Phaser.Scene {
     const template = getEnemyById(data.enemyId);
     this._currentEnemySprites = template?.sprites || null;
     this._spriteOffsetY = template?.spriteOffsetY || 0;
+    this._enemyLungeDist = template?.lungeDistance || 20;
     const size = data.spriteSize || template?.spriteSize || { w: 200, h: 250 };
     this._spriteW = size.w;
     this._spriteH = size.h;
@@ -344,6 +346,7 @@ export default class GameScene extends Phaser.Scene {
     if (this._currentEnemySprites) {
       // Show sprite with default pose (apply Y offset for living poses)
       this.enemySprite.setTexture(this._currentEnemySprites.default);
+
       this.enemySprite.setScale(1);  // reset from death anim before resizing
       this.enemySprite.setDisplaySize(this._spriteW, this._spriteH);
       this.enemySprite.y = this._enemyY + this._spriteOffsetY + this._bottomAlignOffsetY;
@@ -394,6 +397,7 @@ export default class GameScene extends Phaser.Scene {
     ];
     this._walkTimer.paused = true;
     this.playerRect.setTexture(attackKey);
+
     if (attackKey === 'player001_roundhousekick') {
       this.playerRect.setDisplaySize(300 * 0.95, 375 * 0.95);
     } else {
@@ -424,6 +428,7 @@ export default class GameScene extends Phaser.Scene {
         this._spawnDamageNumber(data.amount, data.isCrit);
         // Sprite: switch to reaction pose for 500ms
         this.enemySprite.setTexture(this._currentEnemySprites.reaction);
+  
         this.enemySprite.setDisplaySize(this._spriteW, this._spriteH);
         this.enemySprite.setTint(0xffffff);
         this.time.delayedCall(80, () => this.enemySprite.clearTint());
@@ -442,6 +447,7 @@ export default class GameScene extends Phaser.Scene {
         this._poseRevertTimer = this.time.delayedCall(500, () => {
           if (this._currentEnemySprites) {
             this.enemySprite.setTexture(this._currentEnemySprites.default);
+      
             this.enemySprite.setDisplaySize(this._spriteW, this._spriteH);
           }
         });
@@ -487,6 +493,7 @@ export default class GameScene extends Phaser.Scene {
     if (this._currentEnemySprites) {
       // Show dead pose at base position (no living-pose offset), then fade out
       this.enemySprite.setTexture(this._currentEnemySprites.dead);
+
       this.enemySprite.setDisplaySize(this._spriteW, this._spriteH);
       this.enemySprite.y = this._enemyY + this._spriteOffsetY + this._bottomAlignOffsetY;
       this.enemySprite.disableInteractive();
@@ -679,11 +686,12 @@ export default class GameScene extends Phaser.Scene {
     // Show attack pose on enemy sprite for 500ms
     if (this._currentEnemySprites) {
       this.enemySprite.setTexture(this._currentEnemySprites.attack);
+
       this.enemySprite.setDisplaySize(this._spriteW, this._spriteH);
       // Lunge toward player on attack
       this.tweens.add({
         targets: this.enemySprite,
-        x: this._enemyX - 20,
+        x: this._enemyX - this._enemyLungeDist,
         duration: 80,
         ease: 'Quad.easeOut',
         yoyo: true,
@@ -692,6 +700,7 @@ export default class GameScene extends Phaser.Scene {
       this._poseRevertTimer = this.time.delayedCall(500, () => {
         if (this._currentEnemySprites) {
           this.enemySprite.setTexture(this._currentEnemySprites.default);
+    
           this.enemySprite.setDisplaySize(this._spriteW, this._spriteH);
         }
       });
@@ -699,7 +708,7 @@ export default class GameScene extends Phaser.Scene {
       // Rect: lunge toward player on attack
       this.tweens.add({
         targets: this.enemyRect,
-        x: this._enemyX - 20,
+        x: this._enemyX - this._enemyLungeDist,
         duration: 80,
         ease: 'Quad.easeOut',
         yoyo: true,
@@ -710,6 +719,7 @@ export default class GameScene extends Phaser.Scene {
     this._walkTimer.paused = true;
     this.time.delayedCall(60, () => {
       this.playerRect.setTexture('player001_hitreaction');
+  
       this.playerRect.setDisplaySize(300, 375);
       this.playerRect.setTint(0xef4444);
       // Knockback on hit (away from enemy = left)
@@ -783,6 +793,7 @@ export default class GameScene extends Phaser.Scene {
     if (this._playerPoseTimer) this._playerPoseTimer.remove();
     this.tweens.killTweensOf(this.playerRect);
     this.playerRect.setTexture('player001_hitreaction');
+
     this.playerRect.setDisplaySize(300, 375);
     this.playerRect.setTint(0xef4444);
     // Knockback then slide away to the left
@@ -814,6 +825,7 @@ export default class GameScene extends Phaser.Scene {
       this.playerRect.setAlpha(1);
       this.playerRect.x = this._playerX;
       this.playerRect.setTexture('player001_walk1');
+  
       this.playerRect.setDisplaySize(300, 375);
       this._walkTimer.paused = false;
 

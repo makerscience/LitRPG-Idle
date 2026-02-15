@@ -51,15 +51,11 @@
 ---
 
 ## Last Session Summary (max ~8 bullets)
-- Added combat movement feedback for both player and enemy sprites in GameScene.js
-- Attack lunge: 20px toward opponent (80ms yoyo) for both player and enemy
-- Hit knockback: 12px away from attacker (80ms yoyo) for both sides
-- Enemy death: 40px knockback (120ms) → immediately rockets 250px offscreen while fading (200ms)
-- Player death: 40px knockback left (120ms) → rockets 250px offscreen left while fading (200ms)
-- 60ms staggered timing: attacker lunges first, defender reacts on impact — damage numbers also delayed to impact moment
-- Boss defeated delay reduced 1300ms → 500ms to match faster death animation
-- Added `this._playerX` instance property + X position resets on spawn/respawn
-- Fixed rapid-click lunge drift: kill previous tween + reset X before each new lunge
+- Fixed pixelated combat sprites — root cause was 3-8× WebGL downscaling (source images 928-2048px, displayed at 125-375px)
+- Added `_downscaleCombatSprites()` to BootScene: canvas pre-downscale using browser Lanczos to 2× display size
+- All 11 player sprites downscaled to 600×750, all 20 enemy sprites to 2× their spriteSize
+- `setFilter(LINEAR)` approach was redundant (already the Phaser default) — removed all 11 calls from GameScene
+- Same pattern as equipment thumbnails but done at runtime instead of pre-generated PNGs
 
 ## Pinned References
 - Governance rules: `CLAUDE.md`

@@ -283,4 +283,11 @@ Format:
 - Alternatives considered: Changing defense coefficient in combat formula (too fundamental), reducing XP table (last resort per plan), reducing kill thresholds (not in tuning scope).
 - Consequences / Follow-ups: Balance sim script (`npm run balance:sim`) exists for future tuning. If new content is added, follow new conventions: `xpDrop ≈ hp * 0.25` for enemies, `xpDrop ≈ hp * 0.5` for bosses, `attack ≈ hp * 0.3-0.5` for enemies.
 
+## 2026-02-14
+- Tags: architecture, failure-mode
+- Decision: Large combat sprites (928-2048px) are pre-downscaled to 2× display size via off-screen canvas in BootScene.create(), replacing the original Phaser texture with the canvas version under the same key.
+- Rationale: WebGL bilinear filtering only samples 4 texels per pixel — at 3-8× downscale it skips most source pixels, producing blocky/aliased sprites. Browser canvas `drawImage` with `imageSmoothingQuality='high'` uses Lanczos resampling which considers many more source pixels. Downscaling to 2× display size leaves WebGL with a clean ≤2× bilinear pass.
+- Alternatives considered: `texture.setFilter(LINEAR)` after every `setTexture()` call (redundant — LINEAR is already Phaser's default; doesn't help because the algorithm is still 4-texel bilinear). Pre-generating `_thumb.png` files on disk (works but requires regeneration when sizes change). WebGL mipmaps via `gl.generateMipmap()` (requires power-of-two textures in WebGL1; most sprites are NPOT).
+- Consequences / Follow-ups: When adding new enemy sprites, add their texture keys + 2× spriteSize to `_downscaleCombatSprites()` in BootScene. Equipment thumbnails still use the `_thumb.png` approach (already 128px, no runtime downscale needed).
+
 Tip: Search with `rg "Tags:.*workflow" .memory/DECISIONS.md`

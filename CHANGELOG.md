@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## 2026-02-14 — Smooth Combat Sprites (Canvas Pre-Downscaling)
+- **Fixed pixelated sprites**: player and enemy combat sprites (928–2048px sources) were being downscaled 3–8× by WebGL bilinear which only samples 4 texels — caused blocky/aliased rendering
+- **BootScene canvas downscale**: after asset load, each combat sprite texture is redrawn to a 2× display-size canvas using the browser's high-quality Lanczos algorithm, then replaces the original texture
+- **Targets**: all 11 player sprites → 600×750, enemy sprites → 2× each enemy's spriteSize (e.g. Forest Rat 1024→250, Thornback Boar 2048→560)
+- **Result**: WebGL now only does ≤2× bilinear at runtime — sprites look smooth and crisp at all poses
+
+---
+
 ## 2026-02-14 — Combat Movement Feedback (Lunge, Knockback, Death Slide)
 - **Attack lunge**: Both player and enemy lunge 20px toward opponent on attack (80ms yoyo)
 - **Hit knockback**: Both sides jolt 12px away from attacker on hit (80ms yoyo)

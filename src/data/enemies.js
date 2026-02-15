@@ -156,6 +156,7 @@ const ENEMIES = [
     },
     spriteSize: { w: 280, h: 153 },
     spriteOffsetY: 0,
+    lungeDistance: 80,
     lootTable: AREA_1_LOOT_TABLE,
   },
   {

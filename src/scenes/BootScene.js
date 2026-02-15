@@ -99,6 +99,10 @@ export default class BootScene extends Phaser.Scene {
   create() {
     console.log(`[BootScene] create — canvas ${WORLD.width}x${WORLD.height}`);
 
+    // Pre-downscale large combat sprites via canvas (high-quality Lanczos)
+    // so WebGL only needs ≤2× bilinear at runtime.
+    this._downscaleCombatSprites();
+
     const cx = WORLD.width / 2;
     const cy = WORLD.height / 2;
 
@@ -129,5 +133,58 @@ export default class BootScene extends Phaser.Scene {
     this.time.delayedCall(1000, () => {
       this.scene.start('GameScene');
     });
+  }
+
+  /**
+   * Replace oversized combat sprite textures with canvas-downscaled versions.
+   * Target = 2× display size so WebGL bilinear handles the final 2× cleanly.
+   */
+  _downscaleCombatSprites() {
+    // Player sprites — all displayed at ~300×375
+    const playerTarget = { w: 600, h: 750 };
+    const playerKeys = [
+      'player001_default', 'player001_strongpunch', 'player001_jumpkick',
+      'player001_kick', 'player001_elbow', 'player001_kneestrike',
+      'player001_roundhousekick', 'player001_jab', 'player001_hitreaction',
+      'player001_walk1', 'player001_walk3',
+    ];
+    for (const key of playerKeys) {
+      this._downscaleTexture(key, playerTarget.w, playerTarget.h);
+    }
+
+    // Enemy sprites — 2× each enemy's spriteSize
+    const enemyGroups = [
+      { keys: ['slime001_default', 'slime001_reaction', 'slime001_attack', 'slime001_dead'], w: 320, h: 480 },
+      { keys: ['forestrat001_default', 'forestrat001_reaction', 'forestrat001_attack', 'forestrat001_dead'], w: 250, h: 250 },
+      { keys: ['feralhound_default', 'feralhound_reaction', 'feralhound_attack', 'feralhound_dead'], w: 512, h: 280 },
+      { keys: ['thornbackboar_default', 'thornbackboar_reaction', 'thornbackboar_attack', 'thornbackboar_dead'], w: 560, h: 306 },
+      { keys: ['blightedstalker_default', 'blightedstalker_reaction', 'blightedstalker_attack', 'blightedstalker_dead'], w: 396, h: 478 },
+    ];
+    for (const { keys, w, h } of enemyGroups) {
+      for (const key of keys) {
+        this._downscaleTexture(key, w, h);
+      }
+    }
+  }
+
+  /** Canvas-downscale a single texture to targetW×targetH using browser Lanczos. */
+  _downscaleTexture(key, targetW, targetH) {
+    const texture = this.textures.get(key);
+    if (!texture || texture.key === '__MISSING') return;
+    const source = texture.getSourceImage();
+    if (!source) return;
+    // Skip if source is already at or below target size
+    if (source.width <= targetW && source.height <= targetH) return;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = targetW;
+    canvas.height = targetH;
+    const ctx = canvas.getContext('2d');
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(source, 0, 0, targetW, targetH);
+
+    this.textures.remove(key);
+    this.textures.addCanvas(key, canvas);
   }
 }
