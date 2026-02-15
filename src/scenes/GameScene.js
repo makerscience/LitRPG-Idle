@@ -20,7 +20,8 @@ export default class GameScene extends Phaser.Scene {
 
   create() {
     const ga = LAYOUT.gameArea;
-    const playerX = ga.x + 200;
+    this._playerX = ga.x + 200;
+    const playerX = this._playerX;
     this._enemyX = ga.x + 700;
     this._combatY = ga.y + ga.h - 225;
     this._enemyY = this._combatY + 40;
@@ -336,6 +337,10 @@ export default class GameScene extends Phaser.Scene {
     const hDiff = this._spriteH - baseH;
     this._bottomAlignOffsetY = hDiff > 0 ? -hDiff / 2 + 40 : 0;
 
+    // Reset X position (death knockback may have displaced it)
+    this.enemySprite.x = this._enemyX;
+    this.enemyRect.x = this._enemyX;
+
     if (this._currentEnemySprites) {
       // Show sprite with default pose (apply Y offset for living poses)
       this.enemySprite.setTexture(this._currentEnemySprites.default);
@@ -394,58 +399,87 @@ export default class GameScene extends Phaser.Scene {
     } else {
       this.playerRect.setDisplaySize(300, 375);
     }
+    // Lunge toward enemy on attack (reset position first to prevent drift from rapid clicks)
+    this.tweens.killTweensOf(this.playerRect);
+    this.playerRect.x = this._playerX;
+    this.tweens.add({
+      targets: this.playerRect,
+      x: this._playerX + 20,
+      duration: 80,
+      ease: 'Quad.easeOut',
+      yoyo: true,
+    });
     if (this._playerPoseTimer) this._playerPoseTimer.remove();
     this._playerPoseTimer = this.time.delayedCall(400, () => {
       this._walkTimer.paused = false;
     });
 
-    // Floating damage number (magnitude-tiered)
-    this._spawnDamageNumber(data.amount, data.isCrit);
-
     const target = this._currentEnemySprites ? this.enemySprite : this.enemyRect;
 
+    // Delay enemy reaction so the player's lunge lands first
+    const reactDelay = 60;
     if (this._currentEnemySprites) {
-      // Sprite: switch to reaction pose for 500ms
-      this.enemySprite.setTexture(this._currentEnemySprites.reaction);
-      this.enemySprite.setDisplaySize(this._spriteW, this._spriteH);
-      this.enemySprite.setTint(0xffffff);
-      this.time.delayedCall(80, () => this.enemySprite.clearTint());
+      this.time.delayedCall(reactDelay, () => {
+        // Damage number on impact
+        this._spawnDamageNumber(data.amount, data.isCrit);
+        // Sprite: switch to reaction pose for 500ms
+        this.enemySprite.setTexture(this._currentEnemySprites.reaction);
+        this.enemySprite.setDisplaySize(this._spriteW, this._spriteH);
+        this.enemySprite.setTint(0xffffff);
+        this.time.delayedCall(80, () => this.enemySprite.clearTint());
 
-      // Clear any existing pose-revert timer
-      if (this._poseRevertTimer) this._poseRevertTimer.remove();
-      this._poseRevertTimer = this.time.delayedCall(500, () => {
-        if (this._currentEnemySprites) {
-          this.enemySprite.setTexture(this._currentEnemySprites.default);
-          this.enemySprite.setDisplaySize(this._spriteW, this._spriteH);
-        }
+        // Knockback on hit
+        this.tweens.add({
+          targets: this.enemySprite,
+          x: this._enemyX + 12,
+          duration: 80,
+          ease: 'Quad.easeOut',
+          yoyo: true,
+        });
+
+        // Clear any existing pose-revert timer
+        if (this._poseRevertTimer) this._poseRevertTimer.remove();
+        this._poseRevertTimer = this.time.delayedCall(500, () => {
+          if (this._currentEnemySprites) {
+            this.enemySprite.setTexture(this._currentEnemySprites.default);
+            this.enemySprite.setDisplaySize(this._spriteW, this._spriteH);
+          }
+        });
       });
     } else {
-      // Rect: existing hit flash behavior
-      this.enemyRect.setFillStyle(0xffffff);
-      this.time.delayedCall(80, () => {
-        if (this.enemyRect) this.enemyRect.setFillStyle(0xef4444);
-      });
-    }
+      this.time.delayedCall(reactDelay, () => {
+        // Damage number on impact
+        this._spawnDamageNumber(data.amount, data.isCrit);
+        // Rect: existing hit flash behavior
+        this.enemyRect.setFillStyle(0xffffff);
+        this.time.delayedCall(80, () => {
+          if (this.enemyRect) this.enemyRect.setFillStyle(0xef4444);
+        });
 
-    // Hit reaction â€” squish + knockback (rects only; sprites skip to avoid display size warping)
-    if (!this._currentEnemySprites) {
-      if (this._hitReactionTween) this._hitReactionTween.stop();
-      target.setScale(1);
-      target.x = this._enemyX;
-      this._hitReactionTween = this.tweens.add({
-        targets: target,
-        scaleX: 0.85,
-        scaleY: 1.15,
-        x: this._enemyX + 8,
-        duration: 60,
-        ease: 'Quad.easeOut',
-        yoyo: true,
+        // Hit reaction — squish + knockback
+        if (this._hitReactionTween) this._hitReactionTween.stop();
+        target.setScale(1);
+        target.x = this._enemyX;
+        this._hitReactionTween = this.tweens.add({
+          targets: target,
+          scaleX: 0.85,
+          scaleY: 1.15,
+          x: this._enemyX + 8,
+          duration: 60,
+          ease: 'Quad.easeOut',
+          yoyo: true,
+        });
       });
     }
   }
 
   _onEnemyKilled(_data) {
     const target = this._currentEnemySprites ? this.enemySprite : this.enemyRect;
+
+    // Kill hit-reaction tweens so the death slide continues from current position
+    this.tweens.killTweensOf(this.enemySprite);
+    this.tweens.killTweensOf(this.enemyRect);
+    if (this._hitReactionTween) { this._hitReactionTween.stop(); this._hitReactionTween = null; }
 
     // Clear any pending pose revert
     if (this._poseRevertTimer) { this._poseRevertTimer.remove(); this._poseRevertTimer = null; }
@@ -454,32 +488,51 @@ export default class GameScene extends Phaser.Scene {
       // Show dead pose at base position (no living-pose offset), then fade out
       this.enemySprite.setTexture(this._currentEnemySprites.dead);
       this.enemySprite.setDisplaySize(this._spriteW, this._spriteH);
-      this.enemySprite.y = this._enemyY + this._bottomAlignOffsetY;
+      this.enemySprite.y = this._enemyY + this._spriteOffsetY + this._bottomAlignOffsetY;
       this.enemySprite.disableInteractive();
 
-      const deathHoldMs = _data.isBoss ? 1000 : 500;
-      this._deathFadeTimer = this.time.delayedCall(deathHoldMs, () => {
-        this._deathFadeTimer = null;
-        this.tweens.add({
-          targets: [target, this.enemyNameText, this.hpBarBg, this.hpBarFill],
-          alpha: 0, duration: 300, ease: 'Power2',
-        });
-      });
-    } else {
-      // Existing rect death animation
+      // Death knockback then immediately slide away
       this.tweens.add({
-        targets: this.enemyRect,
-        scaleX: 1.2, scaleY: 1.2,
-        duration: 100, ease: 'Quad.easeOut',
+        targets: this.enemySprite,
+        x: this._enemyX + 40,
+        duration: 120,
+        ease: 'Quad.easeOut',
         onComplete: () => {
+          // Slide away fast and fade out
           this.tweens.add({
-            targets: [this.enemyRect, this.enemyNameText, this.hpBarBg, this.hpBarFill],
-            alpha: 0, duration: 200, ease: 'Power2',
+            targets: this.enemySprite,
+            x: this._enemyX + 250,
+            alpha: 0,
+            duration: 200,
+            ease: 'Quad.easeIn',
           });
           this.tweens.add({
+            targets: [this.enemyNameText, this.hpBarBg, this.hpBarFill],
+            alpha: 0, duration: 150, ease: 'Power2',
+          });
+        },
+      });
+    } else {
+      // Rect death: knockback then immediately slide away
+      this.tweens.add({
+        targets: this.enemyRect,
+        x: this._enemyX + 40,
+        scaleX: 1.2, scaleY: 1.2,
+        duration: 120,
+        ease: 'Quad.easeOut',
+        onComplete: () => {
+          // Slide away fast and fade out
+          this.tweens.add({
             targets: this.enemyRect,
+            x: this._enemyX + 250,
+            alpha: 0,
             scaleX: 0.5, scaleY: 0.5,
-            duration: 200, ease: 'Power2',
+            duration: 200,
+            ease: 'Quad.easeIn',
+          });
+          this.tweens.add({
+            targets: [this.enemyNameText, this.hpBarBg, this.hpBarFill],
+            alpha: 0, duration: 150, ease: 'Power2',
           });
         },
       });
@@ -627,6 +680,14 @@ export default class GameScene extends Phaser.Scene {
     if (this._currentEnemySprites) {
       this.enemySprite.setTexture(this._currentEnemySprites.attack);
       this.enemySprite.setDisplaySize(this._spriteW, this._spriteH);
+      // Lunge toward player on attack
+      this.tweens.add({
+        targets: this.enemySprite,
+        x: this._enemyX - 20,
+        duration: 80,
+        ease: 'Quad.easeOut',
+        yoyo: true,
+      });
       if (this._poseRevertTimer) this._poseRevertTimer.remove();
       this._poseRevertTimer = this.time.delayedCall(500, () => {
         if (this._currentEnemySprites) {
@@ -634,38 +695,135 @@ export default class GameScene extends Phaser.Scene {
           this.enemySprite.setDisplaySize(this._spriteW, this._spriteH);
         }
       });
+    } else {
+      // Rect: lunge toward player on attack
+      this.tweens.add({
+        targets: this.enemyRect,
+        x: this._enemyX - 20,
+        duration: 80,
+        ease: 'Quad.easeOut',
+        yoyo: true,
+      });
     }
 
-    // Player hit reaction pose for 400ms, then revert to walk cycle
+    // Delay player reaction so the enemy's lunge lands first
     this._walkTimer.paused = true;
-    this.playerRect.setTexture('player001_hitreaction');
-    this.playerRect.setDisplaySize(300, 375);
-    this.playerRect.setTint(0xef4444);
-    this.time.delayedCall(120, () => {
-      if (this.playerRect) this.playerRect.clearTint();
+    this.time.delayedCall(60, () => {
+      this.playerRect.setTexture('player001_hitreaction');
+      this.playerRect.setDisplaySize(300, 375);
+      this.playerRect.setTint(0xef4444);
+      // Knockback on hit (away from enemy = left)
+      this.tweens.add({
+        targets: this.playerRect,
+        x: this._playerX - 12,
+        duration: 80,
+        ease: 'Quad.easeOut',
+        yoyo: true,
+      });
+      this.time.delayedCall(120, () => {
+        if (this.playerRect) this.playerRect.clearTint();
+      });
     });
     if (this._playerPoseTimer) this._playerPoseTimer.remove();
-    this._playerPoseTimer = this.time.delayedCall(400, () => {
+    this._playerPoseTimer = this.time.delayedCall(460, () => {
       this._walkTimer.paused = false;
     });
   }
 
   _onPlayerDied() {
-    // Flash/fade on player rect
+    const ga = LAYOUT.gameArea;
+
+    // 1. Camera shake
+    this.cameras.main.shake(250, 0.01);
+
+    // 2. Red screen overlay (fades out over 800ms)
+    const overlay = this.add.rectangle(
+      ga.x + ga.w / 2, ga.y + ga.h / 2,
+      ga.w, ga.h,
+      0xef4444, 0.35
+    );
+    this.tweens.add({
+      targets: overlay,
+      alpha: 0,
+      duration: 800,
+      ease: 'Power2',
+      onComplete: () => overlay.destroy(),
+    });
+
+    // 3. "DEFEATED" floating text
+    const defText = this.add.text(
+      ga.x + ga.w / 2, ga.y + ga.h / 2,
+      'DEFEATED',
+      {
+        fontFamily: 'monospace',
+        fontSize: '40px',
+        fontStyle: 'bold',
+        color: '#ef4444',
+        stroke: '#ffffff',
+        strokeThickness: 4,
+      }
+    ).setOrigin(0.5);
+    this.tweens.add({
+      targets: defText,
+      y: defText.y - 60,
+      duration: 1200,
+      ease: 'Power2',
+    });
+    this.tweens.add({
+      targets: defText,
+      alpha: 0,
+      delay: 840,
+      duration: 360,
+      ease: 'Linear',
+      onComplete: () => defText.destroy(),
+    });
+
+    // 4. Player sprite death pose + knockback slide away
+    this._walkTimer.paused = true;
+    if (this._playerPoseTimer) this._playerPoseTimer.remove();
+    this.tweens.killTweensOf(this.playerRect);
+    this.playerRect.setTexture('player001_hitreaction');
+    this.playerRect.setDisplaySize(300, 375);
+    this.playerRect.setTint(0xef4444);
+    // Knockback then slide away to the left
     this.tweens.add({
       targets: this.playerRect,
-      alpha: 0.3,
-      duration: 200,
-      yoyo: true,
-      repeat: 2,
+      x: this._playerX - 40,
+      duration: 120,
+      ease: 'Quad.easeOut',
       onComplete: () => {
-        this.playerRect.setAlpha(1);
-        // Refresh HP bar to full after respawn
-        this.time.delayedCall(COMBAT_V2.playerDeathRespawnDelay, () => {
-          this.playerHpBarFill.setDisplaySize(200, 16);
-          this.playerHpBarFill.setFillStyle(0x22c55e);
+        this.tweens.add({
+          targets: this.playerRect,
+          x: this._playerX - 250,
+          alpha: 0,
+          duration: 200,
+          ease: 'Quad.easeIn',
         });
       },
+    });
+
+    // 5. Disable enemy click interaction during death
+    this.enemyRect.disableInteractive();
+    this.enemySprite.disableInteractive();
+
+    // 6. Respawn restoration after delay
+    this.time.delayedCall(COMBAT_V2.playerDeathRespawnDelay, () => {
+      // Restore player sprite
+      this.tweens.killTweensOf(this.playerRect);
+      this.playerRect.clearTint();
+      this.playerRect.setAlpha(1);
+      this.playerRect.x = this._playerX;
+      this.playerRect.setTexture('player001_walk1');
+      this.playerRect.setDisplaySize(300, 375);
+      this._walkTimer.paused = false;
+
+      // Restore HP bar
+      this.playerHpBarFill.setDisplaySize(200, 16);
+      this.playerHpBarFill.setFillStyle(0x22c55e);
+
+      // Re-enable enemy click interaction
+      this.enemyRect.setInteractive({ useHandCursor: true });
+      this.enemySprite.setInteractive({ useHandCursor: true });
     });
   }
 

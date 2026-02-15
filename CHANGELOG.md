@@ -1,5 +1,20 @@
 # CHANGELOG
 
+## 2026-02-14 — Combat Movement Feedback (Lunge, Knockback, Death Slide)
+- **Attack lunge**: Both player and enemy lunge 20px toward opponent on attack (80ms yoyo)
+- **Hit knockback**: Both sides jolt 12px away from attacker on hit (80ms yoyo)
+- **Death slide**: On kill, 40px knockback (120ms) then immediately rockets 250px offscreen while fading (200ms) — works for both player and enemy deaths
+- **Staggered timing**: 60ms delay between attacker lunge and defender reaction — hit "connects" visually. Damage numbers also pop on impact
+- **Boss defeated delay**: Reduced 1300ms to 500ms to match faster death animation
+
+---
+
+## 2026-02-14 — Player Death Visual Feedback
+- **Full death sequence**: camera shake, red screen flash overlay, "DEFEATED" floating text, player sprite collapse/fade — death is now an unmistakable moment
+- **Enemy click disabled during death**: prevents interaction while player is dead, re-enabled on respawn
+
+---
+
 ## 2026-02-14 — Balance Overhaul: Asymmetric Scaling + Enemy/Gear Calibration
 - **Asymmetric zone scaling**: `getZoneScaling(zone, stat)` now uses per-stat rates — HP +10%/zone, ATK +12%, Gold +18%, XP +8% (was uniform +15% for all). Creates snowball within areas and prevents over-leveling.
 - **Enemy DEF on armored archetypes**: Stone Sentry (10), Blighted Guardian (15), Hearthguard Construct (20), plus 5 armored bosses (8-12). Gear-check moments that reward weapon upgrades.

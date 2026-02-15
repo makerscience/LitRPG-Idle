@@ -29,7 +29,7 @@
 
 ## How to Resume in 30 Seconds
 - **Open:** `.memory/CURRENT_FOCUS.md`
-- **Last change:** Balance overhaul — asymmetric scaling, enemy calibration, gear widening
+- **Last change:** Combat movement polish — lunge/knockback/death slide for both player & enemy, staggered timing
 - **Architecture:** Progression.js owns XP/level + kill rewards. Store is pure state. EventScope pattern for subscriptions. ComputedStats for derived values. BossManager looks up named bosses via `getBossForZone()`. LootEngine uses zone-based item pools with slot weighting and pity.
 - **Plan:** `Plans/Redesign Plan.md` — 8-phase implementation, Phase 7 complete
 - **Balance tool:** `npm run balance:sim` — zone-by-zone idle progression simulation
@@ -51,14 +51,15 @@
 ---
 
 ## Last Session Summary (max ~8 bullets)
-- Implemented asymmetric zone scaling: HP +10%/zone, ATK +12%, Gold +18%, XP +8% (was uniform 15%)
-- Updated CombatEngine, OfflineProgress, and balance-sim to use per-stat scaling
-- Added DEF to armored enemies: Stone Sentry (10), Blighted Guardian (15), Hearthguard Construct (20), plus 5 bosses
-- Calibrated A2/A3 enemy base stats: ~30% HP increase, ~65-75% ATK increase for area-entry walls
-- Calibrated A2/A3 boss stats proportionally; final boss tightened from 2.2x to 1.27x survival
-- Increased upgrade base costs by 1.5x for early-game tension
-- Widened cross-tier gear jumps by 30-40% for satisfying breakthrough moments
-- All 30 bosses still pass, data validation clean
+- Added combat movement feedback for both player and enemy sprites in GameScene.js
+- Attack lunge: 20px toward opponent (80ms yoyo) for both player and enemy
+- Hit knockback: 12px away from attacker (80ms yoyo) for both sides
+- Enemy death: 40px knockback (120ms) → immediately rockets 250px offscreen while fading (200ms)
+- Player death: 40px knockback left (120ms) → rockets 250px offscreen left while fading (200ms)
+- 60ms staggered timing: attacker lunges first, defender reacts on impact — damage numbers also delayed to impact moment
+- Boss defeated delay reduced 1300ms → 500ms to match faster death animation
+- Added `this._playerX` instance property + X position resets on spawn/respawn
+- Fixed rapid-click lunge drift: kill previous tween + reset X before each new lunge
 
 ## Pinned References
 - Governance rules: `CLAUDE.md`

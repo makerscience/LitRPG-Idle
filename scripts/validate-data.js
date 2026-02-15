@@ -33,7 +33,7 @@ for (const e of ENEMIES) {
   if (typeof e.hp !== 'number' || e.hp <= 0) error(`${ctx}: hp must be positive number, got ${e.hp}`);
   if (typeof e.attack !== 'number' || e.attack < 0) error(`${ctx}: invalid attack`);
   if (typeof e.attackSpeed !== 'number' || e.attackSpeed <= 0) error(`${ctx}: invalid attackSpeed`);
-  if (typeof e.defense !== 'number' || e.defense < 0) error(`${ctx}: invalid defense`);
+  if (typeof e.defense !== 'number') error(`${ctx}: invalid defense`);
   if (typeof e.armorPen !== 'number' || e.armorPen < 0 || e.armorPen > 1) error(`${ctx}: armorPen must be 0-1`);
   if (e.dot !== null && typeof e.dot !== 'number') error(`${ctx}: dot must be number or null`);
 

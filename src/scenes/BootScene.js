@@ -37,6 +37,10 @@ export default class BootScene extends Phaser.Scene {
     this.load.image('thornbackboar_reaction', 'Images/Enemies/area1/thornbackboar_reaction.png');
     this.load.image('thornbackboar_attack',   'Images/Enemies/area1/thornbackboar_attack.png');
     this.load.image('thornbackboar_dead',     'Images/Enemies/area1/thornbackboar_dead.png');
+    this.load.image('blightedstalker_default',  'Images/Enemies/area1/blightedstalker_default.png');
+    this.load.image('blightedstalker_reaction', 'Images/Enemies/area1/blightedstalker_reaction.png');
+    this.load.image('blightedstalker_attack',   'Images/Enemies/area1/blightedstalker_attack.png');
+    this.load.image('blightedstalker_dead',     'Images/Enemies/area1/blightedstalker_dead.png');
     this.load.image('player001_default',        'Images/Player001_default.png');
     this.load.image('player001_strongpunch',    'Images/Player001_strongpunch.png');
     this.load.image('player001_jumpkick',       'Images/Player001_jumpkick.png');

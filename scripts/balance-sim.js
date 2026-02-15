@@ -20,6 +20,7 @@ const TUNE = {
   bossXpMult: 1.0,        // multiply all boss XP by this
   goldMult: 1.0,          // multiply all gold drops by this
   bossGoldMult: 1.0,      // multiply boss gold drops by this
+  bossClickRate: 5,       // assumed clicks per second during boss fights
 };
 
 // ── Constants (hardcoded to avoid Store/Phaser dependencies) ───────────
@@ -180,11 +181,16 @@ function enemyDamage(atk, armorPen) {
  * Compute TTK (time to kill enemy) and TTD (time to die) for a given enemy.
  * Returns { ttk, ttd, survivalRatio }.
  */
-function combatStats(enemyHp, enemyAtk, enemyAtkSpeed, enemyDef, enemyArmorPen, enemyDot) {
+function combatStats(enemyHp, enemyAtk, enemyAtkSpeed, enemyDef, enemyArmorPen, enemyDot, clickRate = 0) {
   // Player DPS
   const dmgPerHit = playerDamage(enemyDef);
   const atkInterval = getAutoAttackInterval() / 1000; // seconds
-  const playerDps = dmgPerHit / atkInterval;
+  const autoDps = dmgPerHit / atkInterval;
+
+  // Click DPS (active play, e.g. boss fights)
+  const clickDmgMult = getUpgradeMultiplier('clickDamage');
+  const clickDps = clickRate > 0 ? dmgPerHit * clickDmgMult * clickRate : 0;
+  const playerDps = autoDps + clickDps;
 
   // Time to kill
   const ttk = enemyHp / playerDps;
@@ -282,7 +288,7 @@ console.log('══════════════════════�
 console.log('');
 console.log('Assumptions:');
 console.log('  • Common gear only (no uncommons)');
-console.log('  • Idle play only (auto-attacks, no clicks)');
+console.log(`  • Idle for enemies, active clicking (${TUNE.bossClickRate}/s) for bosses`);
 console.log('  • No crits, no prestige, no territory buffs');
 console.log('  • Optimal upgrade purchasing (Battle Hardening > Atk Speed > Gold Find > Sharpen)');
 console.log('  • Player grinds exactly boss threshold kills per zone');
@@ -360,6 +366,7 @@ for (let globalZone = 1; globalZone <= 30; globalZone++) {
       bossResult = combatStats(
         boss.hp, Math.floor(boss.attack * TUNE.bossAtkMult), boss.attackSpeed,
         boss.defense || 0, boss.armorPen || 0, boss.dot || 0,
+        TUNE.bossClickRate,
       );
     }
 

@@ -359,12 +359,12 @@ const CombatEngine = {
       isBoss: dead.isBoss || false,
     });
 
-    // If boss was killed, delay zone advancement so the death sprite can play
-    // (1000ms hold + 300ms fade in GameScene)
+    // If boss was killed, delay zone advancement so the death anim can play
+    // (120ms knockback + 200ms slide-away in GameScene, plus breathing room)
     if (dead.isBoss) {
       TimeEngine.scheduleOnce('combat:bossDefeatedDelay', () => {
         BossManager.onBossDefeated();
-      }, 1300);
+      }, 500);
       return;
     }
 
