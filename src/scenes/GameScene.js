@@ -392,10 +392,12 @@ export default class GameScene extends Phaser.Scene {
     }
     this.hpBarFill.setFillStyle(color);
 
-    // Player attack pose â€" random sprite for 400ms, then revert to walk cycle
-    const attackKey = this._playerAttackSprites[
-      Math.floor(Math.random() * this._playerAttackSprites.length)
-    ];
+    const isPowerSmash = data.isPowerSmash || false;
+
+    // Player attack pose — force strong punch for Power Smash, random otherwise
+    const attackKey = isPowerSmash
+      ? 'player001_strongpunch'
+      : this._playerAttackSprites[Math.floor(Math.random() * this._playerAttackSprites.length)];
     this._walkTimer.paused = true;
     this.playerRect.setTexture(attackKey);
 
@@ -404,22 +406,31 @@ export default class GameScene extends Phaser.Scene {
     } else {
       this.playerRect.setDisplaySize(300, 375);
     }
-    // Lunge toward enemy on attack (reset position first to prevent drift from rapid clicks)
+    // Lunge toward enemy — bigger for Power Smash
+    const lungeDist = isPowerSmash ? 40 : 20;
+    const lungeDur = isPowerSmash ? 100 : 80;
     this.tweens.killTweensOf(this.playerRect);
     this.playerRect.x = this._playerX;
     this.tweens.add({
       targets: this.playerRect,
-      x: this._playerX + 20,
-      duration: 80,
+      x: this._playerX + lungeDist,
+      duration: lungeDur,
       ease: 'Quad.easeOut',
       yoyo: true,
     });
+
+    // Screen shake for Power Smash
+    if (isPowerSmash) {
+      this.cameras.main.shake(150, 0.006);
+    }
+
     if (this._playerPoseTimer) this._playerPoseTimer.remove();
     this._playerPoseTimer = this.time.delayedCall(400, () => {
       this._walkTimer.paused = false;
     });
 
     const target = this._currentEnemySprites ? this.enemySprite : this.enemyRect;
+    const knockbackDist = isPowerSmash ? 24 : 12;
 
     // Delay enemy reaction so the player's lunge lands first
     const reactDelay = 60;
@@ -427,7 +438,7 @@ export default class GameScene extends Phaser.Scene {
       if (this._reactDelayTimer) this._reactDelayTimer.remove();
       this._reactDelayTimer = this.time.delayedCall(reactDelay, () => {
         // Damage number on impact
-        this._spawnDamageNumber(data.amount, data.isCrit);
+        this._spawnDamageNumber(data.amount, data.isCrit, isPowerSmash);
         // Sprite: switch to reaction pose for 500ms
         this.enemySprite.setTexture(this._currentEnemySprites.reaction);
 
@@ -440,10 +451,10 @@ export default class GameScene extends Phaser.Scene {
         this.enemySprite.x = this._enemyX;
         this.enemySprite.y = this._enemyY + this._spriteOffsetY + this._bottomAlignOffsetY;
 
-        // Knockback on hit
+        // Knockback on hit — bigger for Power Smash
         this.tweens.add({
           targets: this.enemySprite,
-          x: this._enemyX + 12,
+          x: this._enemyX + knockbackDist,
           duration: 80,
           ease: 'Quad.easeOut',
           yoyo: true,
@@ -462,7 +473,7 @@ export default class GameScene extends Phaser.Scene {
     } else {
       this.time.delayedCall(reactDelay, () => {
         // Damage number on impact
-        this._spawnDamageNumber(data.amount, data.isCrit);
+        this._spawnDamageNumber(data.amount, data.isCrit, isPowerSmash);
         // Rect: existing hit flash behavior
         this.enemyRect.setFillStyle(0xffffff);
         this.time.delayedCall(80, () => {
@@ -477,7 +488,7 @@ export default class GameScene extends Phaser.Scene {
           targets: target,
           scaleX: 0.85,
           scaleY: 1.15,
-          x: this._enemyX + 8,
+          x: this._enemyX + (isPowerSmash ? 16 : 8),
           duration: 60,
           ease: 'Quad.easeOut',
           yoyo: true,
@@ -618,7 +629,7 @@ export default class GameScene extends Phaser.Scene {
 
   // â”€â”€ Damage numbers (magnitude-tiered) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-  _spawnDamageNumber(amount, isCrit) {
+  _spawnDamageNumber(amount, isCrit, isPowerSmash = false) {
     const xOffset = (Math.random() - 0.5) * 60;
     const x = this._enemyX + xOffset;
     const y = this._enemyY - 50;
@@ -635,21 +646,42 @@ export default class GameScene extends Phaser.Scene {
     }
 
     let fontSize = tier.fontSize;
-    if (isCrit) fontSize += UI.damageNumbers.critBonusSize;
+    if (isPowerSmash) fontSize += 8;
+    else if (isCrit) fontSize += UI.damageNumbers.critBonusSize;
 
-    const displayText = format(amount) + (isCrit ? '!' : '');
+    // Power Smash appends ' SMASH!', crit appends '!'
+    let suffix = '';
+    if (isPowerSmash) suffix = ' SMASH!';
+    else if (isCrit) suffix = '!';
+    const displayText = format(amount) + suffix;
+
+    // Power Smash + crit = crit yellow; Power Smash alone = orange
+    let textColor;
+    if (isPowerSmash && isCrit) textColor = '#fde047';
+    else if (isPowerSmash) textColor = '#f97316';
+    else if (isCrit) textColor = '#fde047';
+    else textColor = tier.color;
 
     const textStyle = {
       fontFamily: 'monospace',
       fontSize: `${fontSize}px`,
-      color: isCrit ? '#fde047' : tier.color,
+      color: textColor,
       fontStyle: tier.style,
       stroke: '#000000',
-      strokeThickness: 4,
+      strokeThickness: isPowerSmash ? 5 : 4,
     };
 
-    // 1M+ tier gets glow shadow
-    if (tier.min >= 1e6) {
+    // Power Smash always gets orange glow
+    if (isPowerSmash) {
+      textStyle.shadow = {
+        offsetX: 0,
+        offsetY: 0,
+        color: '#f97316',
+        blur: 12,
+        fill: true,
+      };
+    } else if (tier.min >= 1e6) {
+      // 1M+ tier gets glow shadow
       textStyle.shadow = {
         offsetX: 0,
         offsetY: 0,

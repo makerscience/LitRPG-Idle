@@ -43,6 +43,28 @@ const UPGRADES = [
     effect: { type: 'multiplier', target: 'goldMultiplier', valuePerLevel: 0.15 },
   },
 
+  // ── Power Smash ─────────────────────────────────────────────────
+  {
+    id: 'power_smash_damage',
+    name: 'Power Smash Damage',
+    description: '+0.5x smash damage per level',
+    category: 'legit',
+    currency: 'gold',
+    maxLevel: 8,
+    costFormula: (level) => Math.floor(200 * 1.9 ** level),
+    effect: { type: 'multiplier', target: 'powerSmashDamage', valuePerLevel: 0.5 },
+  },
+  {
+    id: 'power_smash_recharge',
+    name: 'Power Smash Recharge',
+    description: '-10% smash cooldown per level',
+    category: 'legit',
+    currency: 'gold',
+    maxLevel: 5,
+    costFormula: (level) => Math.floor(300 * 2.0 ** level),
+    effect: { type: 'multiplier', target: 'powerSmashCooldown', valuePerLevel: 0.10 },
+  },
+
   // ── Exploit (fragment cost, visible after crackTriggered) ─────────
   {
     id: 'unstable_crit',

@@ -1,18 +1,18 @@
 # CURRENT_FOCUS
 
 ## One-liner
-- Waterskin system polished: boss-only drop, thumbnail art, instant heal, DRINK button bottom-left. Combat sprite drift fixed. Ready for playtesting.
+- Power Smash active ability implemented: 3x damage burst, 60s cooldown, unlocks at level 3, two upgrade tracks, enhanced visuals. Ready for playtesting.
 
 ## Active Objectives (max 3)
-1. **Playtesting:** Validate waterskin flow + balance feel in-browser, then publish to Itch.io
+1. **Playtesting:** Validate Power Smash + waterskin flow in-browser, then publish to Itch.io
 2. **Polish:** Add sprites for Area 2-3 enemies/bosses (currently null — uses placeholder)
 3. **Future:** Phase 8+ — town/territory re-enablement, prestige loop, art assets
 
 ## Next Actions
-- [ ] Playtest waterskin flow: kill Rotfang → waterskin drops → equip → DRINK button appears → heals 20% max HP → 30s cooldown
+- [ ] Playtest Power Smash: reach level 3 → SMASH button appears → click → orange damage, screen shake, 60s cooldown
+- [ ] Playtest upgrade purchases: buy Power Smash Damage/Recharge upgrades → verify multiplier/cooldown changes
+- [ ] Playtest both abilities: SMASH + DRINK buttons side by side, both visible and functional
 - [ ] Playtest in-browser: verify area transitions feel like real walls (z6, z16 should feel noticeably harder)
-- [ ] Verify gear upgrades feel impactful — cross-tier drops should produce visible DPS jumps
-- [ ] Update GAME_DATA_REFERENCE.md with new balance numbers (enemy stats, gear stats, scaling rates)
 - [ ] Polish: add sprites for Area 2-3 enemies/bosses (currently null — uses placeholder)
 
 ## Open Loops / Blockers
@@ -26,7 +26,7 @@
 
 ## How to Resume in 30 Seconds
 - **Open:** `.memory/CURRENT_FOCUS.md`
-- **Last change:** Waterskin polish — boss-only drop, thumbnail, instant heal, sprite drift fix
+- **Last change:** Power Smash active ability — 3x damage burst, 60s cooldown, level 3 unlock, 2 upgrade tracks, enhanced visuals
 - **Architecture:** Progression.js owns XP/level + kill rewards. Store is pure state. EventScope pattern for subscriptions. ComputedStats for derived values. BossManager looks up named bosses via `getBossForZone()`. LootEngine uses zone-based item pools with slot weighting and pity. Bosses can have `guaranteedFirstKillItem` for bonus drops.
 - **Plan:** `Plans/Redesign Plan.md` — 8-phase implementation, Phase 7 complete
 - **Balance tool:** `npm run balance:sim` — zone-by-zone idle progression simulation
@@ -48,12 +48,14 @@
 ---
 
 ## Last Session Summary (max ~8 bullets)
-- Moved DRINK button to bottom-left of game area (was centered)
-- Waterskin heal now updates HP bar instantly (Store.healPlayer emits COMBAT_PLAYER_DAMAGED with amount:0)
-- Fixed enemy sprite drift: tweens killed + position reset before new lunge/knockback animations
-- Waterskin thumbnail wired up: `waterskin001.png` → `npm run thumbs` → BootScene load → item data
-- Waterskin removed from normal loot pool — boss-only guaranteed first-kill drop (removed from slotWeights, EQUIP_TO_ITEM_SLOT, lootPity)
-- Fixed double attack animation caused by healPlayer reusing COMBAT_PLAYER_DAMAGED (early return on amount ≤ 0)
+- Implemented Power Smash active ability: 3x base click damage, 60s cooldown, unlocks at level 3
+- Created SmashButton.js following DrinkButton pattern (dark orange-brown, to the right of DRINK)
+- Added `powerSmashAttack()` to CombatEngine — uses `getPlayerDamage(state, true)` × smashMultiplier
+- Added `POWER_SMASH_USED` event + contract in events.js
+- Added 2 upgrades in upgrades.js: power_smash_damage (8 levels) + power_smash_recharge (5 levels)
+- Modified GameScene: forced strong punch sprite, bigger lunge (40px), screen shake (150ms), orange SMASH! damage numbers with glow
+- Wired SmashButton into UIScene (import, create, show/hide/destroy)
+- Added SystemLog messages: "Power Smash!" on use, "Power Smash unlocked!" at level 3
 
 ## Pinned References
 - Governance rules: `CLAUDE.md`

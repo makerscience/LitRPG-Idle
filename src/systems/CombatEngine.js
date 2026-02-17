@@ -241,6 +241,30 @@ const CombatEngine = {
     CombatEngine._startDot();
   },
 
+  /** Power Smash — active ability dealing smashMultiplier × base click damage. */
+  powerSmashAttack(smashMultiplier) {
+    if (!currentEnemy) return;
+
+    const state = Store.getState();
+    const { damage, isCrit } = CombatEngine.getPlayerDamage(state, true);
+    const smashDamage = damage.times(smashMultiplier).floor();
+
+    currentEnemy.hp = Decimal.max(currentEnemy.hp.minus(smashDamage), 0);
+
+    emit(EVENTS.COMBAT_ENEMY_DAMAGED, {
+      enemyId: currentEnemy.id,
+      amount: smashDamage,
+      isCrit,
+      isPowerSmash: true,
+      remainingHp: currentEnemy.hp,
+      maxHp: currentEnemy.maxHp,
+    });
+
+    if (currentEnemy.hp.lte(0)) {
+      CombatEngine._onEnemyDeath();
+    }
+  },
+
   playerAttack(isClick = false) {
     if (!currentEnemy) return;
 

@@ -290,4 +290,11 @@ Format:
 - Alternatives considered: `texture.setFilter(LINEAR)` after every `setTexture()` call (redundant — LINEAR is already Phaser's default; doesn't help because the algorithm is still 4-texel bilinear). Pre-generating `_thumb.png` files on disk (works but requires regeneration when sizes change). WebGL mipmaps via `gl.generateMipmap()` (requires power-of-two textures in WebGL1; most sprites are NPOT).
 - Consequences / Follow-ups: When adding new enemy sprites, add their texture keys + 2× spriteSize to `_downscaleCombatSprites()` in BootScene. Equipment thumbnails still use the `_thumb.png` approach (already 128px, no runtime downscale needed).
 
+## 2026-02-16
+- Tags: architecture
+- Decision: Power Smash is a click-damage-based active ability using `CombatEngine.getPlayerDamage(state, true)` × multiplier. Upgrades stored in existing `purchasedUpgrades` object with custom `multiplier` targets (`powerSmashDamage`, `powerSmashCooldown`). No new save fields.
+- Rationale: Reusing click damage calculation means Power Smash automatically benefits from STR, crit, prestige, territory, and click damage upgrades. Custom multiplier targets prevent the smash upgrades from accidentally applying as general stat bonuses. Zero save migration needed.
+- Alternatives considered: Separate damage formula decoupled from click damage (less intuitive scaling), new save fields for cooldown/multiplier state (unnecessary — cooldown is ephemeral, multiplier is derived from upgrade levels).
+- Consequences / Follow-ups: SmashButton tracks `_cooldownStart` to support mid-cooldown recalculation when recharge upgrades are purchased. Button positioned to the right of DRINK at `ga.x + 110`. Level 3 unlock checked via `state.playerStats.level`.
+
 Tip: Search with `rg "Tags:.*workflow" .memory/DECISIONS.md`

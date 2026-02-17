@@ -1,5 +1,14 @@
 # CHANGELOG
 
+## 2026-02-16 — Power Smash Active Ability
+- **New active ability**: Power Smash — 3x base damage burst on a 60s cooldown, unlocks at player level 3
+- **SMASH button**: Appears bottom-left of game area (above DRINK) when unlocked; shows cooldown countdown, resets on death
+- **Enhanced visuals**: forced strong punch sprite, bigger lunge (40px), screen shake, orange "SMASH!" damage numbers with glow
+- **Two upgrade tracks**: Power Smash Damage (+0.5x per level, 8 levels) and Power Smash Recharge (-10% cooldown per level, 5 levels)
+- **SystemLog integration**: "Power Smash!" combat message on use, "Power Smash unlocked!" announcement at level 3
+
+---
+
 ## 2026-02-14 — Waterskin Polish, Sprite Drift Fix, Loot Cleanup
 - **DRINK button repositioned**: moved to bottom-left of game area for better visibility
 - **Instant heal feedback**: waterskin heal now updates HP bar immediately instead of waiting for next damage tick

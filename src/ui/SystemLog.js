@@ -143,6 +143,16 @@ export default class SystemLog extends ScrollableLog {
       this.addLine(`Drank from waterskin: +${data.healAmount} HP`, 'system');
     }));
 
+    this._unsubs.push(on(EVENTS.POWER_SMASH_USED, (data) => {
+      this.addLine(`Power Smash! (${data.multiplier.toFixed(1)}x damage)`, 'combat');
+    }));
+
+    this._unsubs.push(on(EVENTS.PROG_LEVEL_UP, (data) => {
+      if (data.level === 3) {
+        this.addLine('Power Smash unlocked!', 'loot');
+      }
+    }));
+
     // ── Welcome message (first launch) ──────────────────────────────
     const offlineResult = OfflineProgress.getLastResult();
     if (!offlineResult && Store.getState().totalKills === 0) {

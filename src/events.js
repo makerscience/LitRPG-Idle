@@ -54,8 +54,9 @@ export const EVENTS = {
   TERRITORY_CLAIMED:          'territory:claimed',
   TERRITORY_PROGRESS_UPDATED: 'territory:progressUpdated',
 
-  // Consumable
+  // Consumable / Abilities
   WATERSKIN_USED:       'waterskin:used',
+  POWER_SMASH_USED:     'ability:powerSmashUsed',
 
   // Dialogue / UI
   DIALOGUE_QUEUED:      'dialogue:queued',
@@ -131,6 +132,7 @@ const EVENT_CONTRACTS = {
   [EVENTS.STATE_CHANGED]:        [],
   [EVENTS.PRESTIGE_PERFORMED]:   ['count'],
   [EVENTS.TERRITORY_CLAIMED]:    ['territoryId', 'name', 'buff'],
+  [EVENTS.POWER_SMASH_USED]:     ['multiplier'],
 };
 
 export function emit(event, payload) {
