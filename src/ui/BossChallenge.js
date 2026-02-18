@@ -106,6 +106,8 @@ export default class BossChallenge {
   }
 
   _onChallenge() {
+    // Don't allow boss challenges while the player is dead
+    if (CombatEngine.isPlayerDead()) return;
     const bossTemplate = BossManager.startBoss();
     if (bossTemplate) {
       CombatEngine.spawnBoss(bossTemplate);

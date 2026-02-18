@@ -51,14 +51,12 @@
 ---
 
 ## Last Session Summary (max ~8 bullets)
-- Added AGI stat: base 3, +0.5/level, boosted by gear via `statBonuses.agi`
-- Contested dodge formula: `hitChance = (acc + bias) / (acc + evadeRating + bias)`, clamped [35%, 95%]
-- Enemy `accuracy` auto-derived from archetypes (speed, def, armorPen, dot) in enemies.js loop
-- Boss `accuracy` defaults to 90 if not authored (via CombatEngine fallback)
-- 9 items converted to AGI-focused: head (A1 uncommon, A2 tier 1, A3 tier A), boots (A2 tier 2, A2 uncommon, A3 tier B, A3 uncommon), gloves (A3 tier A), amulet (A3 tier B)
-- `COMBAT_ENEMY_ATTACKED` + `COMBAT_ENEMY_DODGED` events; enemy lunge plays on attack even on miss
-- Floating cyan "DODGE!" text with fade on successful dodge
-- StatsPanel shows AGI in base stats, DODGE % in combat stats; InventoryPanel tooltip supports agi label
+- Added AGI stat + contested dodge mechanic (accuracy vs evade), 9 items converted to AGI-focused
+- Floating cyan "DODGE!" text, enemy lunge on all attacks (hit or miss), StatsPanel/InventoryPanel support
+- Removed dodge spam from SystemLog (high-accuracy warning + per-dodge log lines)
+- Fixed boss challenge during player death: respawn no longer overwrites active boss with regular enemy
+- Added `CombatEngine.isPlayerDead()` flag; BossChallenge blocks clicks while player is dead
+- Set up per-account SSH keys for two GitHub accounts (makerscience + ott3rpilot)
 
 ## Pinned References
 - Governance rules: `CLAUDE.md`

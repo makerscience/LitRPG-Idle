@@ -18,6 +18,7 @@ import {
 let currentEnemy = null;
 let scope = null;
 let forcedCritMultiplier = null;
+let _playerDead = false;
 
 const CombatEngine = {
   init() {
@@ -370,7 +371,13 @@ const CombatEngine = {
     return getEffectiveMaxHp();
   },
 
+  /** True while player is dead and waiting to respawn. */
+  isPlayerDead() {
+    return _playerDead;
+  },
+
   _onPlayerDeath() {
+    _playerDead = true;
     // Pause combat
     TimeEngine.setEnabled('combat:autoAttack', false);
     TimeEngine.setEnabled('combat:enemyAttack', false);
@@ -385,10 +392,14 @@ const CombatEngine = {
 
     // Respawn after delay
     TimeEngine.scheduleOnce('combat:playerRespawn', () => {
+      _playerDead = false;
       Store.resetPlayerHp();
       TimeEngine.setEnabled('combat:autoAttack', true);
       TimeEngine.setEnabled('combat:playerRegen', true);
-      CombatEngine.spawnEnemy();
+      // Don't spawn a regular enemy if a boss fight was started during the death window
+      if (!BossManager.isBossActive()) {
+        CombatEngine.spawnEnemy();
+      }
     }, COMBAT_V2.playerDeathRespawnDelay);
   },
 
