@@ -41,6 +41,8 @@ export default class BootScene extends Phaser.Scene {
     this.load.image('blightedstalker_reaction', 'Images/Enemies/area1/blightedstalker_reaction.png');
     this.load.image('blightedstalker_attack',   'Images/Enemies/area1/blightedstalker_attack.png');
     this.load.image('blightedstalker_dead',     'Images/Enemies/area1/blightedstalker_dead.png');
+    this.load.image('blightedstalker_dead2',    'Images/Enemies/area1/blightedstalker_dead2.png');
+    this.load.image('blightedstalker_head',     'Images/Enemies/area1/blightedstalker_head.png');
     this.load.image('player001_default',        'Images/Player001_default.png');
     this.load.image('player001_strongpunch',    'Images/Player001_strongpunch.png');
     this.load.image('player001_jumpkick',       'Images/Player001_jumpkick.png');
@@ -159,7 +161,8 @@ export default class BootScene extends Phaser.Scene {
       { keys: ['forestrat001_default', 'forestrat001_reaction', 'forestrat001_attack', 'forestrat001_dead'], w: 250, h: 250 },
       { keys: ['feralhound_default', 'feralhound_reaction', 'feralhound_attack', 'feralhound_dead'], w: 512, h: 280 },
       { keys: ['thornbackboar_default', 'thornbackboar_reaction', 'thornbackboar_attack', 'thornbackboar_dead'], w: 560, h: 306 },
-      { keys: ['blightedstalker_default', 'blightedstalker_reaction', 'blightedstalker_attack', 'blightedstalker_dead'], w: 396, h: 478 },
+      { keys: ['blightedstalker_default', 'blightedstalker_reaction', 'blightedstalker_attack', 'blightedstalker_dead', 'blightedstalker_dead2'], w: 396, h: 478 },
+      { keys: ['blightedstalker_head'], w: 160, h: 160 },
     ];
     for (const { keys, w, h } of enemyGroups) {
       for (const key of keys) {

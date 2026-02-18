@@ -328,6 +328,9 @@ export default class GameScene extends Phaser.Scene {
     this.tweens.killTweensOf(this.hpBarBg);
     this.tweens.killTweensOf(this.hpBarFill);
 
+    // Clean up stalker head if still present from previous death
+    if (this._stalkerHead) { this._stalkerHead.destroy(); this._stalkerHead = null; }
+
     const template = getEnemyById(data.enemyId);
     this._currentEnemyId = data.enemyId;
     this._currentEnemySprites = template?.sprites || null;
@@ -435,10 +438,11 @@ export default class GameScene extends Phaser.Scene {
     // Delay enemy reaction so the player's lunge lands first
     const reactDelay = 60;
     if (this._currentEnemySprites) {
+      // Spawn damage number immediately so it appears even on one-shot kills
+      this._spawnDamageNumber(data.amount, data.isCrit, isPowerSmash);
+
       if (this._reactDelayTimer) this._reactDelayTimer.remove();
       this._reactDelayTimer = this.time.delayedCall(reactDelay, () => {
-        // Damage number on impact
-        this._spawnDamageNumber(data.amount, data.isCrit, isPowerSmash);
         // Sprite: switch to reaction pose for 500ms
         this.enemySprite.setTexture(this._currentEnemySprites.reaction);
 
@@ -471,9 +475,10 @@ export default class GameScene extends Phaser.Scene {
         });
       });
     } else {
+      // Spawn damage number immediately so it appears even on one-shot kills
+      this._spawnDamageNumber(data.amount, data.isCrit, isPowerSmash);
+
       this.time.delayedCall(reactDelay, () => {
-        // Damage number on impact
-        this._spawnDamageNumber(data.amount, data.isCrit, isPowerSmash);
         // Rect: existing hit flash behavior
         this.enemyRect.setFillStyle(0xffffff);
         this.time.delayedCall(80, () => {
@@ -553,25 +558,40 @@ export default class GameScene extends Phaser.Scene {
           ease: 'Sine.easeInOut',
         });
       } else if (this._currentEnemyId === 'a1_blighted_stalker') {
-        // Stalker tips forward, pivoting from its bottom-left foot
-        const halfW = this.enemySprite.displayWidth / 2;
-        const halfH = this.enemySprite.displayHeight / 2;
-        this.enemySprite.setOrigin(0, 1);
-        this.enemySprite.x -= halfW;
-        this.enemySprite.y += halfH;
+        // Switch to headless body sprite
+        this.enemySprite.setTexture('blightedstalker_dead2');
+        this.enemySprite.setDisplaySize(this._spriteW, this._spriteH);
+
+        // Spawn severed head at the top of the body
+        const headSize = 80;
+        const headX = this.enemySprite.x;
+        const headY = this.enemySprite.y - this.enemySprite.displayHeight / 2 - headSize * 0.25;
+        this._stalkerHead = this.add.image(headX, headY, 'blightedstalker_head')
+          .setDisplaySize(headSize, headSize)
+          .setDepth(this.enemySprite.depth + 1);
+
+        // Head tumbles upward and to the right, spinning
         this.tweens.add({
-          targets: this.enemySprite,
-          angle: -85,
-          x: this.enemySprite.x + this.enemySprite.displayHeight,
-          y: this.enemySprite.y + 60,
-          duration: 400,
-          ease: 'Bounce.easeOut',
+          targets: this._stalkerHead,
+          x: headX + 120,
+          y: headY - 200,
+          angle: 360 + Math.random() * 180,
+          scaleX: 0.4,
+          scaleY: 0.4,
+          alpha: 0,
+          duration: 700,
+          ease: 'Quad.easeOut',
+          onComplete: () => {
+            if (this._stalkerHead) { this._stalkerHead.destroy(); this._stalkerHead = null; }
+          },
         });
+
+        // Body fades away in place
         this.tweens.add({
           targets: this.enemySprite,
           alpha: 0,
-          delay: 500,
-          duration: 300,
+          delay: 300,
+          duration: 400,
           ease: 'Linear',
         });
       } else {

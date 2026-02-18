@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## 2026-02-18 — Blighted Stalker Decapitation Death + Damage Number Fix
+- **Stalker death rework**: headless body (dead2 sprite) fades in place while severed head tumbles upward with random spin
+- **New sprites loaded**: `blightedstalker_dead2` (headless body) and `blightedstalker_head` (severed head) with canvas pre-downscaling
+- **Damage number fix**: numbers now spawn immediately on hit instead of inside a 60ms delayed callback — fixes Power Smash "SMASH!" text not appearing on one-shot kills
+
+---
+
 ## 2026-02-16 — Power Smash Active Ability
 - **New active ability**: Power Smash — 3x base damage burst on a 60s cooldown, unlocks at player level 3
 - **SMASH button**: Appears bottom-left of game area (above DRINK) when unlocked; shows cooldown countdown, resets on death

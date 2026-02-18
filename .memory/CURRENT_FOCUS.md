@@ -1,7 +1,7 @@
 # CURRENT_FOCUS
 
 ## One-liner
-- Power Smash active ability implemented: 3x damage burst, 60s cooldown, unlocks at level 3, two upgrade tracks, enhanced visuals. Ready for playtesting.
+- Blighted Stalker decapitation death animation + damage number fix for one-shot kills. Ready for playtesting.
 
 ## Active Objectives (max 3)
 1. **Playtesting:** Validate Power Smash + waterskin flow in-browser, then publish to Itch.io
@@ -26,7 +26,7 @@
 
 ## How to Resume in 30 Seconds
 - **Open:** `.memory/CURRENT_FOCUS.md`
-- **Last change:** Power Smash active ability — 3x damage burst, 60s cooldown, level 3 unlock, 2 upgrade tracks, enhanced visuals
+- **Last change:** Blighted Stalker decapitation death anim + one-shot damage number fix
 - **Architecture:** Progression.js owns XP/level + kill rewards. Store is pure state. EventScope pattern for subscriptions. ComputedStats for derived values. BossManager looks up named bosses via `getBossForZone()`. LootEngine uses zone-based item pools with slot weighting and pity. Bosses can have `guaranteedFirstKillItem` for bonus drops.
 - **Plan:** `Plans/Redesign Plan.md` — 8-phase implementation, Phase 7 complete
 - **Balance tool:** `npm run balance:sim` — zone-by-zone idle progression simulation
@@ -48,14 +48,12 @@
 ---
 
 ## Last Session Summary (max ~8 bullets)
-- Implemented Power Smash active ability: 3x base click damage, 60s cooldown, unlocks at level 3
-- Created SmashButton.js following DrinkButton pattern (dark orange-brown, to the right of DRINK)
-- Added `powerSmashAttack()` to CombatEngine — uses `getPlayerDamage(state, true)` × smashMultiplier
-- Added `POWER_SMASH_USED` event + contract in events.js
-- Added 2 upgrades in upgrades.js: power_smash_damage (8 levels) + power_smash_recharge (5 levels)
-- Modified GameScene: forced strong punch sprite, bigger lunge (40px), screen shake (150ms), orange SMASH! damage numbers with glow
-- Wired SmashButton into UIScene (import, create, show/hide/destroy)
-- Added SystemLog messages: "Power Smash!" on use, "Power Smash unlocked!" at level 3
+- Blighted Stalker death: switched to headless body sprite (dead2), severed head tumbles upward with spin
+- Headless body fades in place instead of rocketing away
+- Loaded `blightedstalker_dead2` and `blightedstalker_head` in BootScene (preload + canvas downscale)
+- Stalker head cleanup on next enemy spawn (safety net for interrupted animations)
+- Fixed damage numbers not appearing on one-shot kills: moved `_spawnDamageNumber` out of 60ms react delay
+- Fix applies to both sprite and rect enemy paths — Power Smash "SMASH!" text now always visible
 
 ## Pinned References
 - Governance rules: `CLAUDE.md`
