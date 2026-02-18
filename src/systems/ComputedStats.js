@@ -34,6 +34,27 @@ export function getEffectiveDef() {
   return state.playerStats.def + getEquipmentStatSum('def') + TerritoryManager.getBuffValue('flatDef');
 }
 
+/** Effective AGI after gear. */
+export function getEffectiveAgi() {
+  const state = Store.getState();
+  return state.playerStats.agi + getEquipmentStatSum('agi');
+}
+
+/** Evade rating derived from effective AGI. */
+export function getEvadeRating() {
+  return COMBAT_V2.evadeRating(getEffectiveAgi());
+}
+
+/** Chance an enemy attack lands against the current player. */
+export function getEnemyHitChance(enemyAccuracy = 80) {
+  return COMBAT_V2.enemyHitChance(enemyAccuracy, getEvadeRating());
+}
+
+/** Chance the player dodges an enemy attack. */
+export function getDodgeChance(enemyAccuracy = 80) {
+  return COMBAT_V2.dodgeChance(enemyAccuracy, getEvadeRating());
+}
+
 /** Max HP after gear and territory multiplier. */
 export function getEffectiveMaxHp() {
   const state = Store.getState();
@@ -122,6 +143,8 @@ export function getAllStats() {
   return {
     effectiveStr: getEffectiveStr(),
     effectiveDef: getEffectiveDef(),
+    effectiveAgi: getEffectiveAgi(),
+    evadeRating: getEvadeRating(),
     effectiveMaxHp: getEffectiveMaxHp(),
     baseDamage: getBaseDamage(),
     effectiveDamage: getEffectiveDamage(),
@@ -133,6 +156,7 @@ export function getAllStats() {
     goldMultiplier: getGoldMultiplier(),
     xpMultiplier: getXpMultiplier(),
     hpRegen: getHpRegen(),
+    dodgeChanceVsDefaultAcc: getDodgeChance(80),
     prestigeMultiplier: state.prestigeMultiplier,
   };
 }

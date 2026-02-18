@@ -1,5 +1,5 @@
 // V2 enemy definitions — Areas 1-3 (zones 1-30).
-// Schema: id, name, hp, attack, attackSpeed, defense, armorPen, dot, zones, goldDrop, xpDrop,
+// Schema: id, name, hp, attack, attackSpeed, accuracy, defense, armorPen, dot, zones, goldDrop, xpDrop,
 //         sprites, spriteSize, spriteOffsetY, lootTable
 
 const AREA_1_LOOT_TABLE = [
@@ -450,6 +450,16 @@ const ENEMIES = [
 
 // ── Backward-compat: `area` getter derived from zones ─────────────
 for (const e of ENEMIES) {
+  // Accuracy defaults based on archetype-like signals if omitted in authored data.
+  if (typeof e.accuracy !== 'number') {
+    let acc = 80;
+    if (e.attackSpeed >= 1.4) acc -= 8;       // swarms are fast but less precise
+    if (e.attackSpeed <= 0.8) acc += 8;       // brutes hit slower but cleaner
+    if ((e.defense ?? 0) >= 10) acc += 4;
+    if ((e.armorPen ?? 0) > 0) acc += 5;
+    if ((e.dot ?? 0) > 0) acc += 3;
+    e.accuracy = Math.max(60, Math.min(105, Math.round(acc)));
+  }
   Object.defineProperty(e, 'area', {
     get() {
       // Derive area from zone start: zones 1-5 = area 1, 6-15 = area 2, 16-30 = area 3

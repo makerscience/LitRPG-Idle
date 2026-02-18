@@ -105,8 +105,8 @@ export const PROGRESSION_V2 = {
     if (level <= 35) return this.xpTable[level - 1];
     return Math.floor(this.xpTable[34] * (1.1 ** (level - 35)));
   },
-  statGrowthPerLevel: { str: 2, def: 2, hp: 12, regen: 0.1 },
-  startingStats: { str: 10, def: 5, hp: 100, regen: 1, atkSpeed: 1.0, level: 1, xp: 0 },
+  statGrowthPerLevel: { str: 2, def: 2, hp: 12, regen: 0.1, agi: 0.5 },
+  startingStats: { str: 10, def: 5, hp: 100, regen: 1, agi: 3, atkSpeed: 1.0, level: 1, xp: 0 },
 };
 
 export const COMBAT_V2 = {
@@ -114,6 +114,21 @@ export const COMBAT_V2 = {
   enemyDamage: (dmg, playerDef, armorPen = 0) => {
     const effDef = playerDef * (1 - armorPen);
     return Math.max(dmg - (effDef * 0.5), 1);
+  },
+  evadePerAgi: 2.0,
+  accuracyBias: 60,
+  minHitChance: 0.35,
+  maxHitChance: 0.95,
+  evadeRating(agi) {
+    return Math.max(0, agi * this.evadePerAgi);
+  },
+  enemyHitChance(enemyAccuracy, evadeRating) {
+    const acc = Math.max(1, enemyAccuracy || 80);
+    const raw = (acc + this.accuracyBias) / (acc + evadeRating + this.accuracyBias);
+    return Math.min(this.maxHitChance, Math.max(this.minHitChance, raw));
+  },
+  dodgeChance(enemyAccuracy, evadeRating) {
+    return 1 - this.enemyHitChance(enemyAccuracy, evadeRating);
   },
   baseAttackIntervalMs: 2000,
   playerBaseAtkSpeed: 1.0,

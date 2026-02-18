@@ -69,9 +69,10 @@ export default class StatsPanel extends ModalPanel {
       : `${ps.str}`;
 
     return [
-      { label: 'LEVEL', value: `${ps.level}`, desc: 'Increases STR, DEF, HP, Regen on level up.' },
+      { label: 'LEVEL', value: `${ps.level}`, desc: 'Increases STR, DEF, HP, Regen, and AGI on level up.' },
       { label: 'STR', value: strVal, desc: 'Scales base damage dealt to enemies.' },
       { label: 'DEF', value: `${stats.effectiveDef}`, desc: 'Reduces incoming enemy damage.' },
+      { label: 'AGI', value: `${stats.effectiveAgi}`, desc: 'Increases evade rating and dodge chance.' },
       { label: 'HP', value: `${ps.hp}`, desc: 'Base max hit points from levels.' },
       { label: 'REGEN', value: `${ps.regen.toFixed(1)}/s`, desc: 'Base HP regeneration per second.' },
     ];
@@ -90,6 +91,7 @@ export default class StatsPanel extends ModalPanel {
       { label: 'CRIT %', value: `${(stats.critChance * 100).toFixed(1)}%`, desc: 'Chance each attack is a critical hit.' },
       { label: 'CRIT MULT', value: `${stats.critMultiplier}x`, desc: 'Damage multiplier on critical hits.' },
       { label: 'ATK SPEED', value: `${atkSpeed}/s`, desc: 'Auto-attacks per second.' },
+      { label: 'DODGE', value: `${(stats.dodgeChanceVsDefaultAcc * 100).toFixed(1)}%`, desc: 'Dodge chance vs a baseline 80 enemy accuracy.' },
     ];
   }
 

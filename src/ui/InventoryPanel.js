@@ -620,7 +620,13 @@ export default class InventoryPanel extends ModalPanel {
     const rarityColor = COLORS.rarity[rarity] || '#a1a1aa';
     const statStr = scaled.statBonuses.atk > 0
       ? `+${scaled.statBonuses.atk} ATK`
-      : `+${scaled.statBonuses.def} DEF`;
+      : scaled.statBonuses.def > 0
+        ? `+${scaled.statBonuses.def} DEF`
+        : scaled.statBonuses.agi > 0
+          ? `+${scaled.statBonuses.agi} AGI`
+          : scaled.statBonuses.hp > 0
+            ? `+${scaled.statBonuses.hp} HP`
+            : `+${scaled.statBonuses.regen} REGEN`;
 
     const headerText = this.scene.add.text(
       detailX, detailY,
@@ -712,7 +718,7 @@ export default class InventoryPanel extends ModalPanel {
 
     const STAT_LABELS = {
       atk: 'ATK', def: 'DEF', hp: 'HP',
-      regen: 'REGEN', atkSpeed: 'SPD', str: 'STR',
+      regen: 'REGEN', atkSpeed: 'SPD', str: 'STR', agi: 'AGI',
     };
     const DEPTH = 200;
     const TT_W = 280;

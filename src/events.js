@@ -16,6 +16,8 @@ export const EVENTS = {
   COMBAT_ENEMY_SPAWNED: 'combat:enemySpawned',
   COMBAT_ENEMY_DAMAGED: 'combat:enemyDamaged',
   COMBAT_ENEMY_KILLED:  'combat:enemyKilled',
+  COMBAT_ENEMY_ATTACKED:'combat:enemyAttacked',
+  COMBAT_ENEMY_DODGED:  'combat:enemyDodged',
   COMBAT_PLAYER_DAMAGED:'combat:playerDamaged',
   COMBAT_PLAYER_DIED:   'combat:playerDied',
   COMBAT_DOT_TICK:      'combat:dotTick',
@@ -129,6 +131,8 @@ export function createScope() {
 
 const EVENT_CONTRACTS = {
   [EVENTS.COMBAT_ENEMY_KILLED]:  ['enemyId', 'name', 'isBoss'],
+  [EVENTS.COMBAT_ENEMY_ATTACKED]:['enemyId', 'name', 'hitChance', 'accuracy'],
+  [EVENTS.COMBAT_ENEMY_DODGED]:  ['enemyId', 'name', 'hitChance', 'dodgeChance', 'accuracy'],
   [EVENTS.STATE_CHANGED]:        [],
   [EVENTS.PRESTIGE_PERFORMED]:   ['count'],
   [EVENTS.TERRITORY_CLAIMED]:    ['territoryId', 'name', 'buff'],

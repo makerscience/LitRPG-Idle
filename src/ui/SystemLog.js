@@ -26,6 +26,9 @@ export default class SystemLog extends ScrollableLog {
     // Subscribe to events
     this._unsubs.push(on(EVENTS.COMBAT_ENEMY_SPAWNED, (data) => {
       this._currentEnemyName = data.name;
+      if (data.accuracy >= 95) {
+        this.addLine(`⚠ ${data.name} has high accuracy (${data.accuracy})`, 'warning');
+      }
       if (data.armorPen > 0) {
         const penPct = Math.round(data.armorPen * 100);
         this.addLine(`\u26A0 ${data.name} has ${penPct}% Armor Penetration`, 'warning');
@@ -39,6 +42,10 @@ export default class SystemLog extends ScrollableLog {
       if (data.tickNumber % 5 === 0) {
         this.addLine(`Blight: -${data.damage} HP`, 'dot');
       }
+    }));
+
+    this._unsubs.push(on(EVENTS.COMBAT_ENEMY_DODGED, (data) => {
+      this.addLine(`Dodged ${data.name}'s attack (${Math.round(data.dodgeChance * 100)}%)`, 'combat');
     }));
 
 
@@ -77,6 +84,7 @@ export default class SystemLog extends ScrollableLog {
       if (b.atk) parts.push(`+${b.atk} ATK`);
       else if (b.str) parts.push(`+${b.str} STR`);
       if (b.def) parts.push(`+${b.def} DEF`);
+      if (b.agi) parts.push(`+${b.agi} AGI`);
       if (b.hp) parts.push(`+${b.hp} HP`);
       if (b.regen) parts.push(`+${b.regen} Regen`);
       if (b.atkSpeed) parts.push(`+${b.atkSpeed} AtkSpd`);

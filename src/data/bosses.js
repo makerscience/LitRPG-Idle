@@ -762,6 +762,20 @@ const BOSSES = [
   },
 ];
 
+for (const b of BOSSES) {
+  if (typeof b.accuracy !== 'number') {
+    let acc = 90;
+    if (b.attackSpeed >= 1.2) acc -= 6;
+    if (b.attackSpeed <= 0.8) acc += 6;
+    if ((b.defense ?? 0) >= 10) acc += 4;
+    if ((b.armorPen ?? 0) > 0) acc += 5;
+    if ((b.dot ?? 0) > 0) acc += 3;
+    if (b.bossType === 'AREA') acc += 5;
+    else if (b.bossType === 'ELITE') acc += 3;
+    b.accuracy = Math.max(70, Math.min(115, Math.round(acc)));
+  }
+}
+
 export function getBossForZone(globalZone) {
   return BOSSES.find(b => b.zone === globalZone) ?? null;
 }

@@ -57,7 +57,7 @@ const UpgradeManager = {
     const newLevel = Store.upgradeLevel(upgradeId);
 
     // Apply immediate flat stat bonus (e.g. STR)
-    if (upgrade.effect.type === 'flat' && ['str', 'def', 'hp', 'regen'].includes(upgrade.effect.target)) {
+    if (upgrade.effect.type === 'flat' && ['str', 'def', 'hp', 'regen', 'agi'].includes(upgrade.effect.target)) {
       Store.addFlatStat(upgrade.effect.target, upgrade.effect.valuePerLevel);
     }
 

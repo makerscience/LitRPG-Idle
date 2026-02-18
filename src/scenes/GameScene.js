@@ -107,6 +107,8 @@ export default class GameScene extends Phaser.Scene {
     this._unsubs.push(on(EVENTS.COMBAT_ENEMY_SPAWNED, (data) => this._onEnemySpawned(data)));
     this._unsubs.push(on(EVENTS.COMBAT_ENEMY_DAMAGED, (data) => this._onEnemyDamaged(data)));
     this._unsubs.push(on(EVENTS.COMBAT_ENEMY_KILLED, (data) => this._onEnemyKilled(data)));
+    this._unsubs.push(on(EVENTS.COMBAT_ENEMY_ATTACKED, () => this._onEnemyAttacked()));
+    this._unsubs.push(on(EVENTS.COMBAT_ENEMY_DODGED, () => this._onEnemyDodged()));
 
     // Player HP events
     this._unsubs.push(on(EVENTS.COMBAT_PLAYER_DAMAGED, (data) => this._onPlayerDamaged(data)));
@@ -739,6 +741,34 @@ export default class GameScene extends Phaser.Scene {
     });
   }
 
+  _spawnDodgeText() {
+    const x = this._playerX + (Math.random() - 0.5) * 30;
+    const y = this._combatY - 130;
+    const text = this.add.text(x, y, 'DODGE!', {
+      fontFamily: 'monospace',
+      fontSize: '24px',
+      color: '#22d3ee',
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 4,
+    }).setOrigin(0.5);
+
+    this.tweens.add({
+      targets: text,
+      y: y - 55,
+      duration: 900,
+      ease: 'Power2',
+    });
+    this.tweens.add({
+      targets: text,
+      alpha: 0,
+      delay: 520,
+      duration: 380,
+      ease: 'Linear',
+      onComplete: () => text.destroy(),
+    });
+  }
+
   // â”€â”€ Visual juice â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   _spawnGoldParticles() {
@@ -793,17 +823,7 @@ export default class GameScene extends Phaser.Scene {
     });
   }
 
-  _onPlayerDamaged(data) {
-    // Update player HP bar
-    const ratio = data.maxHp.gt(0) ? data.remainingHp.div(data.maxHp).toNumber() : 0;
-    const barWidth = Math.max(0, ratio * 200);
-    this.playerHpBarFill.setDisplaySize(barWidth, 16);
-    const color = ratio > 0.5 ? 0x22c55e : ratio > 0.25 ? 0xeab308 : 0xef4444;
-    this.playerHpBarFill.setFillStyle(color);
-
-    // Skip attack animation for zero-damage events (heals/regen reuse this event for HP bar updates)
-    if (data.amount.lte(0)) return;
-
+  _onEnemyAttacked() {
     // Show attack pose on enemy sprite for 500ms
     if (this._currentEnemySprites) {
       this.enemySprite.setTexture(this._currentEnemySprites.attack);
@@ -829,22 +849,38 @@ export default class GameScene extends Phaser.Scene {
       this._poseRevertTimer = this.time.delayedCall(500, () => {
         if (this._currentEnemySprites) {
           this.enemySprite.setTexture(this._currentEnemySprites.default);
-    
           this.enemySprite.setDisplaySize(this._spriteW, this._spriteH);
         }
       });
-    } else {
-      // Rect: lunge toward player on attack
-      this.tweens.add({
-        targets: this.enemyRect,
-        x: this._enemyX - this._enemyLungeDist,
-        duration: 80,
-        ease: 'Quad.easeOut',
-        yoyo: true,
-      });
+      return;
     }
 
-    // Delay player reaction so the enemy's lunge lands first
+    // Rect: lunge toward player on attack
+    this.tweens.add({
+      targets: this.enemyRect,
+      x: this._enemyX - this._enemyLungeDist,
+      duration: 80,
+      ease: 'Quad.easeOut',
+      yoyo: true,
+    });
+  }
+
+  _onEnemyDodged() {
+    this._spawnDodgeText();
+  }
+
+  _onPlayerDamaged(data) {
+    // Update player HP bar
+    const ratio = data.maxHp.gt(0) ? data.remainingHp.div(data.maxHp).toNumber() : 0;
+    const barWidth = Math.max(0, ratio * 200);
+    this.playerHpBarFill.setDisplaySize(barWidth, 16);
+    const color = ratio > 0.5 ? 0x22c55e : ratio > 0.25 ? 0xeab308 : 0xef4444;
+    this.playerHpBarFill.setFillStyle(color);
+
+    // Skip hit reaction for zero-damage events (heals/regen reuse this event for HP bar updates).
+    if (data.amount.lte(0)) return;
+
+    // Delay player reaction so the enemy lunge lands first.
     this._walkTimer.paused = true;
     this.time.delayedCall(60, () => {
       this.playerRect.setTexture('player001_hitreaction');

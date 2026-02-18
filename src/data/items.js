@@ -42,7 +42,7 @@ const ITEMS = {
     rarity: 'common',
     tier: 1,
     zones: [1, 5],
-    statBonuses: { str: 0, def: 2, hp: 5, regen: 0, atkSpeed: 0, atk: 0 },
+    statBonuses: { str: 0, def: 1, hp: 3, regen: 0, atkSpeed: 0, atk: 0, agi: 4 },
     sellValue: 4,
     mergesInto: null,
     thumbnail: 'helm001_bonefragment',
@@ -86,7 +86,7 @@ const ITEMS = {
     rarity: 'uncommon',
     tier: 1,
     zones: [1, 5],
-    statBonuses: { str: 0, def: 3, hp: 8, regen: 0, atkSpeed: 0, atk: 0 },
+    statBonuses: { str: 0, def: 0, hp: 0, regen: 0, atkSpeed: 0, atk: 0, agi: 5 },
     sellValue: 10,
     mergesInto: null,
     thumbnail: 'helm001_houndskull',
@@ -130,7 +130,7 @@ const ITEMS = {
     rarity: 'common',
     tier: 1,
     zones: [6, 10],
-    statBonuses: { str: 0, def: 5, hp: 13, regen: 0, atkSpeed: 0, atk: 0 },
+    statBonuses: { str: 0, def: 0, hp: 5, regen: 0, atkSpeed: 0, atk: 0, agi: 7 },
     sellValue: 8,
     mergesInto: null,
     thumbnail: 'helm002_leatherhood',
@@ -230,7 +230,7 @@ const ITEMS = {
     rarity: 'common',
     tier: 2,
     zones: [11, 15],
-    statBonuses: { str: 0, def: 4, hp: 11, regen: 0, atkSpeed: 0, atk: 0 },
+    statBonuses: { str: 0, def: 0, hp: 0, regen: 0, atkSpeed: 0, atk: 0, agi: 9 },
     sellValue: 12,
     mergesInto: null,
     thumbnail: 'boots001_mendedtravelersboots',
@@ -302,7 +302,7 @@ const ITEMS = {
     rarity: 'uncommon',
     tier: 2,
     zones: [8, 15],
-    statBonuses: { str: 0, def: 4, hp: 0, regen: 0, atkSpeed: 0.05, atk: 0 },
+    statBonuses: { str: 0, def: 0, hp: 0, regen: 0, atkSpeed: 0.05, atk: 0, agi: 8 },
     sellValue: 28,
     mergesInto: null,
     thumbnail: 'boots001_wayfinderboots',
@@ -346,7 +346,7 @@ const ITEMS = {
     rarity: 'common',
     tier: 3,
     zones: [16, 20],
-    statBonuses: { str: 0, def: 10, hp: 26, regen: 0, atkSpeed: 0, atk: 0 },
+    statBonuses: { str: 0, def: 0, hp: 10, regen: 0, atkSpeed: 0, atk: 0, agi: 10 },
     sellValue: 18,
     mergesInto: null,
     thumbnail: 'helm003_stone-carvedhalfhelm',
@@ -388,7 +388,7 @@ const ITEMS = {
     rarity: 'common',
     tier: 3,
     zones: [16, 20],
-    statBonuses: { str: 4, def: 4, hp: 0, regen: 0, atkSpeed: 0, atk: 0 },
+    statBonuses: { str: 2, def: 0, hp: 0, regen: 0, atkSpeed: 0, atk: 0, agi: 6 },
     sellValue: 16,
     mergesInto: null,
     thumbnail: 'hands001_scavengedgauntlets',
@@ -460,7 +460,7 @@ const ITEMS = {
     rarity: 'common',
     tier: 4,
     zones: [21, 25],
-    statBonuses: { str: 0, def: 7, hp: 19, regen: 0, atkSpeed: 0, atk: 0 },
+    statBonuses: { str: 0, def: 0, hp: 0, regen: 0, atkSpeed: 0, atk: 0, agi: 16 },
     sellValue: 22,
     mergesInto: null,
     thumbnail: 'boots002_sentineltreads',
@@ -488,7 +488,7 @@ const ITEMS = {
     rarity: 'common',
     tier: 4,
     zones: [21, 25],
-    statBonuses: { str: 0, def: 0, hp: 20, regen: 0.5, atkSpeed: 0, atk: 0 },
+    statBonuses: { str: 0, def: 0, hp: 0, regen: 0.3, atkSpeed: 0, atk: 0, agi: 10 },
     sellValue: 25,
     mergesInto: null,
     thumbnail: 'amulet001_crackedhearthstone',
@@ -652,7 +652,7 @@ const ITEMS = {
     rarity: 'uncommon',
     tier: 5,
     zones: [20, 30],
-    statBonuses: { str: 0, def: 10, hp: 0, regen: 0, atkSpeed: 0.08, atk: 0 },
+    statBonuses: { str: 0, def: 0, hp: 0, regen: 0, atkSpeed: 0.08, atk: 0, agi: 15 },
     sellValue: 55,
     mergesInto: null,
     thumbnail: 'boots002_pathfindersstride',
@@ -702,6 +702,11 @@ const ITEMS = {
     cooldownMs: 30000,
   },
 };
+
+// Ensure all items expose all stat keys (including AGI) for tooling consistency.
+for (const item of Object.values(ITEMS)) {
+  item.statBonuses.agi ??= 0;
+}
 
 export function getItem(id) {
   // Support both 'a1_sharpened_stick' and 'a1_sharpened_stick::common' stack key formats

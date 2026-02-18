@@ -1,19 +1,20 @@
 # CURRENT_FOCUS
 
 ## One-liner
-- Blighted Stalker decapitation death animation + damage number fix for one-shot kills. Ready for playtesting.
+- Agility stat + dodge mechanic implemented with contested accuracy formula. 9 items converted to AGI-focused. Needs playtesting.
 
 ## Active Objectives (max 3)
-1. **Playtesting:** Validate Power Smash + waterskin flow in-browser, then publish to Itch.io
-2. **Polish:** Add sprites for Area 2-3 enemies/bosses (currently null — uses placeholder)
-3. **Future:** Phase 8+ — town/territory re-enablement, prestige loop, art assets
+1. **Playtesting:** Validate AGI/dodge feels good — DEF and AGI builds should both be viable in each area
+2. **Balance tuning:** Run `npm run balance:sim` with dual-policy (DEF vs AGI) and adjust constants if needed
+3. **Polish:** Add sprites for Area 2-3 enemies/bosses (currently null — uses placeholder)
 
 ## Next Actions
-- [ ] Playtest Power Smash: reach level 3 → SMASH button appears → click → orange damage, screen shake, 60s cooldown
-- [ ] Playtest upgrade purchases: buy Power Smash Damage/Recharge upgrades → verify multiplier/cooldown changes
-- [ ] Playtest both abilities: SMASH + DRINK buttons side by side, both visible and functional
-- [ ] Playtest in-browser: verify area transitions feel like real walls (z6, z16 should feel noticeably harder)
-- [ ] Polish: add sprites for Area 2-3 enemies/bosses (currently null — uses placeholder)
+- [ ] Playtest AGI build: equip AGI gear → verify dodge % increases in stats panel, "DODGE!" text appears in combat
+- [ ] Playtest DEF vs AGI: compare survival in Area 1-2 with tank gear vs evasion gear — both should be viable
+- [ ] Verify DoT bypasses dodge (fight a DoT enemy with high AGI — DoT should still land)
+- [ ] Run `npm run validate:data` — ensure all items have agi key, all enemies/bosses have accuracy
+- [ ] Run `npm run balance:sim` — verify AGI/dodge columns appear, survival ratios reasonable for both builds
+- [ ] Playtest early game: bone_fragment_helm now hybrid DEF+AGI — is the AGI visible and useful at level 1?
 
 ## Open Loops / Blockers
 - Prestige, territory, cheats disabled via feature gates — re-enable post-playtesting
@@ -22,14 +23,16 @@
 - territories.js references old V1 enemy IDs (disabled, not a runtime issue)
 - UpgradeManager.getAutoAttackInterval() is now dead code (ComputedStats owns interval computation)
 - All Area 2-3 enemies/bosses have `sprites: null` — need art assets
-- GAME_DATA_REFERENCE.md is stale after balance overhaul — needs update
+- GAME_DATA_REFERENCE.md is stale after balance overhaul + AGI addition — needs update
+- Enemy accuracy values are auto-derived from archetypes (attackSpeed, defense, armorPen, dot) — may need hand-tuning per enemy
+- Balance sim needs dual-policy (DEF-priority vs AGI-priority) gear selection to validate both build paths
 
 ## How to Resume in 30 Seconds
 - **Open:** `.memory/CURRENT_FOCUS.md`
-- **Last change:** Blighted Stalker decapitation death anim + one-shot damage number fix
-- **Architecture:** Progression.js owns XP/level + kill rewards. Store is pure state. EventScope pattern for subscriptions. ComputedStats for derived values. BossManager looks up named bosses via `getBossForZone()`. LootEngine uses zone-based item pools with slot weighting and pity. Bosses can have `guaranteedFirstKillItem` for bonus drops.
-- **Plan:** `Plans/Redesign Plan.md` — 8-phase implementation, Phase 7 complete
-- **Balance tool:** `npm run balance:sim` — zone-by-zone idle progression simulation
+- **Last change:** Agility stat + contested dodge mechanic (accuracy vs evade) + 9 equipment conversions
+- **Architecture:** Progression.js owns XP/level + kill rewards. Store is pure state. EventScope pattern for subscriptions. ComputedStats for derived values (now includes getEffectiveAgi, getEvadeRating, getDodgeChance). BossManager looks up named bosses via `getBossForZone()`. LootEngine uses zone-based item pools with slot weighting and pity. Bosses can have `guaranteedFirstKillItem` for bonus drops.
+- **AGI plan:** `Plans/Agility_Dodge_Plan.md` — contested accuracy formula, equipment conversion table
+- **Balance tool:** `npm run balance:sim` — zone-by-zone idle progression simulation (now includes AGI/dodge columns)
 - **Balance guide:** `Plans/LitRPG_Idle_Game_Feel_Balance_Guide.md` — analysis + critique
 
 ## Key Context
@@ -48,12 +51,14 @@
 ---
 
 ## Last Session Summary (max ~8 bullets)
-- Blighted Stalker death: switched to headless body sprite (dead2), severed head tumbles upward with spin
-- Headless body fades in place instead of rocketing away
-- Loaded `blightedstalker_dead2` and `blightedstalker_head` in BootScene (preload + canvas downscale)
-- Stalker head cleanup on next enemy spawn (safety net for interrupted animations)
-- Fixed damage numbers not appearing on one-shot kills: moved `_spawnDamageNumber` out of 60ms react delay
-- Fix applies to both sprite and rect enemy paths — Power Smash "SMASH!" text now always visible
+- Added AGI stat: base 3, +0.5/level, boosted by gear via `statBonuses.agi`
+- Contested dodge formula: `hitChance = (acc + bias) / (acc + evadeRating + bias)`, clamped [35%, 95%]
+- Enemy `accuracy` auto-derived from archetypes (speed, def, armorPen, dot) in enemies.js loop
+- Boss `accuracy` defaults to 90 if not authored (via CombatEngine fallback)
+- 9 items converted to AGI-focused: head (A1 uncommon, A2 tier 1, A3 tier A), boots (A2 tier 2, A2 uncommon, A3 tier B, A3 uncommon), gloves (A3 tier A), amulet (A3 tier B)
+- `COMBAT_ENEMY_ATTACKED` + `COMBAT_ENEMY_DODGED` events; enemy lunge plays on attack even on miss
+- Floating cyan "DODGE!" text with fade on successful dodge
+- StatsPanel shows AGI in base stats, DODGE % in combat stats; InventoryPanel tooltip supports agi label
 
 ## Pinned References
 - Governance rules: `CLAUDE.md`

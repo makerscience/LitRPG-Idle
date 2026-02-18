@@ -39,6 +39,7 @@ function createInitialState() {
       def: stats.def,
       hp: stats.hp,
       regen: stats.regen,
+      agi: stats.agi,
       level: stats.level,
       xp: D(stats.xp),
       xpToNext: D(PROGRESSION_V2.xpForLevel(stats.level)),
@@ -96,7 +97,7 @@ function hydrateState(saved) {
 
   // playerStats — plain numbers + Decimal sub-fields
   if (saved.playerStats) {
-    for (const key of ['str', 'def', 'hp', 'regen', 'level']) {
+    for (const key of ['str', 'def', 'hp', 'regen', 'agi', 'level']) {
       if (saved.playerStats[key] != null) fresh.playerStats[key] = saved.playerStats[key];
     }
     for (const key of DECIMAL_STAT_FIELDS) {
@@ -187,6 +188,7 @@ const Store = {
     state.playerStats.def += growth.def;
     state.playerStats.hp += growth.hp;
     state.playerStats.regen += growth.regen;
+    state.playerStats.agi += growth.agi;
 
     state.playerStats.xpToNext = D(PROGRESSION_V2.xpForLevel(state.playerStats.level));
 
@@ -302,7 +304,7 @@ const Store = {
 
   // ── Player stat mutations ───────────────────────────────────────
 
-  /** Add a flat bonus to a player stat (str, def, hp, regen). */
+  /** Add a flat bonus to a player stat (str, def, hp, regen, agi). */
   addFlatStat(stat, amount) {
     state.playerStats[stat] += amount;
     emit(EVENTS.STATE_CHANGED, { changedKeys: ['playerStats'] });
@@ -315,6 +317,7 @@ const Store = {
     state.playerStats.def = stats.def;
     state.playerStats.hp = stats.hp;
     state.playerStats.regen = stats.regen;
+    state.playerStats.agi = stats.agi;
     state.playerStats.level = stats.level;
     state.playerStats.xp = D(stats.xp);
     state.playerStats.xpToNext = D(PROGRESSION_V2.xpForLevel(stats.level));

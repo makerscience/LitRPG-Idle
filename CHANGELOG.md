@@ -1,5 +1,15 @@
 # CHANGELOG
 
+## 2026-02-18 — Agility Stat + Dodge Mechanic
+- **New stat: AGI (Agility)**: base 3, +0.5/level, boosted by gear. Creates evasion build alternative to defense stacking
+- **Contested dodge formula**: enemy accuracy vs player evade rating — `hitChance = clamp((acc + 60) / (acc + evadeRating + 60), 0.35, 0.95)`. Fast swarm enemies miss more, heavy brutes land hits reliably
+- **Enemy accuracy stat**: auto-derived from archetypes (attackSpeed, defense, armorPen, dot). Bosses default to 90 accuracy
+- **9 items converted to AGI-focused**: head (A1 uncommon, A2 tier 1, A3 tier A), boots (A2 tier 2, A2 uncommon, A3 tier B, A3 uncommon), gloves (A3 tier A), amulet (A3 tier B). Chest and legs stay DEF-only
+- **Visual feedback**: floating cyan "DODGE!" text on successful dodge; enemy attack lunge plays on all attacks (hit or miss)
+- **UI updates**: StatsPanel shows AGI in base stats + dodge % in combat stats; InventoryPanel tooltips show +AGI on gear
+
+---
+
 ## 2026-02-18 — Blighted Stalker Decapitation Death + Damage Number Fix
 - **Stalker death rework**: headless body (dead2 sprite) fades in place while severed head tumbles upward with random spin
 - **New sprites loaded**: `blightedstalker_dead2` (headless body) and `blightedstalker_head` (severed head) with canvas pre-downscaling

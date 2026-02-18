@@ -1,9 +1,7 @@
 #!/usr/bin/env node
 // Balance Simulation — standalone Node ESM script.
-// Imports game data directly and simulates zone-by-zone idle progression.
 // Usage: npm run balance:sim
 
-// ── Imports ────────────────────────────────────────────────────────────
 import { ENEMIES } from '../src/data/enemies.js';
 import { BOSSES } from '../src/data/bosses.js';
 import { ITEMS } from '../src/data/items.js';
@@ -11,19 +9,16 @@ import { AREAS, getZoneScaling, getBossKillThreshold } from '../src/data/areas.j
 import { PROGRESSION_V2, COMBAT_V2 } from '../src/config.js';
 import { getAllUpgrades } from '../src/data/upgrades.js';
 
-// ── Tuning Overrides (adjust these, rerun to iterate) ─────────────────
-// Set to 1.0 to use raw data values. Multipliers applied BEFORE zone scaling.
 const TUNE = {
-  enemyAtkMult: 1.0,      // multiply all enemy ATK by this
-  enemyXpMult: 1.0,       // multiply all enemy XP by this
-  bossAtkMult: 1.0,       // multiply all boss ATK by this
-  bossXpMult: 1.0,        // multiply all boss XP by this
-  goldMult: 1.0,          // multiply all gold drops by this
-  bossGoldMult: 1.0,      // multiply boss gold drops by this
-  bossClickRate: 5,       // assumed clicks per second during boss fights
+  enemyAtkMult: 1.0,
+  enemyXpMult: 1.0,
+  bossAtkMult: 1.0,
+  bossXpMult: 1.0,
+  goldMult: 1.0,
+  bossGoldMult: 1.0,
+  bossClickRate: 5,
 };
 
-// ── Constants (hardcoded to avoid Store/Phaser dependencies) ───────────
 const SLOT_UNLOCK_ZONES = {
   main_hand: 1, chest: 1, head: 1,
   legs: 6, boots: 9, gloves: 17, amulet: 22,
@@ -36,84 +31,46 @@ const EQUIP_TO_ITEM_SLOT = {
 
 const STARTING = PROGRESSION_V2.startingStats;
 const GROWTH = PROGRESSION_V2.statGrowthPerLevel;
+const ALL_UPGRADES = getAllUpgrades();
+const UPGRADE_PRIORITY = ['battle_hardening', 'auto_attack_speed', 'gold_find', 'sharpen_blade'];
 
-// ── Player State ───────────────────────────────────────────────────────
-const player = {
-  level: 1,
-  xp: 0,
-  str: STARTING.str,
-  def: STARTING.def,
-  hp: STARTING.hp,
-  regen: STARTING.regen,
-  gold: 0,
-  equipped: {},           // equipSlotId → item object (with statBonuses)
-  upgradeLevels: {},      // upgradeId → level
-};
-
-// ── Helpers ────────────────────────────────────────────────────────────
+function createPlayer() {
+  return {
+    level: 1,
+    xp: 0,
+    str: STARTING.str,
+    def: STARTING.def,
+    hp: STARTING.hp,
+    regen: STARTING.regen,
+    agi: STARTING.agi,
+    gold: 0,
+    equipped: {},
+    upgradeLevels: {},
+  };
+}
 
 function xpForLevel(level) {
   return PROGRESSION_V2.xpForLevel(level);
 }
 
-function levelUp() {
+function levelUp(player) {
   player.level++;
   player.str += GROWTH.str;
   player.def += GROWTH.def;
   player.hp += GROWTH.hp;
   player.regen += GROWTH.regen;
+  player.agi += GROWTH.agi;
 }
 
-function addXp(amount) {
+function addXp(player, amount) {
   player.xp += amount;
   while (player.xp >= xpForLevel(player.level)) {
     player.xp -= xpForLevel(player.level);
-    levelUp();
+    levelUp(player);
   }
 }
 
-function getEquipStatSum(statKey) {
-  let sum = 0;
-  for (const item of Object.values(player.equipped)) {
-    if (item && item.statBonuses[statKey]) sum += item.statBonuses[statKey];
-  }
-  return sum;
-}
-
-// Note: flat upgrade bonuses (battle_hardening) are already added to player.str
-// in purchaseUpgrade(), so we do NOT add getUpgradeFlatBonus here (matches real game).
-function getEffectiveStr() {
-  return player.str + getEquipStatSum('str');
-}
-
-function getEffectiveDef() {
-  return player.def + getEquipStatSum('def');
-}
-
-function getEffectiveMaxHp() {
-  return player.hp + getEquipStatSum('hp');
-}
-
-function getEffectiveRegen() {
-  return player.regen + getEquipStatSum('regen');
-}
-
-function getAtkSpeed() {
-  return COMBAT_V2.playerBaseAtkSpeed + getEquipStatSum('atkSpeed');
-}
-
-function getAutoAttackInterval() {
-  const speed = getAtkSpeed();
-  const baseInterval = 2000 / speed;
-  const speedBonus = getUpgradeMultiplier('autoAttackSpeed') - 1;
-  return Math.max(400, Math.floor(baseInterval * (1 - speedBonus)));
-}
-
-// ── Upgrade helpers ────────────────────────────────────────────────────
-
-const ALL_UPGRADES = getAllUpgrades();
-
-function getUpgradeMultiplier(target) {
+function getUpgradeMultiplier(player, target) {
   let sum = 0;
   for (const u of ALL_UPGRADES) {
     if (u.effect.type === 'multiplier' && u.effect.target === target) {
@@ -124,19 +81,8 @@ function getUpgradeMultiplier(target) {
   return 1 + sum;
 }
 
-function getUpgradeFlatBonus(target) {
-  let sum = 0;
-  for (const u of ALL_UPGRADES) {
-    if (u.effect.type === 'flat' && u.effect.target === target) {
-      const lvl = player.upgradeLevels[u.id] || 0;
-      sum += lvl * u.effect.valuePerLevel;
-    }
-  }
-  return sum;
-}
-
-function purchaseUpgrade(upgradeId) {
-  const u = ALL_UPGRADES.find(u => u.id === upgradeId);
+function purchaseUpgrade(player, upgradeId) {
+  const u = ALL_UPGRADES.find(x => x.id === upgradeId);
   if (!u) return false;
   const lvl = player.upgradeLevels[u.id] || 0;
   if (lvl >= u.maxLevel) return false;
@@ -145,118 +91,121 @@ function purchaseUpgrade(upgradeId) {
   if (player.gold < cost) return false;
   player.gold -= cost;
   player.upgradeLevels[u.id] = lvl + 1;
-  // Apply flat stat bonus immediately
-  if (u.effect.type === 'flat' && ['str', 'def', 'hp', 'regen'].includes(u.effect.target)) {
+  if (u.effect.type === 'flat' && ['str', 'def', 'hp', 'regen', 'agi'].includes(u.effect.target)) {
     player[u.effect.target] += u.effect.valuePerLevel;
   }
   return true;
 }
 
-// Priority: battle_hardening > auto_attack_speed > gold_find > sharpen_blade
-const UPGRADE_PRIORITY = ['battle_hardening', 'auto_attack_speed', 'gold_find', 'sharpen_blade'];
-
-function buyUpgrades() {
+function buyUpgrades(player) {
   let bought = true;
   while (bought) {
     bought = false;
     for (const uid of UPGRADE_PRIORITY) {
-      if (purchaseUpgrade(uid)) bought = true;
+      if (purchaseUpgrade(player, uid)) bought = true;
     }
   }
 }
 
-// ── Combat Math ────────────────────────────────────────────────────────
-
-function playerDamage(enemyDef) {
-  const str = getEffectiveStr();
-  return COMBAT_V2.playerDamage(str, enemyDef);
+function getEquipStatSum(player, statKey) {
+  let sum = 0;
+  for (const item of Object.values(player.equipped)) {
+    if (item && item.statBonuses[statKey]) sum += item.statBonuses[statKey];
+  }
+  return sum;
 }
 
-function enemyDamage(atk, armorPen) {
-  const def = getEffectiveDef();
-  return COMBAT_V2.enemyDamage(atk, def, armorPen);
+function getEffectiveStr(player) { return player.str + getEquipStatSum(player, 'str'); }
+function getEffectiveDef(player) { return player.def + getEquipStatSum(player, 'def'); }
+function getEffectiveMaxHp(player) { return player.hp + getEquipStatSum(player, 'hp'); }
+function getEffectiveRegen(player) { return player.regen + getEquipStatSum(player, 'regen'); }
+function getEffectiveAgi(player) { return player.agi + getEquipStatSum(player, 'agi'); }
+function getEvadeRating(player) { return COMBAT_V2.evadeRating(getEffectiveAgi(player)); }
+
+function getAtkSpeed(player) {
+  return COMBAT_V2.playerBaseAtkSpeed + getEquipStatSum(player, 'atkSpeed');
 }
 
-/**
- * Compute TTK (time to kill enemy) and TTD (time to die) for a given enemy.
- * Returns { ttk, ttd, survivalRatio }.
- */
-function combatStats(enemyHp, enemyAtk, enemyAtkSpeed, enemyDef, enemyArmorPen, enemyDot, clickRate = 0) {
-  // Player DPS
-  const dmgPerHit = playerDamage(enemyDef);
-  const atkInterval = getAutoAttackInterval() / 1000; // seconds
+function getAutoAttackInterval(player) {
+  const speed = getAtkSpeed(player);
+  const baseInterval = 2000 / speed;
+  const speedBonus = getUpgradeMultiplier(player, 'autoAttackSpeed') - 1;
+  return Math.max(400, Math.floor(baseInterval * (1 - speedBonus)));
+}
+
+function playerDamage(player, enemyDef) {
+  return COMBAT_V2.playerDamage(getEffectiveStr(player), enemyDef);
+}
+
+function enemyDamage(player, atk, armorPen) {
+  return COMBAT_V2.enemyDamage(atk, getEffectiveDef(player), armorPen);
+}
+
+function combatStats(player, enemyHp, enemyAtk, enemyAtkSpeed, enemyDef, enemyArmorPen, enemyDot, enemyAccuracy, clickRate = 0) {
+  const dmgPerHit = playerDamage(player, enemyDef);
+  const atkInterval = getAutoAttackInterval(player) / 1000;
   const autoDps = dmgPerHit / atkInterval;
-
-  // Click DPS (active play, e.g. boss fights)
-  const clickDmgMult = getUpgradeMultiplier('clickDamage');
+  const clickDmgMult = getUpgradeMultiplier(player, 'clickDamage');
   const clickDps = clickRate > 0 ? dmgPerHit * clickDmgMult * clickRate : 0;
   const playerDps = autoDps + clickDps;
+  const ttk = enemyHp / Math.max(playerDps, 0.01);
 
-  // Time to kill
-  const ttk = enemyHp / playerDps;
-
-  // Enemy DPS
-  const dmgPerEnemyHit = enemyDamage(enemyAtk, enemyArmorPen);
+  const dmgPerEnemyHit = enemyDamage(player, enemyAtk, enemyArmorPen);
   const enemyInterval = Math.max(0.4, 2 / enemyAtkSpeed);
-  const enemyDps = dmgPerEnemyHit / enemyInterval;
-
-  // DoT is flat, bypasses defense
+  const rawEnemyDps = dmgPerEnemyHit / enemyInterval;
+  const hitChance = COMBAT_V2.enemyHitChance(enemyAccuracy || 80, getEvadeRating(player));
   const dotDps = enemyDot || 0;
-  const totalEnemyDps = enemyDps + dotDps;
+  const totalEnemyDps = (rawEnemyDps * hitChance) + dotDps;
 
-  // Effective HP = actual HP + regen over the fight
-  const maxHp = getEffectiveMaxHp();
-  const regen = getEffectiveRegen();
-
-  // Net DPS taken
+  const maxHp = getEffectiveMaxHp(player);
+  const regen = getEffectiveRegen(player);
   const netDps = Math.max(totalEnemyDps - regen, 0.01);
-
-  // Time to die
   const ttd = maxHp / netDps;
 
   return {
     ttk: Math.round(ttk * 100) / 100,
     ttd: Math.round(ttd * 100) / 100,
     survivalRatio: Math.round((ttd / ttk) * 100) / 100,
-    playerDps: Math.round(playerDps * 10) / 10,
-    enemyDps: Math.round(totalEnemyDps * 10) / 10,
+    hitChance: Math.round(hitChance * 1000) / 1000,
+    dodgeChance: Math.round((1 - hitChance) * 1000) / 1000,
   };
 }
 
-// ── Gear Equipping ─────────────────────────────────────────────────────
+function getArmorScore(item, policy) {
+  const b = item.statBonuses;
+  if (policy === 'agi') {
+    return (b.agi || 0) * 2 + (b.atkSpeed || 0) * 25 + (b.def || 0) * 0.5 + (b.hp || 0) * 0.05 + (b.regen || 0) * 4;
+  }
+  return (b.def || 0) * 2 + (b.hp || 0) * 0.1 + (b.regen || 0) * 5 + (b.agi || 0) * 0.25;
+}
 
-/** Get best common item for a given equip slot available at globalZone. */
-function getBestCommonItem(equipSlotId, globalZone) {
+function getBestCommonItem(equipSlotId, globalZone, policy) {
   const itemSlot = EQUIP_TO_ITEM_SLOT[equipSlotId];
   if (!itemSlot) return null;
 
   const candidates = Object.values(ITEMS).filter(item =>
     item.slot === itemSlot &&
-    item.rarity === 'common' &&
     globalZone >= item.zones[0] && globalZone <= item.zones[1]
   );
 
   if (candidates.length === 0) return null;
-
-  // Pick best by primary stat: str for weapons, def for armor, regen for amulet
   return candidates.sort((a, b) => {
-    if (itemSlot === 'weapon') return b.statBonuses.str - a.statBonuses.str;
-    if (itemSlot === 'amulet') return b.statBonuses.regen - a.statBonuses.regen;
-    return b.statBonuses.def - a.statBonuses.def;
+    if (itemSlot === 'weapon') return (b.statBonuses.str || 0) - (a.statBonuses.str || 0);
+    if (itemSlot === 'amulet') {
+      if (policy === 'agi') return (b.statBonuses.agi || 0) - (a.statBonuses.agi || 0) || (b.statBonuses.regen || 0) - (a.statBonuses.regen || 0);
+      return (b.statBonuses.regen || 0) - (a.statBonuses.regen || 0) || (b.statBonuses.def || 0) - (a.statBonuses.def || 0);
+    }
+    return getArmorScore(b, policy) - getArmorScore(a, policy);
   })[0];
 }
 
-function equipBestGear(globalZone) {
+function equipBestGear(player, globalZone, policy) {
   for (const [slotId, unlockZone] of Object.entries(SLOT_UNLOCK_ZONES)) {
     if (globalZone < unlockZone) continue;
-    const best = getBestCommonItem(slotId, globalZone);
-    if (best) {
-      player.equipped[slotId] = best;
-    }
+    const best = getBestCommonItem(slotId, globalZone, policy);
+    if (best) player.equipped[slotId] = best;
   }
 }
-
-// ── Zone Enemies ───────────────────────────────────────────────────────
 
 function getEnemiesForGlobalZone(globalZone) {
   return ENEMIES.filter(e => globalZone >= e.zones[0] && globalZone <= e.zones[1]);
@@ -272,49 +221,24 @@ function getAreaLocalZone(globalZone) {
   return { areaId: 1, localZone: 1 };
 }
 
-// ── Main Simulation Loop ──────────────────────────────────────────────
+function runSimulation(policyName, gearPolicy) {
+  const player = createPlayer();
+  const results = [];
 
-const results = [];
-const GDD_CHECKPOINTS = {
-  5: { label: 'Area 1 exit', level: 7, hp: 177, str: 25, def: 24 },
-  15: { label: 'Area 2 exit', level: 18, hp: 370, str: 45, def: 46 },
-  30: { label: 'Area 3 exit', level: 35, hp: 690, str: 97, def: 90 },
-};
+  for (let globalZone = 1; globalZone <= 30; globalZone++) {
+    const { areaId, localZone } = getAreaLocalZone(globalZone);
+    const hpScale = getZoneScaling(localZone, 'hp');
+    const atkScale = getZoneScaling(localZone, 'atk');
+    const goldScale = getZoneScaling(localZone, 'gold');
+    const xpScale = getZoneScaling(localZone, 'xp');
+    const killThreshold = getBossKillThreshold(localZone);
+    const boss = BOSSES.find(b => b.zone === globalZone);
+    const enemies = getEnemiesForGlobalZone(globalZone);
 
-console.log('');
-console.log('══════════════════════════════════════════════════════════════════════════════');
-console.log('  BALANCE SIMULATION — Idle RPG Vertical Slice (Zones 1-30)');
-console.log('══════════════════════════════════════════════════════════════════════════════');
-console.log('');
-console.log('Assumptions:');
-console.log('  • Common gear only (no uncommons)');
-console.log(`  • Idle for enemies, active clicking (${TUNE.bossClickRate}/s) for bosses`);
-console.log('  • No crits, no prestige, no territory buffs');
-console.log('  • Optimal upgrade purchasing (Battle Hardening > Atk Speed > Gold Find > Sharpen)');
-console.log('  • Player grinds exactly boss threshold kills per zone');
-console.log('');
-console.log('Tuning overrides:');
-console.log(`  • Enemy ATK ×${TUNE.enemyAtkMult}, XP ×${TUNE.enemyXpMult}, Gold ×${TUNE.goldMult}`);
-console.log(`  • Boss ATK ×${TUNE.bossAtkMult}, XP ×${TUNE.bossXpMult}, Gold ×${TUNE.bossGoldMult}`);
-console.log('');
+    equipBestGear(player, globalZone, gearPolicy);
+    if (enemies.length === 0) continue;
 
-for (let globalZone = 1; globalZone <= 30; globalZone++) {
-  const { areaId, localZone } = getAreaLocalZone(globalZone);
-  const hpScale = getZoneScaling(localZone, 'hp');
-  const atkScale = getZoneScaling(localZone, 'atk');
-  const goldScale = getZoneScaling(localZone, 'gold');
-  const xpScale = getZoneScaling(localZone, 'xp');
-  const killThreshold = getBossKillThreshold(localZone);
-  const boss = BOSSES.find(b => b.zone === globalZone);
-  const enemies = getEnemiesForGlobalZone(globalZone);
-
-  // Equip best gear at zone start
-  equipBestGear(globalZone);
-
-  // Grind enemies to hit boss threshold
-  if (enemies.length > 0) {
-    // Average enemy stats (scaled)
-    let totalHp = 0, totalAtk = 0, totalAtkSpd = 0, totalDef = 0, totalArmorPen = 0, totalDot = 0;
+    let totalHp = 0, totalAtk = 0, totalAtkSpd = 0, totalDef = 0, totalArmorPen = 0, totalDot = 0, totalAcc = 0;
     let totalGold = 0, totalXp = 0;
     for (const e of enemies) {
       totalHp += Math.floor(e.hp * hpScale);
@@ -323,6 +247,7 @@ for (let globalZone = 1; globalZone <= 30; globalZone++) {
       totalDef += e.defense || 0;
       totalArmorPen += e.armorPen || 0;
       totalDot += e.dot || 0;
+      totalAcc += e.accuracy || 80;
       totalGold += Math.floor(e.goldDrop * TUNE.goldMult * goldScale);
       totalXp += Math.floor(e.xpDrop * TUNE.enemyXpMult * xpScale);
     }
@@ -333,161 +258,124 @@ for (let globalZone = 1; globalZone <= 30; globalZone++) {
     const avgDef = totalDef / n;
     const avgArmorPen = totalArmorPen / n;
     const avgDot = totalDot / n;
+    const avgAcc = totalAcc / n;
     const avgGold = totalGold / n;
     const avgXp = totalXp / n;
 
-    // Grind kills
-    const goldMult = getUpgradeMultiplier('goldMultiplier');
+    const goldMult = getUpgradeMultiplier(player, 'goldMultiplier');
     for (let k = 0; k < killThreshold; k++) {
-      addXp(Math.floor(avgXp));
+      addXp(player, Math.floor(avgXp));
       player.gold += Math.floor(avgGold * goldMult);
     }
 
-    // Buy upgrades after grinding
-    buyUpgrades();
+    buyUpgrades(player);
+    equipBestGear(player, globalZone, gearPolicy);
 
-    // Re-equip after upgrades (level-ups may have happened)
-    equipBestGear(globalZone);
+    const enemyCombat = combatStats(player, avgHp, avgAtk, avgAtkSpd, avgDef, avgArmorPen, avgDot, avgAcc);
 
-    // Combat stats vs average enemy
-    const enemyCombat = combatStats(avgHp, avgAtk, avgAtkSpd, avgDef, avgArmorPen, avgDot);
-
-    // Add boss XP and gold
     if (boss) {
-      addXp(Math.floor(boss.xpDrop * TUNE.bossXpMult));
-      player.gold += Math.floor(boss.goldDrop * TUNE.bossGoldMult * getUpgradeMultiplier('goldMultiplier'));
-      buyUpgrades();
-      equipBestGear(globalZone);
+      addXp(player, Math.floor(boss.xpDrop * TUNE.bossXpMult));
+      player.gold += Math.floor(boss.goldDrop * TUNE.bossGoldMult * getUpgradeMultiplier(player, 'goldMultiplier'));
+      buyUpgrades(player);
+      equipBestGear(player, globalZone, gearPolicy);
     }
 
-    // Boss combat stats
     let bossResult = null;
     if (boss) {
       bossResult = combatStats(
-        boss.hp, Math.floor(boss.attack * TUNE.bossAtkMult), boss.attackSpeed,
-        boss.defense || 0, boss.armorPen || 0, boss.dot || 0,
+        player,
+        boss.hp,
+        Math.floor(boss.attack * TUNE.bossAtkMult),
+        boss.attackSpeed,
+        boss.defense || 0,
+        boss.armorPen || 0,
+        boss.dot || 0,
+        boss.accuracy || 90,
         TUNE.bossClickRate,
       );
     }
 
-    const row = {
+    results.push({
+      policy: policyName,
       zone: globalZone,
-      area: areaId,
-      localZone,
       level: player.level,
-      str: getEffectiveStr(),
-      def: getEffectiveDef(),
-      hp: getEffectiveMaxHp(),
-      regen: Math.round(getEffectiveRegen() * 10) / 10,
-      atkSpd: Math.round(getAtkSpeed() * 100) / 100,
-      atkInterval: getAutoAttackInterval(),
-      enemyTTK: enemyCombat.ttk,
-      enemyTTD: enemyCombat.ttd,
+      str: getEffectiveStr(player),
+      def: getEffectiveDef(player),
+      agi: getEffectiveAgi(player),
+      evade: Math.round(getEvadeRating(player)),
+      enemyHitPct: Math.round(enemyCombat.hitChance * 1000) / 10,
+      enemyDodgePct: Math.round(enemyCombat.dodgeChance * 1000) / 10,
       enemySurvival: enemyCombat.survivalRatio,
       bossName: boss ? boss.name : '-',
-      bossTTK: bossResult ? bossResult.ttk : '-',
-      bossTTD: bossResult ? bossResult.ttd : '-',
-      bossWin: bossResult ? (bossResult.survivalRatio >= 1 ? 'Y' : 'N') : '-',
       bossSurvival: bossResult ? bossResult.survivalRatio : '-',
-      gold: Math.floor(player.gold),
-      upgrades: { ...player.upgradeLevels },
-    };
+      bossWin: bossResult ? (bossResult.survivalRatio >= 1 ? 'Y' : 'N') : '-',
+    });
+  }
 
-    results.push(row);
+  return results;
+}
+
+function printPolicyTable(policyName, rows) {
+  console.log('');
+  console.log(`Policy: ${policyName}`);
+  console.log('Zone | Lvl | STR | DEF | AGI | EVA | Hit% | Dod% | eSurv | Boss                      | bSurv | Win');
+  console.log('-----|-----|-----|-----|-----|-----|------|------|-------|---------------------------|-------|----');
+  for (const r of rows) {
+    const bossName = typeof r.bossName === 'string' ? r.bossName.padEnd(25) : '-'.padEnd(25);
+    console.log([
+      String(r.zone).padStart(4),
+      String(r.level).padStart(3),
+      String(r.str).padStart(3),
+      String(r.def).padStart(3),
+      String(r.agi).padStart(3),
+      String(r.evade).padStart(3),
+      String(r.enemyHitPct.toFixed(1)).padStart(5),
+      String(r.enemyDodgePct.toFixed(1)).padStart(5),
+      String(r.enemySurvival).padStart(5),
+      ` ${bossName}`,
+      String(r.bossSurvival).padStart(5),
+      String(r.bossWin).padStart(3),
+    ].join(' | '));
   }
 }
 
-// ── Output ─────────────────────────────────────────────────────────────
-
-// Zone table
-const header = 'Zone | Lvl | STR  | DEF  |  HP  | Regen | AtkMs | eTTK  | eTTD  | eSurv | Boss                       | bTTK   | bTTD   | Win | bSurv | Gold';
-const sep    = '-----|-----|------|------|------|-------|-------|-------|-------|-------|----------------------------|--------|--------|-----|-------|------';
-console.log(header);
-console.log(sep);
-
-for (const r of results) {
-  const bName = typeof r.bossName === 'string' ? r.bossName.padEnd(26) : '-'.padEnd(26);
-  const line = [
-    String(r.zone).padStart(4),
-    String(r.level).padStart(3),
-    String(r.str).padStart(4),
-    String(r.def).padStart(4),
-    String(r.hp).padStart(4),
-    String(r.regen).padStart(5),
-    String(r.atkInterval).padStart(5),
-    String(r.enemyTTK).padStart(5),
-    String(r.enemyTTD).padStart(5),
-    String(r.enemySurvival).padStart(5),
-    ' ' + bName,
-    String(r.bossTTK).padStart(6),
-    String(r.bossTTD).padStart(6),
-    String(r.bossWin).padStart(3),
-    String(r.bossSurvival).padStart(5),
-    String(r.gold).padStart(5),
-  ].join(' | ');
-  console.log(line);
-}
-
-// ── GDD Checkpoint Comparison ──────────────────────────────────────────
-console.log('');
-console.log('══════════════════════════════════════════════════════════════════════════════');
-console.log('  GDD CHECKPOINT COMPARISON');
-console.log('══════════════════════════════════════════════════════════════════════════════');
-
-for (const [zone, cp] of Object.entries(GDD_CHECKPOINTS)) {
-  const r = results.find(r => r.zone === parseInt(zone));
-  if (!r) continue;
+function printSummary(policyName, rows) {
+  const bosses = rows.filter(r => r.bossWin === 'Y' || r.bossWin === 'N');
+  const pass = bosses.filter(r => r.bossWin === 'Y').length;
+  const fail = bosses.length - pass;
+  const z1 = rows.find(r => r.zone === 1);
+  const z5 = rows.find(r => r.zone === 5);
+  const z10 = rows.find(r => r.zone === 10);
   console.log('');
-  console.log(`  Zone ${zone}: ${cp.label}`);
-  console.log(`    Level:  actual=${r.level}  target~${cp.level}  (${pctDiff(r.level, cp.level)})`);
-  console.log(`    STR:    actual=${r.str}  target~${cp.str}  (${pctDiff(r.str, cp.str)})`);
-  console.log(`    DEF:    actual=${r.def}  target~${cp.def}  (${pctDiff(r.def, cp.def)})`);
-  console.log(`    HP:     actual=${r.hp}  target~${cp.hp}  (${pctDiff(r.hp, cp.hp)})`);
+  console.log(`Summary (${policyName})`);
+  console.log(`  Boss passes: ${pass}/${bosses.length}  fails: ${fail}`);
+  if (z1) console.log(`  Zone 1 dodge: ${z1.enemyDodgePct.toFixed(1)}%`);
+  if (z5) console.log(`  Zone 5 dodge: ${z5.enemyDodgePct.toFixed(1)}%`);
+  if (z10) console.log(`  Zone 10 dodge: ${z10.enemyDodgePct.toFixed(1)}%`);
 }
 
-// ── Boss Summary ───────────────────────────────────────────────────────
+const defRows = runSimulation('DEF', 'def');
+const agiRows = runSimulation('AGI', 'agi');
+
 console.log('');
-console.log('══════════════════════════════════════════════════════════════════════════════');
-console.log('  BOSS PASS/FAIL SUMMARY');
-console.log('══════════════════════════════════════════════════════════════════════════════');
+console.log('============================================================');
+console.log(' BALANCE SIMULATION (Accuracy vs Agility)');
+console.log('============================================================');
+console.log('Assumptions: best available authored gear, no prestige/territory, active boss clicking.');
 
-let passCount = 0, failCount = 0;
-for (const r of results) {
-  if (r.bossWin === 'Y') passCount++;
-  else if (r.bossWin === 'N') failCount++;
-}
-console.log(`  Passed: ${passCount}/30    Failed: ${failCount}/30`);
-console.log('');
+printPolicyTable('DEF-priority gear', defRows);
+printSummary('DEF-priority gear', defRows);
 
-const failures = results.filter(r => r.bossWin === 'N');
-if (failures.length > 0) {
-  console.log('  FAILED BOSSES:');
-  for (const f of failures) {
-    console.log(`    Zone ${f.zone}: ${f.bossName} — survival ratio ${f.bossSurvival}x (need >=1.0)`);
-  }
-}
+printPolicyTable('AGI-priority gear', agiRows);
+printSummary('AGI-priority gear', agiRows);
 
-// Final boss detail
-const finalBoss = results.find(r => r.zone === 30);
-if (finalBoss) {
+const defFinal = defRows.find(r => r.zone === 30);
+const agiFinal = agiRows.find(r => r.zone === 30);
+if (defFinal && agiFinal) {
   console.log('');
-  console.log(`  FINAL BOSS: ${finalBoss.bossName}`);
-  console.log(`    Survival ratio: ${finalBoss.bossSurvival}x  (target: 1.1-2.0x tight win)`);
-  console.log(`    TTK: ${finalBoss.bossTTK}s  TTD: ${finalBoss.bossTTD}s`);
-  console.log(`    Player: Lv${finalBoss.level} STR=${finalBoss.str} DEF=${finalBoss.def} HP=${finalBoss.hp} Regen=${finalBoss.regen}`);
-}
-
-// ── Upgrade Levels ─────────────────────────────────────────────────────
-console.log('');
-console.log('  FINAL UPGRADE LEVELS:');
-for (const uid of UPGRADE_PRIORITY) {
-  console.log(`    ${uid}: ${player.upgradeLevels[uid] || 0}`);
+  console.log('Final Zone Comparison (Zone 30)');
+  console.log(`  DEF policy: dodge=${defFinal.enemyDodgePct.toFixed(1)}% bossSurv=${defFinal.bossSurvival}`);
+  console.log(`  AGI policy: dodge=${agiFinal.enemyDodgePct.toFixed(1)}% bossSurv=${agiFinal.bossSurvival}`);
 }
 
 console.log('');
-console.log('══════════════════════════════════════════════════════════════════════════════');
-
-function pctDiff(actual, target) {
-  const diff = ((actual - target) / target * 100).toFixed(1);
-  return diff >= 0 ? `+${diff}%` : `${diff}%`;
-}

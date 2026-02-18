@@ -10,6 +10,27 @@ Format:
 
 ---
 
+## 2026-02-18
+- Tags: architecture
+- Decision: Contested accuracy-vs-evade dodge formula instead of standalone `agi / (agi + K)` curve. Formula: `hitChance = clamp((acc + bias) / (acc + evadeRating + bias), 0.35, 0.95)` where `evadeRating = agi * 2.0` and `bias = 60`. Enemy `accuracy` is a new per-enemy stat (auto-derived from archetypes if not authored).
+- Rationale: Simple `agi / (agi + K)` is too weak at low AGI (2% dodge at agi=3), making DEF strictly dominant early game. Contested formula gives AGI meaningful early value by scaling against enemy accuracy — low-accuracy swarm enemies are dodgeable even with starter AGI, while high-accuracy brutes/bosses are harder to dodge. This creates archetype identity (fast swarms miss more, heavy brutes land hits) and makes AGI a real alternative to DEF from zone 1.
+- Alternatives considered: Simple `agi / (agi + 150)` (too weak early, DEF dominates until endgame), flat dodge% on gear (two knobs for one mechanic, complicates tooltips), dodge as upgrade-only (no gear choices).
+- Consequences / Follow-ups: All enemies need `accuracy` values — currently auto-derived from attackSpeed/defense/armorPen/dot. Hand-tuning accuracy per enemy may be needed after playtesting. Balance sim should model both DEF-priority and AGI-priority gear policies. Hit chance clamped at [35%, 95%] prevents both immunity and irrelevance.
+
+## 2026-02-18
+- Tags: architecture
+- Decision: AGI is a base player stat (grows per level, starts at 3, +0.5/level) AND a gear stat, NOT gear-only like atkSpeed. Equipment converted: ~1/3 of armor per area to AGI-focused. Chest and legs stay DEF-only (tank core). Boots, head, gloves, amulet get AGI alternatives.
+- Rationale: All players should get some baseline dodge from leveling (rewards progression), but the real build choice comes from gear. Making chest/legs always DEF ensures pure-AGI builds still take some damage, preventing invincibility. 9 items converted across 3 areas gives meaningful gear choices at every stage.
+- Alternatives considered: AGI gear-only like atkSpeed (no dodge without lucky drops, bad early game), AGI on all slots (enables near-cap dodge too easily), separate `dodge` stat key on items (two stats for one outcome).
+- Consequences / Follow-ups: `COMBAT_ENEMY_ATTACKED` event added to decouple enemy attack animation from hit/miss outcome — lunge plays on every attack, "DODGE!" text on miss. DoT bypasses dodge (consistent with bypassing DEF). Items use `agi: 0` default for all non-converted items via loop in items.js.
+
+## 2026-02-18
+- Tags: workflow, tooling
+- Decision: Per-account SSH keys with host aliases for multi-GitHub-account authentication. `~/.ssh/config` defines `github-maker` and `github-otter` host aliases, each pointing to `github.com` with a different IdentityFile. Repo remotes use `git@github-maker:` / `git@github-otter:` instead of `git@github.com:`.
+- Rationale: HTTPS credentials were routing to the wrong GitHub account on push. SSH host aliases permanently bind each repo to the correct account with zero per-push friction.
+- Alternatives considered: HTTPS credential manager per-repo (fragile, OS-dependent), GitHub CLI auth switching (manual per-session), single SSH key added to both accounts (GitHub rejects — one key per account).
+- Consequences / Follow-ups: New repos for either account must use the correct host alias in the remote URL. Per-repo `user.name`/`user.email` set to match each account. No passphrase on keys — can add later with `ssh-keygen -p`.
+
 ## 2026-02-14
 - Tags: architecture
 - Decision: Replace uniform zone scaling (0.15 for all stats) with asymmetric per-stat scaling: HP 0.10, ATK 0.12, Gold 0.18, XP 0.08. `getZoneScaling(zoneNum, stat)` accepts a stat parameter.

@@ -17,7 +17,7 @@ function section(title) { console.log(`\n── ${title} ──`); }
 const VALID_SLOTS = ['weapon', 'body', 'head', 'legs', 'boots', 'gloves', 'amulet', 'waterskin'];
 const VALID_RARITIES = ['common', 'uncommon', 'rare', 'epic'];
 const VALID_BOSS_TYPES = ['MINI', 'ELITE', 'AREA'];
-const STAT_KEYS = ['str', 'def', 'hp', 'regen', 'atkSpeed', 'atk'];
+const STAT_KEYS = ['str', 'def', 'hp', 'regen', 'atkSpeed', 'atk', 'agi'];
 
 // ── 1. Enemy Schema ─────────────────────────────────────────────────
 section('Enemy Validation');
@@ -33,6 +33,7 @@ for (const e of ENEMIES) {
   if (typeof e.hp !== 'number' || e.hp <= 0) error(`${ctx}: hp must be positive number, got ${e.hp}`);
   if (typeof e.attack !== 'number' || e.attack < 0) error(`${ctx}: invalid attack`);
   if (typeof e.attackSpeed !== 'number' || e.attackSpeed <= 0) error(`${ctx}: invalid attackSpeed`);
+  if (typeof e.accuracy !== 'number' || e.accuracy < 1 || e.accuracy > 200) error(`${ctx}: accuracy must be 1-200`);
   if (typeof e.defense !== 'number') error(`${ctx}: invalid defense`);
   if (typeof e.armorPen !== 'number' || e.armorPen < 0 || e.armorPen > 1) error(`${ctx}: armorPen must be 0-1`);
   if (e.dot !== null && typeof e.dot !== 'number') error(`${ctx}: dot must be number or null`);
@@ -113,6 +114,7 @@ for (const b of BOSSES) {
   if (typeof b.hp !== 'number' || b.hp <= 0) error(`${ctx}: invalid hp`);
   if (typeof b.attack !== 'number' || b.attack < 0) error(`${ctx}: invalid attack`);
   if (typeof b.attackSpeed !== 'number' || b.attackSpeed <= 0) error(`${ctx}: invalid attackSpeed`);
+  if (typeof b.accuracy !== 'number' || b.accuracy < 1 || b.accuracy > 200) error(`${ctx}: accuracy must be 1-200`);
   if (typeof b.defense !== 'number' || b.defense < 0) error(`${ctx}: invalid defense`);
   if (typeof b.armorPen !== 'number' || b.armorPen < 0 || b.armorPen > 1) error(`${ctx}: armorPen must be 0-1`);
   if (b.dot !== null && typeof b.dot !== 'number') error(`${ctx}: dot must be number or null`);

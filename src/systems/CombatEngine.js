@@ -11,7 +11,9 @@ import { COMBAT_V2 } from '../config.js';
 import { getUnlockedEnemies, getZoneScaling } from '../data/areas.js';
 import UpgradeManager from './UpgradeManager.js';
 import TerritoryManager from './TerritoryManager.js';
-import { getEffectiveMaxHp, getBaseDamage, getCritChance, getEffectiveDef, getPlayerAutoAttackInterval, getHpRegen } from './ComputedStats.js';
+import {
+  getEffectiveMaxHp, getBaseDamage, getCritChance, getEffectiveDef, getPlayerAutoAttackInterval, getHpRegen, getEnemyHitChance,
+} from './ComputedStats.js';
 
 let currentEnemy = null;
 let scope = null;
@@ -179,6 +181,7 @@ const CombatEngine = {
       lootTable: template.lootTable,
       isBoss: false,
       defense: template.defense ?? 0,
+      accuracy: template.accuracy ?? 80,
       armorPen: template.armorPen ?? 0,
       attackSpeed: template.attackSpeed ?? 1.0,
       dot: template.dot ?? null,
@@ -190,6 +193,7 @@ const CombatEngine = {
       maxHp: currentEnemy.maxHp,
       isBoss: false,
       armorPen: currentEnemy.armorPen,
+      accuracy: currentEnemy.accuracy,
       dot: currentEnemy.dot,
       defense: currentEnemy.defense,
     });
@@ -219,6 +223,7 @@ const CombatEngine = {
       isBoss: true,
       bossType: bossTemplate.bossType,
       defense: bossTemplate.defense ?? 0,
+      accuracy: bossTemplate.accuracy ?? 90,
       armorPen: bossTemplate.armorPen ?? 0,
       attackSpeed: bossTemplate.attackSpeed ?? 1.0,
       dot: bossTemplate.dot ?? null,
@@ -233,6 +238,7 @@ const CombatEngine = {
       spriteSize: bossTemplate.spriteSize || null,
       spriteOffsetY: bossTemplate.spriteOffsetY ?? null,
       armorPen: currentEnemy.armorPen,
+      accuracy: currentEnemy.accuracy,
       dot: currentEnemy.dot,
       defense: currentEnemy.defense,
     });
@@ -330,6 +336,24 @@ const CombatEngine = {
 
   enemyAttack() {
     if (!currentEnemy) return;
+    const accuracy = currentEnemy.accuracy ?? 80;
+    const hitChance = getEnemyHitChance(accuracy);
+    emit(EVENTS.COMBAT_ENEMY_ATTACKED, {
+      enemyId: currentEnemy.id,
+      name: currentEnemy.name,
+      accuracy,
+      hitChance,
+    });
+    if (Math.random() > hitChance) {
+      emit(EVENTS.COMBAT_ENEMY_DODGED, {
+        enemyId: currentEnemy.id,
+        name: currentEnemy.name,
+        accuracy,
+        hitChance,
+        dodgeChance: 1 - hitChance,
+      });
+      return;
+    }
     const playerDef = getEffectiveDef();
     const armorPen = currentEnemy.armorPen ?? 0;
     const damage = COMBAT_V2.enemyDamage(currentEnemy.attack, playerDef, armorPen);
