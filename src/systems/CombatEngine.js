@@ -802,8 +802,9 @@ const CombatEngine = {
     if (!encounter) return;
     const enc = encounter;
 
-    // 1. Clear all remaining encounter timers
+    // 1. Clear all remaining encounter timers + any active Rapid Strikes
     CombatEngine._clearEncounterTimers();
+    CombatEngine.cancelRapidStrikes();
 
     // 2. Despawn remaining alive members (boss adds) — no rewards
     for (const m of enc.members) {

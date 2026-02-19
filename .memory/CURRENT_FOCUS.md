@@ -28,7 +28,7 @@
 
 ## How to Resume in 30 Seconds
 - **Open:** `.memory/CURRENT_FOCUS.md`
-- **Last change:** Enemy traits Phases 1-6 visuals done. Hollow Slime regen bumped to 5.
+- **Last change:** Fixed Rapid Strikes spawn freeze (TimeEngine one-shot splice bug + missing cancelRapidStrikes on encounter end).
 - **Architecture:** Progression.js owns XP/level + kill rewards. Store is pure state. EventScope pattern for subscriptions. ComputedStats for derived values. BossManager looks up named bosses via `getBossForZone()`. LootEngine uses zone-based item pools with slot weighting and pity.
 - **Enemy traits plan:** `Plans/Enemy_Traits_Plan.md` — Regen, Enrage, Thorns (6 phases)
 - **Key new files:** `src/ui/FlurryButton.js`, `src/ui/BulwarkButton.js`, `src/ui/StanceSwitcher.js`
@@ -51,13 +51,10 @@
 ---
 
 ## Last Session Summary (max ~8 bullets)
-- Enemy Traits Phase 5: assigned traits to 7 Area 2-3 enemies (2 regen, 2 enrage, 3 thorns)
-- Balance sim updated: models regen (reduces effective DPS, flags unkillable), enrage (blended DPS multiplier), thorns (flat reflect bypassing stance DR)
-- All 30 zones pass across all 6 gear×stance policies — lowest eSurv is 2.74 (DEF+Power z30)
-- Bumped Hollow Slime regen from 2 to 5 (sim still healthy, z1-2 eSurv ~570)
-- Phase 6 visuals: regen green `+N` heal numbers, enrage red `ENRAGED!` text + persistent red tint, thorns purple `-N` reflect numbers on player
-- Added player incoming damage numbers (red floating numbers above player on enemy hits)
-- All trait visuals subscribe to dedicated events (COMBAT_ENEMY_REGEN, COMBAT_ENEMY_ENRAGED, COMBAT_THORNS_DAMAGE) — no event reuse
+- Fixed Rapid Strikes spawn freeze: one-shot timer splice in TimeEngine used stale index after callback-induced array mutations, causing the same timer to re-fire multiple times (cascading kills in multi-member encounters)
+- TimeEngine fix: `tickers.indexOf(t)` finds timer by object reference instead of trusting stale index `i` — correct regardless of callback splices
+- CombatEngine fix: `cancelRapidStrikes()` added to `_onEncounterEnd` — ability timers no longer outlive their encounter
+- Added lessons 43-44 to LESSONS_LEARNED.md
 
 ## Pinned References
 - Governance rules: `CLAUDE.md`

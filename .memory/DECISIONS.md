@@ -10,6 +10,13 @@ Format:
 
 ---
 
+## 2026-02-19
+- Tags: architecture, failure-mode
+- Decision: TimeEngine one-shot timer removal now uses `tickers.indexOf(t)` (object reference lookup) instead of `tickers.splice(i, 1)` (stale index). Additionally, `CombatEngine._onEncounterEnd()` now calls `cancelRapidStrikes()` to clear any surviving ability timers.
+- Rationale: When a one-shot timer's callback spliced lower-index timers (e.g., `_unregisterMemberTimers` removing encounter attack timers), the fired timer shifted to a lower index. `tickers.splice(i, 1)` at the stale index removed the wrong element — the next rapid strike timer. The stale timer remained in the array, passed `elapsed >= interval` on the next loop iteration, and re-fired. In multi-member encounters (3-rat pack), this cascaded: each re-fire killed the next enemy, causing more splices, and the stale timer fired 3-4 times in a single frame. This is the second manifestation of lesson 41's root cause (array mutation during iteration); the bounds guard caught "array shrinks below loop variable" but not "element shifts to a different index."
+- Alternatives considered: Mark-and-sweep (flag fired one-shot timers, sweep after iteration) — cleaner but larger change. Cancelling rapid strikes on encounter end alone (prevents the specific cascade but doesn't fix the systemic TimeEngine bug). Both fixes applied together for defense in depth.
+- Consequences / Follow-ups: `indexOf(t)` is O(n) per one-shot fire, but tickers array is small (<20 elements) and one-shots are rare — no perf concern. Rapid strikes from a completed encounter can no longer leak into the next encounter's spawn window. If TimeEngine needs further robustness, mark-and-sweep remains the ideal long-term solution.
+
 ## 2026-02-18
 - Tags: architecture
 - Decision: Removed `_slotsActive` backward-compat gate and all old single-enemy rendering code. Slot-based encounter rendering is now the only render path. `COMBAT_ENEMY_SPAWNED` event deleted (no subscribers). Old `enemyRect`, `enemySprite`, `hpBarFill`, `hpBarBg`, `enemyNameText` properties no longer exist.

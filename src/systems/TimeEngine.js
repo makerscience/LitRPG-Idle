@@ -25,7 +25,9 @@ const TimeEngine = {
       if (t.elapsed >= t.interval) {
         t.callback(t.elapsed);
         if (t.once) {
-          tickers.splice(i, 1);
+          // Find by reference — callback may have spliced lower indices, shifting t's position
+          const actualIdx = tickers.indexOf(t);
+          if (actualIdx !== -1) tickers.splice(actualIdx, 1);
         } else {
           t.elapsed -= t.interval;
         }
