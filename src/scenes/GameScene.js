@@ -6,7 +6,7 @@ import TimeEngine from '../systems/TimeEngine.js';
 import Store from '../systems/Store.js';
 import { on, EVENTS } from '../events.js';
 import { format } from '../systems/BigNum.js';
-import { UI, LAYOUT, ZONE_THEMES, COMBAT_V2, PARALLAX, TREE_ROWS, FERN_ROWS } from '../config.js';
+import { UI, LAYOUT, ZONE_THEMES, COMBAT_V2, PARALLAX, TREE_ROWS, FERN_ROWS, STANCES } from '../config.js';
 import { getEnemyById } from '../data/enemies.js';
 
 export default class GameScene extends Phaser.Scene {
@@ -149,6 +149,9 @@ export default class GameScene extends Phaser.Scene {
     this._unsubs.push(on(EVENTS.COMBAT_ENEMY_KILLED, (data) => this._onEnemyKilled(data)));
     this._unsubs.push(on(EVENTS.COMBAT_ENEMY_ATTACKED, (data) => this._onEnemyAttacked(data)));
     this._unsubs.push(on(EVENTS.COMBAT_ENEMY_DODGED, (data) => this._onEnemyDodged(data)));
+    this._unsubs.push(on(EVENTS.COMBAT_ENEMY_REGEN, (data) => this._onEnemyRegen(data)));
+    this._unsubs.push(on(EVENTS.COMBAT_ENEMY_ENRAGED, (data) => this._onEnemyEnraged(data)));
+    this._unsubs.push(on(EVENTS.COMBAT_THORNS_DAMAGE, (data) => this._onThornsDamage(data)));
 
     // Encounter lifecycle events
     this._unsubs.push(on(EVENTS.COMBAT_ENCOUNTER_STARTED, (data) => this._onEncounterStarted(data)));
@@ -170,6 +173,10 @@ export default class GameScene extends Phaser.Scene {
       this._destroyParallax();
       this._createParallax(data.area);
     }));
+
+    // Stance tint on player sprite
+    this._unsubs.push(on(EVENTS.STANCE_CHANGED, ({ stanceId }) => this._applyStanceTint(stanceId)));
+    this._applyStanceTint(Store.getState().currentStance);
 
     // Register shutdown handler
     this.events.on('shutdown', () => this._shutdown());
@@ -356,6 +363,17 @@ export default class GameScene extends Phaser.Scene {
 
   _getSlotByIndex(index) {
     return this._enemySlots[index] || null;
+  }
+
+  // ── Stance tint ─────────────────────────────────────────────────
+
+  _applyStanceTint(stanceId) {
+    if (!this.playerRect) return;
+    switch (stanceId) {
+      case 'flurry':   this.playerRect.setTint(0xaaccff); break;
+      case 'fortress': this.playerRect.setTint(0xccccdd); break;
+      default:         this.playerRect.clearTint(); break;
+    }
   }
 
   // ── Walk timer lock counting ────────────────────────────────────
@@ -550,7 +568,11 @@ export default class GameScene extends Phaser.Scene {
       });
       if (sIsPowerSmash) this.cameras.main.shake(150, 0.006);
 
-      if (this._playerPoseTimer) this._playerPoseTimer.remove();
+      // If replacing an existing timer, balance the lock count it would have released
+      if (this._playerPoseTimer) {
+        this._playerPoseTimer.remove();
+        this._unlockWalk();
+      }
       this._playerPoseTimer = this.time.delayedCall(400, () => {
         this._unlockWalk();
       });
@@ -611,6 +633,120 @@ export default class GameScene extends Phaser.Scene {
           });
         });
       }
+  }
+
+  _onEnemyRegen(data) {
+    const slot = this._getSlotByInstanceId(data.instanceId);
+    if (!slot) return;
+
+    // Update HP bar
+    const ratio = data.maxHp.gt(0) ? data.remainingHp.div(data.maxHp).toNumber() : 0;
+    const barWidth = Math.max(0, ratio * 100);
+    slot.hpBarFill.setDisplaySize(barWidth, 8);
+    const color = ratio > 0.5 ? 0x22c55e : ratio > 0.25 ? 0xeab308 : 0xef4444;
+    slot.hpBarFill.setFillStyle(color);
+
+    // Green floating heal number
+    const x = slot.baseX + (Math.random() - 0.5) * 40;
+    const y = slot.baseY - 60;
+    const text = this.add.text(x, y, `+${data.amount}`, {
+      fontFamily: 'monospace',
+      fontSize: '18px',
+      color: '#4ade80',
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 3,
+    }).setOrigin(0.5);
+
+    const dur = UI.damageNumbers.duration;
+    this.tweens.add({
+      targets: text,
+      y: y - UI.damageNumbers.floatDistance,
+      duration: dur,
+      ease: 'Power2',
+    });
+    this.tweens.add({
+      targets: text,
+      alpha: 0,
+      delay: dur * 0.7,
+      duration: dur * 0.3,
+      ease: 'Linear',
+      onComplete: () => text.destroy(),
+    });
+  }
+
+  _onEnemyEnraged(data) {
+    const slot = this._getSlotByInstanceId(data.instanceId);
+    if (!slot) return;
+
+    // Red tint on sprite/rect
+    if (slot.state.currentSprites) {
+      slot.sprite.setTint(0xff4444);
+      this.time.delayedCall(300, () => {
+        if (slot.sprite) slot.sprite.setTint(0xff8888);
+      });
+    } else {
+      slot.rect.setFillStyle(0xff4444);
+    }
+
+    // "ENRAGED!" floating text
+    const x = slot.baseX;
+    const y = slot.baseY - 80;
+    const text = this.add.text(x, y, 'ENRAGED!', {
+      fontFamily: 'monospace',
+      fontSize: '22px',
+      color: '#ff4444',
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 4,
+      shadow: { offsetX: 0, offsetY: 0, color: '#ff0000', blur: 10, fill: true },
+    }).setOrigin(0.5);
+
+    const dur = UI.damageNumbers.duration * 1.2;
+    this.tweens.add({
+      targets: text,
+      y: y - UI.damageNumbers.floatDistance,
+      duration: dur,
+      ease: 'Power2',
+    });
+    this.tweens.add({
+      targets: text,
+      alpha: 0,
+      delay: dur * 0.7,
+      duration: dur * 0.3,
+      ease: 'Linear',
+      onComplete: () => text.destroy(),
+    });
+  }
+
+  _onThornsDamage(data) {
+    // Purple damage number on the player (thorns reflects damage back)
+    const x = this._playerX + (Math.random() - 0.5) * 40;
+    const y = this._combatY - 60;
+    const text = this.add.text(x, y, `-${data.amount}`, {
+      fontFamily: 'monospace',
+      fontSize: '16px',
+      color: '#c084fc',
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 3,
+    }).setOrigin(0.5);
+
+    const dur = UI.damageNumbers.duration;
+    this.tweens.add({
+      targets: text,
+      y: y - UI.damageNumbers.floatDistance * 0.7,
+      duration: dur,
+      ease: 'Power2',
+    });
+    this.tweens.add({
+      targets: text,
+      alpha: 0,
+      delay: dur * 0.7,
+      duration: dur * 0.3,
+      ease: 'Linear',
+      onComplete: () => text.destroy(),
+    });
   }
 
   _onEnemyKilled(data) {
@@ -851,6 +987,35 @@ export default class GameScene extends Phaser.Scene {
 
   // â”€â”€ Visual juice â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
+  _spawnPlayerDamageNumber(amount) {
+    const x = this._playerX + (Math.random() - 0.5) * 40;
+    const y = this._combatY - 60;
+    const text = this.add.text(x, y, format(amount), {
+      fontFamily: 'monospace',
+      fontSize: '18px',
+      color: '#ef4444',
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 3,
+    }).setOrigin(0.5);
+
+    const dur = UI.damageNumbers.duration;
+    this.tweens.add({
+      targets: text,
+      y: y - UI.damageNumbers.floatDistance * 0.7,
+      duration: dur,
+      ease: 'Power2',
+    });
+    this.tweens.add({
+      targets: text,
+      alpha: 0,
+      delay: dur * 0.7,
+      duration: dur * 0.3,
+      ease: 'Linear',
+      onComplete: () => text.destroy(),
+    });
+  }
+
   _spawnGoldParticles(sourceX = null, sourceY = null) {
     const baseX = sourceX ?? this._enemyX;
     const baseY = sourceY ?? this._enemyY;
@@ -972,6 +1137,9 @@ export default class GameScene extends Phaser.Scene {
     // Skip hit reaction for zero-damage events (heals/regen reuse this event for HP bar updates).
     if (data.amount.lte(0)) return;
 
+    // Red damage number above player
+    this._spawnPlayerDamageNumber(data.amount);
+
     // Delay player reaction so the enemy lunge lands first.
     this._walkTimer.paused = true;
     this.time.delayedCall(60, () => {
@@ -1086,6 +1254,7 @@ export default class GameScene extends Phaser.Scene {
       this.playerRect.setTexture('player001_walk1');
 
       this.playerRect.setDisplaySize(300, 375);
+      this._applyStanceTint(Store.getState().currentStance);
       this._walkTimer.paused = false;
 
       // Restore HP bar

@@ -60,9 +60,19 @@ export const EVENTS = {
   TERRITORY_CLAIMED:          'territory:claimed',
   TERRITORY_PROGRESS_UPDATED: 'territory:progressUpdated',
 
+  // Stances
+  STANCE_CHANGED:       'stance:changed',
+  BULWARK_ACTIVATED:    'ability:bulwarkActivated',
+
+  // Enemy Traits
+  COMBAT_ENEMY_REGEN:   'combat:enemyRegen',
+  COMBAT_ENEMY_ENRAGED: 'combat:enemyEnraged',
+  COMBAT_THORNS_DAMAGE: 'combat:thornsDamage',
+
   // Consumable / Abilities
   WATERSKIN_USED:       'waterskin:used',
   POWER_SMASH_USED:     'ability:powerSmashUsed',
+  RAPID_STRIKES_USED:   'ability:rapidStrikesUsed',
 
   // Dialogue / UI
   DIALOGUE_QUEUED:      'dialogue:queued',
@@ -149,6 +159,12 @@ const EVENT_CONTRACTS = {
   [EVENTS.PRESTIGE_PERFORMED]:   ['count'],
   [EVENTS.TERRITORY_CLAIMED]:    ['territoryId', 'name', 'buff'],
   [EVENTS.POWER_SMASH_USED]:     ['multiplier'],
+  [EVENTS.RAPID_STRIKES_USED]:   ['hitCount'],
+  [EVENTS.STANCE_CHANGED]:       ['stanceId', 'previousStance'],
+  [EVENTS.BULWARK_ACTIVATED]:    ['shieldHp', 'durationMs'],
+  [EVENTS.COMBAT_ENEMY_REGEN]:   ['amount', 'remainingHp', 'maxHp', 'encounterId', 'instanceId', 'slot'],
+  [EVENTS.COMBAT_ENEMY_ENRAGED]: ['enemyId', 'name', 'encounterId', 'instanceId', 'slot'],
+  [EVENTS.COMBAT_THORNS_DAMAGE]: ['amount', 'encounterId', 'instanceId', 'slot'],
 };
 
 export function emit(event, payload) {

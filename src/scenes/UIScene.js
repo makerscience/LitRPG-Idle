@@ -9,6 +9,9 @@ import ZoneNav from '../ui/ZoneNav.js';
 import BossChallenge from '../ui/BossChallenge.js';
 import DrinkButton from '../ui/DrinkButton.js';
 import SmashButton from '../ui/SmashButton.js';
+import FlurryButton from '../ui/FlurryButton.js';
+import BulwarkButton from '../ui/BulwarkButton.js';
+import StanceSwitcher from '../ui/StanceSwitcher.js';
 import InventoryPanel from '../ui/InventoryPanel.js';
 import UpgradePanel from '../ui/UpgradePanel.js';
 import PrestigePanel from '../ui/PrestigePanel.js';
@@ -54,6 +57,9 @@ export default class UIScene extends Phaser.Scene {
     this.bossChallenge = new BossChallenge(this);
     this.drinkButton = new DrinkButton(this);
     this.smashButton = new SmashButton(this);
+    this.flurryButton = new FlurryButton(this);
+    this.bulwarkButton = new BulwarkButton(this);
+    this.stanceSwitcher = new StanceSwitcher(this);
     this.inventoryPanel = new InventoryPanel(this);
     this.upgradePanel = new UpgradePanel(this);
     this.settingsPanel = new SettingsPanel(this);
@@ -134,6 +140,9 @@ export default class UIScene extends Phaser.Scene {
       this.bossChallenge.hide();
       this.drinkButton.hide();
       this.smashButton.hide();
+      this.flurryButton.hide();
+      this.bulwarkButton.hide();
+      this.stanceSwitcher.hide();
       this._mapOpen = true;
     } else {
       overworldScene.scene.sleep();
@@ -141,6 +150,9 @@ export default class UIScene extends Phaser.Scene {
       this.bossChallenge.show();
       this.drinkButton.show();
       this.smashButton.show();
+      this.flurryButton.show();
+      this.bulwarkButton.show();
+      this.stanceSwitcher.show();
       this._mapOpen = false;
     }
   }
@@ -153,6 +165,9 @@ export default class UIScene extends Phaser.Scene {
     if (this.bossChallenge) { this.bossChallenge.destroy(); this.bossChallenge = null; }
     if (this.drinkButton) { this.drinkButton.destroy(); this.drinkButton = null; }
     if (this.smashButton) { this.smashButton.destroy(); this.smashButton = null; }
+    if (this.flurryButton) { this.flurryButton.destroy(); this.flurryButton = null; }
+    if (this.bulwarkButton) { this.bulwarkButton.destroy(); this.bulwarkButton = null; }
+    if (this.stanceSwitcher) { this.stanceSwitcher.destroy(); this.stanceSwitcher = null; }
     for (const modal of this._modals || []) {
       if (modal) modal.destroy();
     }

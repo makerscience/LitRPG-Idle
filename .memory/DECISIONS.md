@@ -367,4 +367,18 @@ Format:
 - Alternatives considered: Separate damage formula decoupled from click damage (less intuitive scaling), new save fields for cooldown/multiplier state (unnecessary — cooldown is ephemeral, multiplier is derived from upgrade levels).
 - Consequences / Follow-ups: SmashButton tracks `_cooldownStart` to support mid-cooldown recalculation when recharge upgrades are purchased. Button positioned to the right of DRINK at `ga.x + 110`. Level 3 unlock checked via `state.playerStats.level`.
 
+## 2026-02-19
+- Tags: architecture, failure-mode
+- Decision: Added bounds guard `if (i >= tickers.length) continue` to TimeEngine.update() backward loop. Timer callbacks that call `unregister()` (which splices the tickers array) can shrink the array below the current loop index, causing `tickers[i]` to be `undefined`.
+- Rationale: The crash was triggered when `combat:autoAttack` was at a high array index (after re-registration from stance switch, equipment change, or upgrade purchase) and its callback killed an enemy, causing `_unregisterMemberTimers` to splice 2-3 encounter timers at lower indices. Each splice shifted the array left, eventually making the loop variable exceed `tickers.length`. The bug was dormant when autoAttack stayed at index 0 (first registered during init), but any re-registration event pushed it to the end.
+- Alternatives considered: Mark-and-sweep (flag dead tickers during callbacks, sweep after iteration) — cleaner but larger change. Copy-on-iterate (snapshot array before loop) — wasteful for 60fps. The bounds guard is minimal and correct.
+- Consequences / Follow-ups: Skipped tickers fire one frame late (16ms delay, imperceptible). If TimeEngine needs more robustness later, consider mark-and-sweep. All existing `register`/`unregister` calls from within callbacks are now safe.
+
+## 2026-02-19
+- Tags: architecture
+- Decision: Enemy traits (regen, enrage, thorns) are data fields on enemy templates, processed by CombatEngine at runtime. Regen and thorns zone-scale by the `atk` rate. Enrage uses multiplier ratios (no scaling needed). Traits are composable — an enemy can have zero, one, or multiple.
+- Rationale: Follows the existing pattern (dot, armorPen, defense are data fields processed at combat time). No new systems needed — regen is a timer like DoT, enrage modifies existing attack timer, thorns hooks into existing playerAttack flow. Zone scaling by atk rate keeps trait pressure relevant across zones.
+- Alternatives considered: Trait system as a separate module (over-engineered for 3 traits), traits as buff/debuff status effects (would need a status effect system that doesn't exist).
+- Consequences / Follow-ups: GameScene needs visual handlers for COMBAT_ENEMY_REGEN, COMBAT_ENEMY_ENRAGED, COMBAT_THORNS_DAMAGE (Phase 6). SystemLog needs trait messages. Balance sim needs trait columns. Thorns calls Store.damagePlayer synchronously inside playerAttack — the _onPlayerDamaged handler in GameScene may stomp on _playerPoseTimer set by _onEnemyDamaged (bounded at count=1, resets on encounter end, cosmetic only).
+
 Tip: Search with `rg "Tags:.*workflow" .memory/DECISIONS.md`

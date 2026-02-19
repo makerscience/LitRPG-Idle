@@ -2,7 +2,7 @@
 // State holds live Decimal instances; strings only exist in localStorage.
 
 import { D, fromJSON, Decimal } from './BigNum.js';
-import { PROGRESSION_V2, ECONOMY, SAVE, PRESTIGE } from '../config.js';
+import { PROGRESSION_V2, ECONOMY, SAVE, PRESTIGE, STANCE_IDS } from '../config.js';
 import { emit, EVENTS } from '../events.js';
 import { AREAS } from '../data/areas.js';
 import { ALL_SLOT_IDS } from '../data/equipSlots.js';
@@ -68,6 +68,7 @@ function createInitialState() {
       // Area entrance flags
       reachedArea2: false, reachedArea3: false, reachedArea4: false, reachedArea5: false,
     },
+    currentStance: 'power',
     settings: { autoAttack: false, musicVolume: 0.5 },
     lootPity: { head: 0, chest: 0, main_hand: 0, legs: 0, boots: 0, gloves: 0, amulet: 0 },
     killsPerEnemy: {},
@@ -129,6 +130,9 @@ function hydrateState(saved) {
   if (saved.unlockedCheats) fresh.unlockedCheats = [...saved.unlockedCheats];
   if (saved.activeCheats) fresh.activeCheats = { ...saved.activeCheats };
   if (saved.titles) fresh.titles = [...saved.titles];
+  if (saved.currentStance && STANCE_IDS.includes(saved.currentStance)) {
+    fresh.currentStance = saved.currentStance;
+  }
   if (saved.flags) fresh.flags = { ...fresh.flags, ...saved.flags };
   if (saved.settings) fresh.settings = { ...fresh.settings, ...saved.settings };
   if (saved.timestamps) fresh.timestamps = { ...fresh.timestamps, ...saved.timestamps };
@@ -480,6 +484,17 @@ const Store = {
   conquerTerritory(territoryId) {
     state.territories[territoryId] = { conquered: true, conqueredAt: Date.now() };
     emit(EVENTS.STATE_CHANGED, { changedKeys: ['territories'] });
+  },
+
+  // ── Stance mutations ────────────────────────────────────────────
+
+  setStance(stanceId) {
+    if (!STANCE_IDS.includes(stanceId)) return;
+    if (state.currentStance === stanceId) return;
+    const previousStance = state.currentStance;
+    state.currentStance = stanceId;
+    emit(EVENTS.STANCE_CHANGED, { stanceId, previousStance });
+    emit(EVENTS.STATE_CHANGED, { changedKeys: ['currentStance'] });
   },
 
   updateSetting(key, value) {

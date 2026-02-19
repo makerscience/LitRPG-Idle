@@ -7,7 +7,7 @@ import { BOSSES } from '../src/data/bosses.js';
 import { ITEMS } from '../src/data/items.js';
 import { AREAS, getZoneScaling, getBossKillThreshold } from '../src/data/areas.js';
 import { getEncountersForZone } from '../src/data/encounters.js';
-import { PROGRESSION_V2, COMBAT_V2 } from '../src/config.js';
+import { PROGRESSION_V2, COMBAT_V2, STANCES } from '../src/config.js';
 import { getAllUpgrades } from '../src/data/upgrades.js';
 
 const TUNE = {
@@ -127,8 +127,8 @@ function getAtkSpeed(player) {
   return COMBAT_V2.playerBaseAtkSpeed + getEquipStatSum(player, 'atkSpeed');
 }
 
-function getAutoAttackInterval(player) {
-  const speed = getAtkSpeed(player);
+function getAutoAttackInterval(player, stance = STANCES.power) {
+  const speed = getAtkSpeed(player) * stance.atkSpeedMult;
   const baseInterval = 2000 / speed;
   const speedBonus = getUpgradeMultiplier(player, 'autoAttackSpeed') - 1;
   return Math.max(400, Math.floor(baseInterval * (1 - speedBonus)));
@@ -142,21 +142,40 @@ function enemyDamage(player, atk, armorPen) {
   return COMBAT_V2.enemyDamage(atk, getEffectiveDef(player), armorPen);
 }
 
-function combatStats(player, enemyHp, enemyAtk, enemyAtkSpeed, enemyDef, enemyArmorPen, enemyDot, enemyAccuracy, clickRate = 0) {
-  const dmgPerHit = playerDamage(player, enemyDef);
-  const atkInterval = getAutoAttackInterval(player) / 1000;
+function combatStats(player, enemyHp, enemyAtk, enemyAtkSpeed, enemyDef, enemyArmorPen, enemyDot, enemyAccuracy, clickRate = 0, stance = STANCES.power, enemyRegen = 0, enemyEnrageMult = 1, enemyThorns = 0) {
+  const dmgPerHit = Math.floor(playerDamage(player, enemyDef) * stance.damageMult);
+  const atkInterval = getAutoAttackInterval(player, stance) / 1000;
   const autoDps = dmgPerHit / atkInterval;
   const clickDmgMult = getUpgradeMultiplier(player, 'clickDamage');
-  const clickDps = clickRate > 0 ? dmgPerHit * clickDmgMult * clickRate : 0;
+  // Click damage is stance-neutral (no damageMult applied)
+  const clickDmgPerHit = playerDamage(player, enemyDef);
+  const clickDps = clickRate > 0 ? clickDmgPerHit * clickDmgMult * clickRate : 0;
   const playerDps = autoDps + clickDps;
-  const ttk = enemyHp / Math.max(playerDps, 0.01);
+
+  // Regen: ttk = enemyHp / (playerDps - regen). If playerDps <= regen, unkillable.
+  let ttk;
+  const netPlayerDps = playerDps - enemyRegen;
+  if (netPlayerDps <= 0) {
+    ttk = Infinity;
+  } else {
+    ttk = enemyHp / netPlayerDps;
+  }
 
   const dmgPerEnemyHit = enemyDamage(player, enemyAtk, enemyArmorPen);
   const enemyInterval = Math.max(0.4, 2 / enemyAtkSpeed);
   const rawEnemyDps = dmgPerEnemyHit / enemyInterval;
   const hitChance = COMBAT_V2.enemyHitChance(enemyAccuracy || 80, getEvadeRating(player));
   const dotDps = enemyDot || 0;
-  const totalEnemyDps = (rawEnemyDps * hitChance) + dotDps;
+
+  // Enrage: scale hit-based enemy DPS by the effective enrage multiplier
+  const enragedEnemyDps = rawEnemyDps * enemyEnrageMult;
+
+  // Apply stance damage reduction to hit-based damage; DoT also reduced by stance DR
+  const stancedEnemyDps = ((enragedEnemyDps * hitChance) + dotDps) * (1 - stance.damageReduction);
+
+  // Thorns: flat damage per player auto-attack, bypasses DEF and stance DR (matches CombatEngine)
+  const thornsDps = enemyThorns > 0 ? enemyThorns / atkInterval : 0;
+  const totalEnemyDps = stancedEnemyDps + thornsDps;
 
   const maxHp = getEffectiveMaxHp(player);
   const regen = getEffectiveRegen(player);
@@ -166,7 +185,7 @@ function combatStats(player, enemyHp, enemyAtk, enemyAtkSpeed, enemyDef, enemyAr
   return {
     ttk: Math.round(ttk * 100) / 100,
     ttd: Math.round(ttd * 100) / 100,
-    survivalRatio: Math.round((ttd / ttk) * 100) / 100,
+    survivalRatio: ttk === Infinity ? Infinity : Math.round((ttd / ttk) * 100) / 100,
     hitChance: Math.round(hitChance * 1000) / 1000,
     dodgeChance: Math.round((1 - hitChance) * 1000) / 1000,
   };
@@ -222,7 +241,7 @@ function getAreaLocalZone(globalZone) {
   return { areaId: 1, localZone: 1 };
 }
 
-function runSimulation(policyName, gearPolicy) {
+function runSimulation(policyName, gearPolicy, stance = STANCES.power) {
   const player = createPlayer();
   const results = [];
 
@@ -243,17 +262,21 @@ function runSimulation(policyName, gearPolicy) {
     const encounterPool = getEncountersForZone(areaId, localZone);
 
     let avgHp, avgAtk, avgAtkSpd, avgDef, avgArmorPen, avgDot, avgAcc, avgGold, avgXp;
+    let avgRegen = 0, avgEnrageMult = 1, avgThorns = 0;
 
     if (encounterPool.length > 0) {
       // Weighted average across encounter templates
       let wHp = 0, wAtk = 0, wAtkSpd = 0, wDef = 0, wArmorPen = 0, wDot = 0, wAcc = 0;
       let wGold = 0, wXp = 0, wTotal = 0;
+      let wRegen = 0, wEnrageMult = 0, wThorns = 0;
       for (const { template, weight } of encounterPool) {
         let encHp = 0, encAtk = 0, encAtkSpd = 0, encDef = 0, encArmorPen = 0, encDot = 0, encAcc = 0;
         let encGold = 0, encXp = 0;
+        let encRegen = 0, encEnrageMult = 0, encThorns = 0, encMembers = 0;
         for (const memberId of template.members) {
           const e = ENEMIES.find(x => x.id === memberId);
           if (!e) continue;
+          encMembers++;
           encHp += Math.floor(e.hp * hpScale);
           const effAtkSpd = e.attackSpeed * template.attackSpeedMult;
           encAtk += Math.floor(e.attack * TUNE.enemyAtkMult * atkScale) * effAtkSpd;
@@ -264,6 +287,18 @@ function runSimulation(policyName, gearPolicy) {
           encAcc += e.accuracy || 80;
           encGold += Math.floor(e.goldDrop * TUNE.goldMult * goldScale);
           encXp += Math.floor(e.xpDrop * TUNE.enemyXpMult * xpScale);
+          // Trait stats: regen/thorns zone-scaled by atkScale (matches CombatEngine)
+          encRegen += (e.regen || 0) * atkScale;
+          encThorns += (e.thorns || 0) * atkScale;
+          // Enrage: effective DPS multiplier contribution per member
+          if (e.enrage) {
+            // Enemy spends threshold fraction of fight enraged
+            const t = e.enrage.threshold;
+            const effMult = (1 - t) + t * e.enrage.atkMult * e.enrage.speedMult;
+            encEnrageMult += effMult;
+          } else {
+            encEnrageMult += 1;
+          }
         }
         const mc = template.members.length;
         // Total encounter HP (player must kill all), weighted DPS-ATK, avg other stats
@@ -276,6 +311,10 @@ function runSimulation(policyName, gearPolicy) {
         wAcc += (mc > 0 ? encAcc / mc : 0) * weight;
         wGold += encGold * template.rewardMult * weight;
         wXp += encXp * template.rewardMult * weight;
+        // Traits: sum across encounter (regen/thorns stack), avg enrage mult
+        wRegen += encRegen * weight;
+        wThorns += encThorns * weight;
+        wEnrageMult += (encMembers > 0 ? encEnrageMult / encMembers : 1) * weight;
         wTotal += weight;
       }
       avgHp = wHp / wTotal;
@@ -287,10 +326,14 @@ function runSimulation(policyName, gearPolicy) {
       avgAcc = wAcc / wTotal;
       avgGold = wGold / wTotal;
       avgXp = wXp / wTotal;
+      avgRegen = wRegen / wTotal;
+      avgThorns = wThorns / wTotal;
+      avgEnrageMult = wEnrageMult / wTotal;
     } else {
       // Fallback: plain enemy averaging (for zones without encounter data)
       let totalHp = 0, totalAtk = 0, totalAtkSpd = 0, totalDef = 0, totalArmorPen = 0, totalDot = 0, totalAcc = 0;
       let totalGold = 0, totalXp = 0;
+      let totalRegen = 0, totalEnrageMult = 0, totalThorns = 0;
       for (const e of enemies) {
         totalHp += Math.floor(e.hp * hpScale);
         totalAtk += Math.floor(e.attack * TUNE.enemyAtkMult * atkScale);
@@ -301,6 +344,15 @@ function runSimulation(policyName, gearPolicy) {
         totalAcc += e.accuracy || 80;
         totalGold += Math.floor(e.goldDrop * TUNE.goldMult * goldScale);
         totalXp += Math.floor(e.xpDrop * TUNE.enemyXpMult * xpScale);
+        // Trait stats
+        totalRegen += (e.regen || 0) * atkScale;
+        totalThorns += (e.thorns || 0) * atkScale;
+        if (e.enrage) {
+          const t = e.enrage.threshold;
+          totalEnrageMult += (1 - t) + t * e.enrage.atkMult * e.enrage.speedMult;
+        } else {
+          totalEnrageMult += 1;
+        }
       }
       const n = enemies.length;
       avgHp = totalHp / n;
@@ -312,6 +364,9 @@ function runSimulation(policyName, gearPolicy) {
       avgAcc = totalAcc / n;
       avgGold = totalGold / n;
       avgXp = totalXp / n;
+      avgRegen = totalRegen / n;
+      avgThorns = totalThorns / n;
+      avgEnrageMult = totalEnrageMult / n;
     }
 
     const goldMult = getUpgradeMultiplier(player, 'goldMultiplier');
@@ -323,7 +378,7 @@ function runSimulation(policyName, gearPolicy) {
     buyUpgrades(player);
     equipBestGear(player, globalZone, gearPolicy);
 
-    const enemyCombat = combatStats(player, avgHp, avgAtk, avgAtkSpd, avgDef, avgArmorPen, avgDot, avgAcc);
+    const enemyCombat = combatStats(player, avgHp, avgAtk, avgAtkSpd, avgDef, avgArmorPen, avgDot, avgAcc, 0, stance, avgRegen, avgEnrageMult, avgThorns);
 
     if (boss) {
       addXp(player, Math.floor(boss.xpDrop * TUNE.bossXpMult));
@@ -344,6 +399,7 @@ function runSimulation(policyName, gearPolicy) {
         boss.dot || 0,
         boss.accuracy || 90,
         TUNE.bossClickRate,
+        stance,
       );
     }
 
@@ -406,28 +462,43 @@ function printSummary(policyName, rows) {
   if (z10) console.log(`  Zone 10 dodge: ${z10.enemyDodgePct.toFixed(1)}%`);
 }
 
-const defRows = runSimulation('DEF', 'def');
-const agiRows = runSimulation('AGI', 'agi');
+const STANCE_ENTRIES = Object.entries(STANCES);
+const GEAR_POLICIES = [
+  { name: 'DEF', policy: 'def' },
+  { name: 'AGI', policy: 'agi' },
+];
 
 console.log('');
 console.log('============================================================');
-console.log(' BALANCE SIMULATION (Accuracy vs Agility)');
+console.log(' BALANCE SIMULATION (Gear × Stance)');
 console.log('============================================================');
-console.log('Assumptions: best available authored gear, no prestige/territory, active boss clicking.');
+console.log('Assumptions: best available authored gear, no prestige/territory, active boss clicking. Traits (regen/enrage/thorns) modeled.');
 
-printPolicyTable('DEF-priority gear', defRows);
-printSummary('DEF-priority gear', defRows);
+// Run all combinations and print per-stance tables
+const allResults = {};
+for (const { name: gearName, policy } of GEAR_POLICIES) {
+  for (const [stanceId, stance] of STANCE_ENTRIES) {
+    const label = `${gearName} + ${stance.label}`;
+    const rows = runSimulation(label, policy, stance);
+    allResults[label] = rows;
+    printPolicyTable(label, rows);
+    printSummary(label, rows);
+  }
+}
 
-printPolicyTable('AGI-priority gear', agiRows);
-printSummary('AGI-priority gear', agiRows);
-
-const defFinal = defRows.find(r => r.zone === 30);
-const agiFinal = agiRows.find(r => r.zone === 30);
-if (defFinal && agiFinal) {
+// Compact stance comparison at zone 10 and zone 30
+for (const checkpoint of [10, 30]) {
   console.log('');
-  console.log('Final Zone Comparison (Zone 30)');
-  console.log(`  DEF policy: dodge=${defFinal.enemyDodgePct.toFixed(1)}% bossSurv=${defFinal.bossSurvival}`);
-  console.log(`  AGI policy: dodge=${agiFinal.enemyDodgePct.toFixed(1)}% bossSurv=${agiFinal.bossSurvival}`);
+  console.log(`Stance Comparison (Zone ${checkpoint})`);
+  for (const { name: gearName } of GEAR_POLICIES) {
+    for (const [, stance] of STANCE_ENTRIES) {
+      const label = `${gearName} + ${stance.label}`;
+      const row = allResults[label]?.find(r => r.zone === checkpoint);
+      if (row) {
+        console.log(`  ${label.padEnd(18)} eSurv=${String(row.enemySurvival).padStart(5)}  bSurv=${String(row.bossSurvival).padStart(5)}  dodge=${row.enemyDodgePct.toFixed(1)}%`);
+      }
+    }
+  }
 }
 
 console.log('');

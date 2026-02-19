@@ -1,18 +1,18 @@
 # CURRENT_FOCUS
 
 ## One-liner
-- Multi-enemy encounter bugs fixed, Area 1 encounters rebalanced. Stances implementation next.
+- Enemy traits Phases 1-6 mostly complete. Visuals done (regen/enrage/thorns + player damage numbers). SystemLog messages still TODO.
 
 ## Active Objectives (max 3)
-1. **Stances implementation:** Follow `Plans/Stances_Implementation_Plan.md` (v2)
-2. **Enemy traits:** Queued after stances — follow `Plans/Enemy_Traits_Plan.md`
-3. **Continued playtesting:** Tune encounter weights/attackSpeedMult/rewardMult based on feel
+1. **Enemy traits polish:** SystemLog messages for regen/enrage/thorns + trait indicators on nameplates
+2. **Continued playtesting:** Tune encounter weights/attackSpeedMult/rewardMult based on feel
+3. **Area 2-3 content:** Author multi-member encounter templates, fill sprite gaps
 
 ## Next Actions
-- [ ] Begin stances implementation (stance switcher UI, stance data, CombatEngine integration)
-- [ ] Tune encounter weights/attackSpeedMult/rewardMult based on playtest feel
-- [ ] Author Area 2-3 multi-member encounter templates
-- [ ] Dead code cleanup pass (V1 constants, unused loot tables, 33-key equipped object)
+- [ ] Enemy traits: SystemLog messages for regen/enrage/thorns events
+- [ ] Enemy traits: trait indicators on enemy nameplates (icons or text tags)
+- [ ] Playtest traits: verify regen isn't unkillable, enrage feels dangerous, thorns punishes click spam
+- [ ] Author multi-member encounter templates for Areas 2-3
 
 ## Open Loops / Blockers
 - Prestige, territory, cheats disabled via feature gates — re-enable post-playtesting
@@ -23,16 +23,16 @@
 - GAME_DATA_REFERENCE.md is stale after balance overhaul + AGI addition + multi-enemy — needs update
 - Enemy accuracy values are auto-derived from archetypes — may need hand-tuning per enemy
 - Areas 2-3 have solo-only encounters (no authored multi-member templates yet)
-- Old single-enemy GameScene code fully removed — slot-based rendering is the only path (no fallback)
 - V1 combat constants still defined in config.js (dead code, kept for reference)
+- Stances fully complete (Phases 1-5) — plan can be archived
 
 ## How to Resume in 30 Seconds
 - **Open:** `.memory/CURRENT_FOCUS.md`
-- **Last change:** Fixed encounter cleanup bugs (player death, boss challenge), boss sprites, Area 1 encounter rebalance
+- **Last change:** Enemy traits Phases 1-6 visuals done. Hollow Slime regen bumped to 5.
 - **Architecture:** Progression.js owns XP/level + kill rewards. Store is pure state. EventScope pattern for subscriptions. ComputedStats for derived values. BossManager looks up named bosses via `getBossForZone()`. LootEngine uses zone-based item pools with slot weighting and pity.
-- **Multi-enemy plan:** `Plans/Multi_Enemy_Implementation_Plan.md` (v2) — all 14 phases complete
-- **Encounter data:** `src/data/encounters.js` — encounter templates + `pickRandomEncounter(areaId, zoneNum)`
-- **Stances plan:** `Plans/Stances_Implementation_Plan.md` (v2) — queued after playtesting
+- **Enemy traits plan:** `Plans/Enemy_Traits_Plan.md` — Regen, Enrage, Thorns (6 phases)
+- **Key new files:** `src/ui/FlurryButton.js`, `src/ui/BulwarkButton.js`, `src/ui/StanceSwitcher.js`
+- **Key changes:** `src/scenes/UIScene.js` (StanceSwitcher create/show/hide/destroy), `src/scenes/GameScene.js` (stance tint on STANCE_CHANGED + respawn, walk-lock balance fix in _onEnemyDamaged)
 - **Balance tool:** `npm run balance:sim` — zone-by-zone idle progression simulation
 
 ## Key Context
@@ -51,12 +51,13 @@
 ---
 
 ## Last Session Summary (max ~8 bullets)
-- Fixed enemy slots persisting after player death (encounter end event wasn't firing → GameScene never cleared slots)
-- Fixed enemy slots persisting when challenging a boss mid-encounter (same root cause — `spawnBoss` now calls `_onEncounterEnd('boss_challenge')`)
-- Fixed boss sprites not showing: bosses now fall back to `baseEnemyId` for sprite lookup
-- Bosses render at 1.4× base enemy sprite size
-- Area 1 encounters rebalanced: added Slime Pair (z1-2) and Rat Pair (z1-2), removed Stalker from regular spawns, extended Hound/Boar to zone 5
-- 3-rat pack moved from z1-3 to z2-3
+- Enemy Traits Phase 5: assigned traits to 7 Area 2-3 enemies (2 regen, 2 enrage, 3 thorns)
+- Balance sim updated: models regen (reduces effective DPS, flags unkillable), enrage (blended DPS multiplier), thorns (flat reflect bypassing stance DR)
+- All 30 zones pass across all 6 gear×stance policies — lowest eSurv is 2.74 (DEF+Power z30)
+- Bumped Hollow Slime regen from 2 to 5 (sim still healthy, z1-2 eSurv ~570)
+- Phase 6 visuals: regen green `+N` heal numbers, enrage red `ENRAGED!` text + persistent red tint, thorns purple `-N` reflect numbers on player
+- Added player incoming damage numbers (red floating numbers above player on enemy hits)
+- All trait visuals subscribe to dedicated events (COMBAT_ENEMY_REGEN, COMBAT_ENEMY_ENRAGED, COMBAT_THORNS_DAMAGE) — no event reuse
 
 ## Pinned References
 - Governance rules: `CLAUDE.md`

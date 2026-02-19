@@ -1,5 +1,21 @@
 # CHANGELOG
 
+## 2026-02-19 — Enemy Traits Phase 6: Combat Visuals + Player Damage Numbers
+- **Regen visuals**: green `+N` floating heal numbers on enemy every regen tick, HP bar updates in real-time
+- **Enrage visuals**: red `ENRAGED!` floating text with glow, persistent red tint on enraged enemy sprite/rect
+- **Thorns visuals**: purple `-N` floating numbers above player on each thorns reflect
+- **Player incoming damage numbers**: red floating numbers above player when hit by enemy attacks
+- **Hollow Slime regen bumped** from 2 to 5
+
+---
+
+## 2026-02-19 — Enemy Traits Phase 5: Area 2-3 Trait Assignments + Balance Sim
+- **7 new trait assignments**: Rot Vine Crawler (regen:3), Mire Lurker (enrage), Bog Revenant (thorns:4), Stone Sentry (thorns:5), Blighted Guardian (thorns:6), Ruin Pilgrim Frenzied (enrage), Hearthguard Construct (regen:5)
+- **Balance sim now models traits**: regen reduces effective player DPS (flags unkillable if DPS <= regen), enrage blends normal/enraged DPS by threshold fraction, thorns adds flat reflect damage bypassing stance DR
+- **All 30 zones pass** across all 6 gear×stance policies — no unkillable enemies, lowest eSurv is 2.74
+
+---
+
 ## 2026-02-19 — Encounter Bug Fixes + Area 1 Rebalance
 - **Fixed leftover enemy sprites on player death**: `_onPlayerDeath()` now calls `_onEncounterEnd('player_death')` so GameScene clears all enemy slots
 - **Fixed leftover enemy sprites on boss challenge**: `spawnBoss()` now properly ends the current encounter before starting the boss fight

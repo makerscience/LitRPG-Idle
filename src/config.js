@@ -151,6 +151,17 @@ export const LOOT_V2 = {
   pityThreshold: 5,
 };
 
+// ── Stances ──────────────────────────────────────────────────────────
+
+export const STANCES = {
+  flurry:   { id: 'flurry',   label: 'Flurry',   atkSpeedMult: 1.8, damageMult: 0.6, damageReduction: 0.0 },
+  power:    { id: 'power',    label: 'Power',    atkSpeedMult: 0.5, damageMult: 2.0, damageReduction: 0.0 },
+  fortress: { id: 'fortress', label: 'Fortress', atkSpeedMult: 0.8, damageMult: 0.8, damageReduction: 0.5 },
+};
+
+export const STANCE_IDS = ['flurry', 'power', 'fortress'];
+export const STANCE_SWITCH_PAUSE_MS = 500;
+
 // Re-export layout and theme for backward compatibility.
 // Consumers can import directly from config/layout.js or config/theme.js instead.
 export { LAYOUT, TERRITORY } from './config/layout.js';

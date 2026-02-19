@@ -15,6 +15,8 @@ const TimeEngine = {
   /** Called every frame with delta in ms. Iterates tickers, fires when elapsed >= interval. */
   update(deltaMs) {
     for (let i = tickers.length - 1; i >= 0; i--) {
+      // Guard: callbacks may splice the array, shrinking it below the current index
+      if (i >= tickers.length) continue;
       const t = tickers[i];
       if (!t.enabled) continue;
 

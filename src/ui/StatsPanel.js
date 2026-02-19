@@ -3,7 +3,7 @@
 
 import ModalPanel from './ModalPanel.js';
 import { EVENTS } from '../events.js';
-import { PRESTIGE } from '../config.js';
+import { PRESTIGE, STANCES } from '../config.js';
 import Store from '../systems/Store.js';
 import TerritoryManager from '../systems/TerritoryManager.js';
 import * as ComputedStats from '../systems/ComputedStats.js';
@@ -31,7 +31,7 @@ export default class StatsPanel extends ModalPanel {
     return [
       EVENTS.PROG_LEVEL_UP, EVENTS.UPG_PURCHASED, EVENTS.TERRITORY_CLAIMED,
       EVENTS.STATE_CHANGED, EVENTS.SAVE_LOADED, EVENTS.PRESTIGE_PERFORMED,
-      EVENTS.INV_ITEM_EQUIPPED, EVENTS.INV_ITEM_SOLD,
+      EVENTS.INV_ITEM_EQUIPPED, EVENTS.INV_ITEM_SOLD, EVENTS.STANCE_CHANGED,
     ];
   }
 
@@ -80,17 +80,21 @@ export default class StatsPanel extends ModalPanel {
 
   _getCombatRows() {
     const stats = ComputedStats.getAllStats();
+    const stance = STANCES[stats.currentStance] || STANCES.power;
     const atkSpeed = (1000 / stats.autoAttackInterval).toFixed(2);
+    const drPct = Math.round(stats.damageReduction * 100);
 
     return [
+      { label: 'STANCE', value: stance.label, desc: `DMG x${stance.damageMult}, SPD x${stance.atkSpeedMult}, DR ${drPct}%.` },
       { label: 'MAX HP', value: format(stats.effectiveMaxHp), desc: 'Base HP + gear HP.' },
       { label: 'HP REGEN', value: `${format(stats.hpRegen)}/s`, desc: 'Flat HP/s from levels + gear.' },
       { label: 'BASE DMG', value: `${Math.floor(stats.baseDamage)}`, desc: 'Effective STR (base + gear).' },
-      { label: 'AUTO DMG', value: `${stats.effectiveDamage}`, desc: 'Auto-attack damage per hit.' },
+      { label: 'AUTO DMG', value: `${stats.effectiveDamage}`, desc: 'Auto-attack damage per hit (stance-adjusted).' },
       { label: 'CLICK DMG', value: `${stats.clickDamage}`, desc: 'Manual click damage per hit.' },
       { label: 'CRIT %', value: `${(stats.critChance * 100).toFixed(1)}%`, desc: 'Chance each attack is a critical hit.' },
       { label: 'CRIT MULT', value: `${stats.critMultiplier}x`, desc: 'Damage multiplier on critical hits.' },
-      { label: 'ATK SPEED', value: `${atkSpeed}/s`, desc: 'Auto-attacks per second.' },
+      { label: 'ATK SPEED', value: `${atkSpeed}/s`, desc: 'Auto-attacks per second (stance-adjusted).' },
+      { label: 'DMG REDU', value: `${drPct}%`, desc: 'Incoming damage reduced by stance (Fortress).' },
       { label: 'DODGE', value: `${(stats.dodgeChanceVsDefaultAcc * 100).toFixed(1)}%`, desc: 'Dodge chance vs a baseline 80 enemy accuracy.' },
     ];
   }

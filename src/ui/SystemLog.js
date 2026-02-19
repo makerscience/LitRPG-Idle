@@ -4,7 +4,7 @@
 import ScrollableLog from './ScrollableLog.js';
 import { on, EVENTS } from '../events.js';
 import { format } from '../systems/BigNum.js';
-import { LAYOUT, COLORS, UI, LOOT, PRESTIGE } from '../config.js';
+import { LAYOUT, COLORS, UI, LOOT, PRESTIGE, STANCES } from '../config.js';
 import { getItem, getScaledItem } from '../data/items.js';
 import { getUpgrade } from '../data/upgrades.js';
 import { getCheat } from '../data/cheats.js';
@@ -168,10 +168,18 @@ export default class SystemLog extends ScrollableLog {
       this.addLine(`Power Smash! (${data.multiplier.toFixed(1)}x damage)`, 'combat');
     }));
 
-    this._unsubs.push(on(EVENTS.PROG_LEVEL_UP, (data) => {
-      if (data.level === 3) {
-        this.addLine('Power Smash unlocked!', 'loot');
-      }
+    this._unsubs.push(on(EVENTS.RAPID_STRIKES_USED, (data) => {
+      this.addLine(`Rapid Strikes! (${data.hitCount} hits)`, 'combat');
+    }));
+
+    this._unsubs.push(on(EVENTS.BULWARK_ACTIVATED, (data) => {
+      this.addLine(`Bulwark! Shield: ${data.shieldHp} HP (${Math.round(data.durationMs / 1000)}s)`, 'combat');
+    }));
+
+    this._unsubs.push(on(EVENTS.STANCE_CHANGED, (data) => {
+      const stance = STANCES[data.stanceId];
+      const label = stance ? stance.label : data.stanceId;
+      this.addLine(`Stance: ${label}`, 'system');
     }));
 
     // ── Welcome message (first launch) ──────────────────────────────

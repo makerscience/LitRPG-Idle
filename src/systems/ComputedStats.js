@@ -5,7 +5,7 @@ import Store from './Store.js';
 import UpgradeManager from './UpgradeManager.js';
 import TerritoryManager from './TerritoryManager.js';
 import { D } from './BigNum.js';
-import { COMBAT_V2 } from '../config.js';
+import { COMBAT_V2, STANCES } from '../config.js';
 import { getScaledItem } from '../data/items.js';
 
 /** Sum a single stat key across all equipped gear. */
@@ -67,13 +67,14 @@ export function getBaseDamage() {
   return getEffectiveStr();
 }
 
-/** Effective auto-attack damage per hit after all multipliers (prestige, territory). */
+/** Effective auto-attack damage per hit after all multipliers (prestige, territory, stance). */
 export function getEffectiveDamage() {
   const state = Store.getState();
   const baseDmg = getBaseDamage();
   const prestigeMult = state.prestigeMultiplier;
   const territoryDmgMult = TerritoryManager.getBuffMultiplier('baseDamage');
-  return Math.floor(baseDmg * prestigeMult * territoryDmgMult);
+  const stance = STANCES[state.currentStance] || STANCES.power;
+  return Math.floor(baseDmg * prestigeMult * territoryDmgMult * stance.damageMult);
 }
 
 /** Effective click damage per hit (auto-attack damage x click damage upgrade multiplier, nerfed by clickDamageScalar). */
@@ -94,6 +95,13 @@ export function getCritMultiplier() {
   return state.flags.crackTriggered ? 10 : COMBAT_V2.critMultiplier ?? 2;
 }
 
+/** Damage reduction from current stance (0.0–1.0). */
+export function getDamageReduction() {
+  const state = Store.getState();
+  const stance = STANCES[state.currentStance] || STANCES.power;
+  return stance.damageReduction;
+}
+
 /** HP regen per second: flat from levels + gear, scaled by territory multiplier. */
 export function getHpRegen() {
   const state = Store.getState();
@@ -107,9 +115,11 @@ export function getPlayerAtkSpeed() {
   return COMBAT_V2.playerBaseAtkSpeed + getEquipmentStatSum('atkSpeed');
 }
 
-/** Player auto-attack interval in ms (gear speed + upgrade/territory bonuses). Floor 200ms. */
+/** Player auto-attack interval in ms (gear speed + upgrade/territory bonuses + stance). Floor 400ms. */
 export function getPlayerAutoAttackInterval() {
-  const effectiveSpeed = getPlayerAtkSpeed();
+  const state = Store.getState();
+  const stance = STANCES[state.currentStance] || STANCES.power;
+  const effectiveSpeed = getPlayerAtkSpeed() * stance.atkSpeedMult;
   const baseInterval = Math.floor(COMBAT_V2.baseAttackIntervalMs / effectiveSpeed);
   // Apply upgrade and territory speed bonuses as reduction
   const speedBonus = UpgradeManager.getMultiplier('autoAttackSpeed') - 1;
@@ -156,7 +166,9 @@ export function getAllStats() {
     goldMultiplier: getGoldMultiplier(),
     xpMultiplier: getXpMultiplier(),
     hpRegen: getHpRegen(),
+    damageReduction: getDamageReduction(),
     dodgeChanceVsDefaultAcc: getDodgeChance(80),
+    currentStance: state.currentStance,
     prestigeMultiplier: state.prestigeMultiplier,
   };
 }

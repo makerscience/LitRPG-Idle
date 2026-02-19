@@ -1,17 +1,17 @@
-// SmashButton — "SMASH" button for the Power Smash active ability.
-// Visible when stance is 'power'. Cooldown driven by upgrade levels.
+// FlurryButton — "FLURRY" button for the Rapid Strikes active ability.
+// Visible when stance is 'flurry'. Calls CombatEngine.activateRapidStrikes().
 
 import Store from '../systems/Store.js';
 import CombatEngine from '../systems/CombatEngine.js';
-import UpgradeManager from '../systems/UpgradeManager.js';
 import { on, emit, EVENTS } from '../events.js';
 import { LAYOUT } from '../config.js';
 
-export default class SmashButton {
+const COOLDOWN_MS = 10000; // 10s cooldown
+
+export default class FlurryButton {
   constructor(scene) {
     this.scene = scene;
     this._unsubs = [];
-    this._cooldownStart = 0;
     this._cooldownEnd = 0;
     this._cooldownTimer = null;
 
@@ -19,13 +19,13 @@ export default class SmashButton {
     const btnX = ga.x + 110;
     const btnY = ga.y + ga.h - 10;
 
-    this._btn = scene.add.text(btnX, btnY, 'SMASH', {
+    this._btn = scene.add.text(btnX, btnY, 'FLURRY', {
       fontFamily: 'monospace',
       fontSize: '14px',
       color: '#ffffff',
       fontStyle: 'bold',
-      backgroundColor: '#7c2d12',
-      padding: { x: 16, y: 8 },
+      backgroundColor: '#1e3a5f',
+      padding: { x: 12, y: 8 },
       stroke: '#000000',
       strokeThickness: 2,
     }).setOrigin(0, 1).setInteractive({ useHandCursor: true });
@@ -33,71 +33,53 @@ export default class SmashButton {
     this._btn.setVisible(false);
     this._btn.setDepth(10);
 
-    this._btn.on('pointerdown', () => this._onSmash());
+    this._btn.on('pointerdown', () => this._onActivate());
     this._btn.on('pointerover', () => {
       if (this._btn.visible && !this._isOnCooldown()) {
-        this._btn.setStyle({ backgroundColor: '#9a3412' });
+        this._btn.setStyle({ backgroundColor: '#2a5280' });
       }
     });
     this._btn.on('pointerout', () => {
       if (this._btn.visible && !this._isOnCooldown()) {
-        this._btn.setStyle({ backgroundColor: '#7c2d12' });
+        this._btn.setStyle({ backgroundColor: '#1e3a5f' });
       }
     });
 
     this._unsubs.push(on(EVENTS.STANCE_CHANGED, () => this._refreshVisibility()));
     this._unsubs.push(on(EVENTS.SAVE_LOADED, () => this._refreshVisibility()));
-    this._unsubs.push(on(EVENTS.UPG_PURCHASED, (data) => {
-      if (data.upgradeId === 'power_smash_recharge' && this._isOnCooldown()) {
-        this._recalcCooldown();
-      }
-    }));
 
     this._refreshVisibility();
   }
 
   _isActiveStance() {
-    return Store.getState().currentStance === 'power';
+    return Store.getState().currentStance === 'flurry';
   }
 
   _isOnCooldown() {
     return Date.now() < this._cooldownEnd;
   }
 
-  _getDamageMultiplier() {
-    return 3.0 + (UpgradeManager.getMultiplier('powerSmashDamage') - 1);
-  }
-
-  _getCooldownMs() {
-    return 60000 * (1 - (UpgradeManager.getMultiplier('powerSmashCooldown') - 1));
-  }
-
   _refreshVisibility() {
     if (this._isActiveStance()) {
       this._btn.setVisible(true);
       if (!this._isOnCooldown()) {
-        this._btn.setText('SMASH');
-        this._btn.setStyle({ backgroundColor: '#7c2d12', color: '#ffffff' });
+        this._btn.setText('FLURRY');
+        this._btn.setStyle({ backgroundColor: '#1e3a5f', color: '#ffffff' });
       }
     } else {
       this._btn.setVisible(false);
     }
   }
 
-  _onSmash() {
+  _onActivate() {
     if (this._isOnCooldown()) return;
     if (!this._isActiveStance()) return;
-
     if (!CombatEngine.hasTarget()) return;
 
-    const multiplier = this._getDamageMultiplier();
-    const cooldownMs = this._getCooldownMs();
+    CombatEngine.activateRapidStrikes();
+    emit(EVENTS.RAPID_STRIKES_USED, { hitCount: 5 });
 
-    emit(EVENTS.POWER_SMASH_USED, { multiplier });
-    CombatEngine.powerSmashAttack(multiplier);
-
-    this._cooldownStart = Date.now();
-    this._cooldownEnd = this._cooldownStart + cooldownMs;
+    this._cooldownEnd = Date.now() + COOLDOWN_MS;
     this._startCooldownTimer();
   }
 
@@ -117,12 +99,12 @@ export default class SmashButton {
     const remaining = this._cooldownEnd - Date.now();
     if (remaining <= 0) {
       this._stopCooldownTimer();
-      this._btn.setText('SMASH');
-      this._btn.setStyle({ backgroundColor: '#7c2d12', color: '#ffffff' });
+      this._btn.setText('FLURRY');
+      this._btn.setStyle({ backgroundColor: '#1e3a5f', color: '#ffffff' });
       return;
     }
     const secs = Math.ceil(remaining / 1000);
-    this._btn.setText(`SMASH (${secs}s)`);
+    this._btn.setText(`FLURRY (${secs}s)`);
   }
 
   _stopCooldownTimer() {
@@ -130,23 +112,6 @@ export default class SmashButton {
       this._cooldownTimer.remove(false);
       this._cooldownTimer = null;
     }
-  }
-
-  _recalcCooldown() {
-    const newEnd = this._cooldownStart + this._getCooldownMs();
-    if (newEnd <= Date.now()) {
-      this._resetCooldown();
-    } else {
-      this._cooldownEnd = newEnd;
-      this._updateCooldownText();
-    }
-  }
-
-  _resetCooldown() {
-    this._cooldownStart = 0;
-    this._cooldownEnd = 0;
-    this._stopCooldownTimer();
-    this._refreshVisibility();
   }
 
   show() {
