@@ -1,18 +1,18 @@
 # CURRENT_FOCUS
 
 ## One-liner
-- Enemy traits Phases 1-6 mostly complete. Visuals done (regen/enrage/thorns + player damage numbers). SystemLog messages still TODO.
+- Stance visual polish + combat UI overhaul session. Trait indicators, shield bar, charge bar, per-stance sprites all done.
 
 ## Active Objectives (max 3)
-1. **Enemy traits polish:** SystemLog messages for regen/enrage/thorns + trait indicators on nameplates
-2. **Continued playtesting:** Tune encounter weights/attackSpeedMult/rewardMult based on feel
-3. **Area 2-3 content:** Author multi-member encounter templates, fill sprite gaps
+1. **Continued playtesting:** Tune encounter weights/attackSpeedMult/rewardMult based on feel
+2. **Area 2-3 content:** Author multi-member encounter templates, fill sprite gaps
+3. **Further stance polish:** Flurry stance could get custom walk sprites like fortress did
 
 ## Next Actions
-- [ ] Enemy traits: SystemLog messages for regen/enrage/thorns events
-- [ ] Enemy traits: trait indicators on enemy nameplates (icons or text tags)
 - [ ] Playtest traits: verify regen isn't unkillable, enrage feels dangerous, thorns punishes click spam
 - [ ] Author multi-member encounter templates for Areas 2-3
+- [ ] Consider custom walk sprites for flurry stance
+- [ ] Consider tooltip/legend for trait symbols (player education)
 
 ## Open Loops / Blockers
 - Prestige, territory, cheats disabled via feature gates — re-enable post-playtesting
@@ -24,15 +24,14 @@
 - Enemy accuracy values are auto-derived from archetypes — may need hand-tuning per enemy
 - Areas 2-3 have solo-only encounters (no authored multi-member templates yet)
 - V1 combat constants still defined in config.js (dead code, kept for reference)
-- Stances fully complete (Phases 1-5) — plan can be archived
 
 ## How to Resume in 30 Seconds
 - **Open:** `.memory/CURRENT_FOCUS.md`
-- **Last change:** Fixed Rapid Strikes spawn freeze (TimeEngine one-shot splice bug + missing cancelRapidStrikes on encounter end).
+- **Last change:** Stance-specific combat visuals — per-stance walk sprites, power charge bar, trait indicators on nameplates, shield HP bar, hit reaction immunity per stance.
 - **Architecture:** Progression.js owns XP/level + kill rewards. Store is pure state. EventScope pattern for subscriptions. ComputedStats for derived values. BossManager looks up named bosses via `getBossForZone()`. LootEngine uses zone-based item pools with slot weighting and pity.
-- **Enemy traits plan:** `Plans/Enemy_Traits_Plan.md` — Regen, Enrage, Thorns (6 phases)
+- **Key new sprites:** `fortressstance_001/002` (fortress walk), `powerstance_001charge` (power charge-up) — loaded + downscaled in BootScene
 - **Key new files:** `src/ui/FlurryButton.js`, `src/ui/BulwarkButton.js`, `src/ui/StanceSwitcher.js`
-- **Key changes:** `src/scenes/UIScene.js` (StanceSwitcher create/show/hide/destroy), `src/scenes/GameScene.js` (stance tint on STANCE_CHANGED + respawn, walk-lock balance fix in _onEnemyDamaged)
+- **Key changes this session:** `GameScene.js` (trait indicators as individual colored text objects per slot, shield HP bar, power charge bar, per-stance walk frames, `_playerAttacking`/`_powerCharging` flags for hit reaction immunity, `_unlockWalk` guards), `TimeEngine.js` (new `getProgress()` method), `BulwarkButton.js` (shield mult 2.0→0.1), `SystemLog.js` (removed group spawn messages)
 - **Balance tool:** `npm run balance:sim` — zone-by-zone idle progression simulation
 
 ## Key Context
@@ -51,10 +50,14 @@
 ---
 
 ## Last Session Summary (max ~8 bullets)
-- Fixed Rapid Strikes spawn freeze: one-shot timer splice in TimeEngine used stale index after callback-induced array mutations, causing the same timer to re-fire multiple times (cascading kills in multi-member encounters)
-- TimeEngine fix: `tickers.indexOf(t)` finds timer by object reference instead of trusting stale index `i` — correct regardless of callback splices
-- CombatEngine fix: `cancelRapidStrikes()` added to `_onEncounterEnd` — ability timers no longer outlive their encounter
-- Added lessons 43-44 to LESSONS_LEARNED.md
+- Added trait indicator symbols on enemy nameplates: ✚ regen, ◆ thorns, ⚡ fast, ⊘ armor pen, ☠ DoT, ⬢ defense, ▲ enrage (appears on trigger only)
+- Each trait renders as its own colored text object (supports multi-trait enemies with correct per-symbol colors)
+- Moved player HP bar above head, halved to 100x8, added 2px black borders on all HP bars
+- Added blue shield HP bar below player HP (shows on Bulwark activation, drains in real-time)
+- Added red power charge bar (polls TimeEngine.getProgress, visible in power stance only)
+- Per-stance visuals: fortress uses fortressstance_001/002 walk sprites, power uses powerstance_001charge at 75% then strongpunch for 1s, strongpunch removed from flurry/fortress rotation
+- Hit reaction immunity: power stance blocks reactions during charge + attack hold, fortress blocks all hit reactions
+- Bulwark shield HP mult reduced from 2.0 to 0.1, removed group encounter SystemLog messages
 
 ## Pinned References
 - Governance rules: `CLAUDE.md`

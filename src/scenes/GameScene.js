@@ -31,18 +31,22 @@ export default class GameScene extends Phaser.Scene {
 
     // Player attack pose config
     this._playerAttackSprites = [
-      'player001_strongpunch', 'player001_jumpkick', 'player001_kick',
+      'player001_jumpkick', 'player001_kick',
       'player001_elbow', 'player001_kneestrike', 'player001_roundhousekick',
       'player001_jab',
     ];
     this._playerPoseTimer = null;
+    this._playerAttacking = false; // true while attack pose is held (blocks hit reaction)
+    this._powerCharging = false;  // true when showing charge-up sprite at 50%
 
-    // Bottom-anchored HP bar Y positions
-    this._hpBarY = ga.y + ga.h - 60;
+    // Player HP bar + name above player head
+    this._hpBarY = this._combatY - 375 / 2 - 16;
     this._nameLabelY = this._hpBarY - 18;
 
-    // Player walk animation
-    this._walkFrames = ['player001_walk1', 'player001_walk3'];
+    // Player walk animation (per-stance frames)
+    this._defaultWalkFrames = ['player001_walk1', 'player001_walk3'];
+    this._fortressWalkFrames = ['fortressstance_001', 'fortressstance_002'];
+    this._walkFrames = this._defaultWalkFrames;
     this._walkIndex = 0;
 
     // Player sprite — start with first walk frame
@@ -54,11 +58,14 @@ export default class GameScene extends Phaser.Scene {
       delay: 450,
       loop: true,
       callback: () => {
+        // Hold charge sprite until attack fires
+        if (this._powerCharging) return;
+
         this._walkIndex = (this._walkIndex + 1) % this._walkFrames.length;
         const key = this._walkFrames[this._walkIndex];
         this.playerRect.setTexture(key);
 
-        const scale = key === 'player001_walk3' ? 1.05 : 1;
+        const scale = (key === 'player001_walk3' || key.startsWith('fortressstance_')) ? 1.05 : 1;
         this.playerRect.setDisplaySize(300 * scale, 375 * scale);
       },
     });
@@ -68,9 +75,28 @@ export default class GameScene extends Phaser.Scene {
     }).setOrigin(0.5);
 
     // Player HP bar
-    this.playerHpBarBg = this.add.rectangle(playerX, this._hpBarY, 200, 16, 0x374151);
-    this.playerHpBarFill = this.add.rectangle(playerX - 100, this._hpBarY, 200, 16, 0x22c55e);
+    this.playerHpBarBg = this.add.rectangle(playerX, this._hpBarY, 100, 8, 0x374151).setStrokeStyle(2, 0x000000);
+    this.playerHpBarFill = this.add.rectangle(playerX - 50, this._hpBarY, 100, 8, 0x22c55e);
     this.playerHpBarFill.setOrigin(0, 0.5);
+
+    // Stance indicator (left of HP bar)
+    this._stanceIcon = this.add.text(playerX - 60, this._hpBarY, '', {
+      fontFamily: 'monospace', fontSize: '13px', color: '#ffffff',
+      stroke: '#000000', strokeThickness: 3,
+    }).setOrigin(1, 0.5);
+
+    // Attack charge bar (visible in power stance only)
+    this._chargeBarY = this._hpBarY + 12;
+    this._chargeBarBg = this.add.rectangle(playerX, this._chargeBarY, 100, 6, 0x374151).setStrokeStyle(2, 0x000000).setVisible(false);
+    this._chargeBarFill = this.add.rectangle(playerX - 50, this._chargeBarY, 100, 6, 0xef4444);
+    this._chargeBarFill.setOrigin(0, 0.5).setDisplaySize(0, 6).setVisible(false);
+
+    // Shield HP bar (hidden until Bulwark activated)
+    this._shieldBarY = this._hpBarY + 24;
+    this._shieldMaxHp = 0;
+    this.shieldBarBg = this.add.rectangle(playerX, this._shieldBarY, 100, 8, 0x1e3a5f).setStrokeStyle(2, 0x000000).setVisible(false);
+    this.shieldBarFill = this.add.rectangle(playerX - 50, this._shieldBarY, 100, 8, 0x3b82f6);
+    this.shieldBarFill.setOrigin(0, 0.5).setVisible(false);
 
     // Pre-create encounter slot views (hidden)
     this._enemySlots = [];
@@ -109,7 +135,7 @@ export default class GameScene extends Phaser.Scene {
       container.add(nameText);
 
       // HP bar background
-      const hpBarBg = this.add.rectangle(0, -(250 / 2) - 22, 100, 8, 0x374151);
+      const hpBarBg = this.add.rectangle(0, -(250 / 2) - 22, 100, 8, 0x374151).setStrokeStyle(2, 0x000000);
       container.add(hpBarBg);
 
       // HP bar fill (left-anchored)
@@ -124,6 +150,7 @@ export default class GameScene extends Phaser.Scene {
         hpBarBg,
         hpBarFill,
         nameText,
+        traitObjs: [],
         targetIndicator: null,
         state: {
           instanceId: null,
@@ -138,6 +165,7 @@ export default class GameScene extends Phaser.Scene {
           reactDelayTimer: null,
           deathFadeTimer: null,
           extraObjects: [],
+          enraged: false,
         },
         baseX: this._enemyX,
         baseY: this._enemyY,
@@ -161,6 +189,13 @@ export default class GameScene extends Phaser.Scene {
     // Player HP events
     this._unsubs.push(on(EVENTS.COMBAT_PLAYER_DAMAGED, (data) => this._onPlayerDamaged(data)));
     this._unsubs.push(on(EVENTS.COMBAT_PLAYER_DIED, () => this._onPlayerDied()));
+
+    // Shield bar
+    this._unsubs.push(on(EVENTS.BULWARK_ACTIVATED, (data) => {
+      this._shieldMaxHp = data.shieldHp;
+      this.shieldBarBg.setVisible(true);
+      this.shieldBarFill.setDisplaySize(100, 8).setVisible(true);
+    }));
 
     // Visual juice subscriptions
     this._unsubs.push(on(EVENTS.PROG_LEVEL_UP, () => this._onLevelUp()));
@@ -217,6 +252,38 @@ export default class GameScene extends Phaser.Scene {
 
   update(_time, delta) {
     TimeEngine.update(delta);
+
+    // Update shield bar
+    if (this._shieldMaxHp > 0) {
+      const shieldHp = CombatEngine.getShieldHp();
+      if (shieldHp <= 0) {
+        this._shieldMaxHp = 0;
+        this.shieldBarBg.setVisible(false);
+        this.shieldBarFill.setVisible(false);
+      } else {
+        const ratio = shieldHp / this._shieldMaxHp;
+        this.shieldBarFill.setDisplaySize(Math.max(0, ratio * 100), 8);
+      }
+    }
+
+    // Update power stance charge bar + charge sprite
+    if (this._chargeBarBg.visible) {
+      const progress = TimeEngine.getProgress('combat:autoAttack');
+      this._chargeBarFill.setDisplaySize(Math.max(0, progress * 100), 6);
+
+      // Switch to charge-up sprite at 50% if not mid-attack
+      if (!this._playerAttacking && progress >= 0.75 && !this._powerCharging) {
+        this._powerCharging = true;
+        this._walkTimer.paused = true;
+        this.playerRect.setTexture('powerstance_001charge');
+        this.playerRect.setDisplaySize(300, 375);
+      } else if (progress < 0.75 && this._powerCharging) {
+        this._powerCharging = false;
+        if (!this._playerAttacking && this._attackLockCount === 0) {
+          this._walkTimer.paused = false;
+        }
+      }
+    }
 
     const dt = delta / 1000;
     const ga = LAYOUT.gameArea;
@@ -370,9 +437,34 @@ export default class GameScene extends Phaser.Scene {
   _applyStanceTint(stanceId) {
     if (!this.playerRect) return;
     switch (stanceId) {
-      case 'flurry':   this.playerRect.setTint(0xaaccff); break;
-      case 'fortress': this.playerRect.setTint(0xccccdd); break;
-      default:         this.playerRect.clearTint(); break;
+      case 'flurry':
+        this.playerRect.setTint(0xaaccff);
+        this._stanceIcon.setText('⚡').setColor('#facc15');
+        break;
+      case 'fortress':
+        this.playerRect.setTint(0xccccdd);
+        this._stanceIcon.setText('⬢').setColor('#60a5fa');
+        break;
+      default:
+        this.playerRect.clearTint();
+        this._stanceIcon.setText('▲').setColor('#ef4444');
+        break;
+    }
+    // Swap walk frames per stance
+    this._walkFrames = stanceId === 'fortress' ? this._fortressWalkFrames : this._defaultWalkFrames;
+    this._walkIndex = 0;
+    const firstFrame = this._walkFrames[0];
+    this.playerRect.setTexture(firstFrame);
+    const frameScale = (firstFrame === 'player001_walk3' || firstFrame.startsWith('fortressstance_')) ? 1.05 : 1;
+    this.playerRect.setDisplaySize(300 * frameScale, 375 * frameScale);
+
+    // Show charge bar only in power stance
+    const showCharge = stanceId === 'power';
+    this._chargeBarBg.setVisible(showCharge);
+    this._chargeBarFill.setVisible(showCharge);
+    if (!showCharge) {
+      this._chargeBarFill.setDisplaySize(0, 6);
+      this._powerCharging = false;
     }
   }
 
@@ -385,7 +477,9 @@ export default class GameScene extends Phaser.Scene {
 
   _unlockWalk() {
     this._attackLockCount = Math.max(0, this._attackLockCount - 1);
-    if (this._attackLockCount === 0) this._walkTimer.paused = false;
+    if (this._attackLockCount === 0 && !this._playerAttacking && !this._powerCharging) {
+      this._walkTimer.paused = false;
+    }
   }
 
   // ── Encounter slot positioning ──────────────────────────────────
@@ -473,6 +567,30 @@ export default class GameScene extends Phaser.Scene {
       slot.hpBarFill.setDisplaySize(100, 8).setAlpha(1);
       slot.hpBarFill.setFillStyle(0x22c55e);
 
+      // Trait indicators — individual colored texts right of HP bar
+      for (const obj of slot.traitObjs) obj.destroy();
+      slot.traitObjs = [];
+      const traits = [];
+      if (memberData.regen > 0) traits.push({ label: '✚', color: '#22c55e' });
+      if (memberData.thorns > 0) traits.push({ label: '◆', color: '#a855f7' });
+      if ((memberData.attackSpeed ?? 1.0) >= 1.4) traits.push({ label: '⚡', color: '#facc15' });
+      if (memberData.armorPen > 0) traits.push({ label: '⊘', color: '#f97316' });
+      if (memberData.dot > 0) traits.push({ label: '☠', color: '#84cc16' });
+      if ((memberData.defense ?? 0) > 0) traits.push({ label: '⬢', color: '#60a5fa' });
+      const traitY = -(halfH) - 22;
+      let traitX = 56;
+      for (const t of traits) {
+        const txt = this.add.text(traitX, traitY, t.label, {
+          fontFamily: 'monospace', fontSize: '13px', color: t.color,
+          stroke: '#000000', strokeThickness: 3,
+        }).setOrigin(0, 0.5);
+        slot.container.add(txt);
+        slot.traitObjs.push(txt);
+        traitX += txt.width + 1;
+      }
+      slot._traitY = traitY;
+      slot._nextTraitX = traitX;
+
       // Show container
       slot.container.setVisible(true).setAlpha(1);
     }
@@ -495,6 +613,8 @@ export default class GameScene extends Phaser.Scene {
       this.tweens.killTweensOf(slot.sprite);
       this.tweens.killTweensOf(slot.rect);
       this.tweens.killTweensOf(slot.nameText);
+      for (const t of slot.traitObjs) { this.tweens.killTweensOf(t); t.destroy(); }
+      slot.traitObjs = [];
       this.tweens.killTweensOf(slot.hpBarBg);
       this.tweens.killTweensOf(slot.hpBarFill);
 
@@ -516,6 +636,7 @@ export default class GameScene extends Phaser.Scene {
       slot.state.instanceId = null;
       slot.state.enemyId = null;
       slot.state.currentSprites = null;
+      slot.state.enraged = false;
     }
 
   }
@@ -544,8 +665,9 @@ export default class GameScene extends Phaser.Scene {
         return;
       }
 
-      // Player attack pose + lunge (same as old path)
-      const sAttackKey = sIsPowerSmash
+      // Player attack pose + lunge
+      const isPowerStanceAttack = Store.getState().currentStance === 'power';
+      const sAttackKey = (sIsPowerSmash || isPowerStanceAttack)
         ? 'player001_strongpunch'
         : this._playerAttackSprites[Math.floor(Math.random() * this._playerAttackSprites.length)];
       this._lockWalk();
@@ -573,11 +695,17 @@ export default class GameScene extends Phaser.Scene {
         this._playerPoseTimer.remove();
         this._unlockWalk();
       }
-      this._playerPoseTimer = this.time.delayedCall(400, () => {
-        this._unlockWalk();
+      const isPowerStance = Store.getState().currentStance === 'power';
+      const poseDuration = isPowerStance ? 1000 : 400;
+      this._playerAttacking = isPowerStance;
+      this._powerCharging = false;
+      this._playerPoseTimer = this.time.delayedCall(poseDuration, () => {
+        this._playerAttacking = false;
+        this._attackLockCount = 0;
+        this._walkTimer.paused = false;
       });
 
-      const sKnockbackDist = sIsPowerSmash ? 24 : 12;
+      const sKnockbackDist = sIsPowerSmash ? 24 : isPowerStance ? 24 : 12;
       const sReactDelay = 60;
 
       // Spawn damage number immediately
@@ -590,7 +718,10 @@ export default class GameScene extends Phaser.Scene {
           slot.sprite.setTexture(slot.state.currentSprites.reaction);
           slot.sprite.setDisplaySize(slot.state.spriteW, slot.state.spriteH);
           slot.sprite.setTint(0xffffff);
-          this.time.delayedCall(80, () => slot.sprite.clearTint());
+          this.time.delayedCall(80, () => {
+            if (slot.state.enraged) slot.sprite.setTint(0xff6666);
+            else slot.sprite.clearTint();
+          });
 
           // Reset to local home position before knockback
           this.tweens.killTweensOf(slot.sprite);
@@ -679,12 +810,22 @@ export default class GameScene extends Phaser.Scene {
     const slot = this._getSlotByInstanceId(data.instanceId);
     if (!slot) return;
 
-    // Red tint on sprite/rect
+    // Add enrage indicator as new trait object
+    const hasEnrage = slot.traitObjs.some(t => t.text === '▲');
+    if (!hasEnrage) {
+      const txt = this.add.text(slot._nextTraitX, slot._traitY, '▲', {
+        fontFamily: 'monospace', fontSize: '13px', color: '#ef4444',
+        stroke: '#000000', strokeThickness: 3,
+      }).setOrigin(0, 0.5);
+      slot.container.add(txt);
+      slot.traitObjs.push(txt);
+      slot._nextTraitX += txt.width + 1;
+    }
+
+    // Persistent red tint on sprite/rect
+    slot.state.enraged = true;
     if (slot.state.currentSprites) {
-      slot.sprite.setTint(0xff4444);
-      this.time.delayedCall(300, () => {
-        if (slot.sprite) slot.sprite.setTint(0xff8888);
-      });
+      slot.sprite.setTint(0xff6666);
     } else {
       slot.rect.setFillStyle(0xff4444);
     }
@@ -835,7 +976,7 @@ export default class GameScene extends Phaser.Scene {
 
         // Fade name/HP
         this.tweens.add({
-          targets: [slot.nameText, slot.hpBarBg, slot.hpBarFill],
+          targets: [slot.nameText, ...slot.traitObjs, slot.hpBarBg, slot.hpBarFill],
           alpha: 0, duration: 150, ease: 'Power2',
         });
       } else {
@@ -852,7 +993,7 @@ export default class GameScene extends Phaser.Scene {
               duration: 200, ease: 'Quad.easeIn',
             });
             this.tweens.add({
-              targets: [slot.nameText, slot.hpBarBg, slot.hpBarFill],
+              targets: [slot.nameText, ...slot.traitObjs, slot.hpBarBg, slot.hpBarFill],
               alpha: 0, duration: 150, ease: 'Power2',
             });
           },
@@ -1129,8 +1270,8 @@ export default class GameScene extends Phaser.Scene {
   _onPlayerDamaged(data) {
     // Update player HP bar
     const ratio = data.maxHp.gt(0) ? data.remainingHp.div(data.maxHp).toNumber() : 0;
-    const barWidth = Math.max(0, ratio * 200);
-    this.playerHpBarFill.setDisplaySize(barWidth, 16);
+    const barWidth = Math.max(0, ratio * 100);
+    this.playerHpBarFill.setDisplaySize(barWidth, 8);
     const color = ratio > 0.5 ? 0x22c55e : ratio > 0.25 ? 0xeab308 : 0xef4444;
     this.playerHpBarFill.setFillStyle(color);
 
@@ -1140,32 +1281,43 @@ export default class GameScene extends Phaser.Scene {
     // Red damage number above player
     this._spawnPlayerDamageNumber(data.amount);
 
-    // Delay player reaction so the enemy lunge lands first.
-    this._walkTimer.paused = true;
-    this.time.delayedCall(60, () => {
-      this.playerRect.setTexture('player001_hitreaction');
-  
-      this.playerRect.setDisplaySize(300, 375);
-      this.playerRect.setTint(0xef4444);
-      // Knockback on hit (away from enemy = left)
-      this.tweens.add({
-        targets: this.playerRect,
-        x: this._playerX - 12,
-        duration: 80,
-        ease: 'Quad.easeOut',
-        yoyo: true,
+    // Skip hit reaction visuals in fortress stance, while charging, or while holding attack pose
+    const stance = Store.getState().currentStance;
+    if (!this._playerAttacking && !this._powerCharging && stance !== 'fortress') {
+      // Delay player reaction so the enemy lunge lands first.
+      this._walkTimer.paused = true;
+      this.time.delayedCall(60, () => {
+        if (this._playerAttacking) return; // guard against race
+        this.playerRect.setTexture('player001_hitreaction');
+        this.playerRect.setDisplaySize(300, 375);
+        this.playerRect.setTint(0xef4444);
+        // Knockback on hit (away from enemy = left)
+        this.tweens.add({
+          targets: this.playerRect,
+          x: this._playerX - 12,
+          duration: 80,
+          ease: 'Quad.easeOut',
+          yoyo: true,
+        });
+        this.time.delayedCall(120, () => {
+          if (this.playerRect) this.playerRect.clearTint();
+        });
       });
-      this.time.delayedCall(120, () => {
-        if (this.playerRect) this.playerRect.clearTint();
+      if (this._playerPoseTimer) this._playerPoseTimer.remove();
+      this._playerPoseTimer = this.time.delayedCall(460, () => {
+        this._walkTimer.paused = false;
       });
-    });
-    if (this._playerPoseTimer) this._playerPoseTimer.remove();
-    this._playerPoseTimer = this.time.delayedCall(460, () => {
-      this._walkTimer.paused = false;
-    });
+    }
   }
 
   _onPlayerDied() {
+    this._playerAttacking = false;
+
+    // Hide shield bar
+    this._shieldMaxHp = 0;
+    this.shieldBarBg.setVisible(false);
+    this.shieldBarFill.setVisible(false);
+
     const ga = LAYOUT.gameArea;
 
     // 1. Camera shake
@@ -1251,14 +1403,14 @@ export default class GameScene extends Phaser.Scene {
       this.playerRect.clearTint();
       this.playerRect.setAlpha(1);
       this.playerRect.x = this._playerX;
-      this.playerRect.setTexture('player001_walk1');
+      this.playerRect.setTexture(this._walkFrames[0]);
 
       this.playerRect.setDisplaySize(300, 375);
       this._applyStanceTint(Store.getState().currentStance);
       this._walkTimer.paused = false;
 
       // Restore HP bar
-      this.playerHpBarFill.setDisplaySize(200, 16);
+      this.playerHpBarFill.setDisplaySize(100, 8);
       this.playerHpBarFill.setFillStyle(0x22c55e);
     });
   }

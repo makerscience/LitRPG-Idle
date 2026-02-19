@@ -1,5 +1,16 @@
 # CHANGELOG
 
+## 2026-02-19 — Stance Visuals, Trait Indicators & Combat UI Polish
+- **Trait indicators on enemy nameplates**: colored symbols right of HP bar — ✚ regen (green), ◆ thorns (purple), ⚡ fast (yellow), ⊘ armor pen (orange), ☠ DoT (lime), ⬢ defense (blue), ▲ enrage (red, appears on trigger)
+- **Player HP bar moved above head**: halved to 100x8, 2px black borders on all HP bars
+- **Shield HP bar**: blue bar appears below player HP on Bulwark activation, drains in real-time, hides on depletion/death
+- **Power stance charge bar**: red bar below HP fills via TimeEngine.getProgress(); charge-up sprite at 75%, strongpunch held 1s with hit reaction immunity
+- **Per-stance walk sprites**: fortress uses fortressstance_001/002; fortress blocks all hit reactions; strongpunch removed from flurry/fortress attack rotation
+- **Bulwark shield nerfed**: HP multiplier 2.0 → 0.1 (10% of max HP)
+- **Stance indicator**: symbol left of player HP bar — ⚡ flurry, ⬢ fortress, ▲ power
+
+---
+
 ## 2026-02-19 — Enemy Traits Phase 6: Combat Visuals + Player Damage Numbers
 - **Regen visuals**: green `+N` floating heal numbers on enemy every regen tick, HP bar updates in real-time
 - **Enrage visuals**: red `ENRAGED!` floating text with glow, persistent red tint on enraged enemy sprite/rect

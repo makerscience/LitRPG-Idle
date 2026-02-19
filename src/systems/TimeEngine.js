@@ -54,6 +54,13 @@ const TimeEngine = {
     if (t) t.enabled = enabled;
   },
 
+  /** Get elapsed/interval progress (0–1) for a ticker. Returns 0 if not found. */
+  getProgress(id) {
+    const t = tickers.find(t => t.id === id);
+    if (!t || t.interval <= 0) return 0;
+    return Math.min(t.elapsed / t.interval, 1);
+  },
+
   /** One-shot timer — removed after firing. */
   scheduleOnce(id, callback, delayMs) {
     // Replace if already scheduled

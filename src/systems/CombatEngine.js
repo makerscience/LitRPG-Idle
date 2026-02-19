@@ -242,6 +242,8 @@ const CombatEngine = {
         regen: m.regen,
         enrage: m.enrage,
         thorns: m.thorns,
+        attackSpeed: m.attackSpeed,
+        defense: m.defense ?? 0,
         baseEnemyId: m.baseEnemyId ?? null,
       })),
     });

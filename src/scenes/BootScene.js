@@ -54,6 +54,9 @@ export default class BootScene extends Phaser.Scene {
     this.load.image('player001_hitreaction',    'Images/Player001_hitreaction.png');
     this.load.image('player001_walk1',          'Images/Player001_walk1.png');
     this.load.image('player001_walk3',          'Images/Player001_walk3.png');
+    this.load.image('fortressstance_001',      'Images/Player Images/fortressstance_001.png');
+    this.load.image('fortressstance_002',      'Images/Player Images/fortressstance_002.png');
+    this.load.image('powerstance_001charge',   'Images/Player Images/powerstance_001charge.png');
 
     // Equipment thumbnails (128px pre-scaled for inventory/equip slots)
     this.load.image('weapon001_sharpstick', 'Images/equipment/weapon001_sharpstick_thumb.png');
@@ -150,6 +153,8 @@ export default class BootScene extends Phaser.Scene {
       'player001_kick', 'player001_elbow', 'player001_kneestrike',
       'player001_roundhousekick', 'player001_jab', 'player001_hitreaction',
       'player001_walk1', 'player001_walk3',
+      'fortressstance_001', 'fortressstance_002',
+      'powerstance_001charge',
     ];
     for (const key of playerKeys) {
       this._downscaleTexture(key, playerTarget.w, playerTarget.h);

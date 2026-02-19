@@ -26,18 +26,6 @@ export default class SystemLog extends ScrollableLog {
       const members = data.members || [];
       if (members.length === 0) return;
 
-      // Encounter summary for multi-member groups
-      if (members.length > 1) {
-        const nameCounts = {};
-        for (const m of members) {
-          nameCounts[m.name] = (nameCounts[m.name] || 0) + 1;
-        }
-        const parts = Object.entries(nameCounts).map(([name, count]) =>
-          count > 1 ? `${count} ${name}s` : name
-        );
-        this.addLine(`A group of ${parts.join(' and ')} appears!`, 'combat');
-      }
-
       // Log mechanic warnings for the most dangerous member
       let worstArmorPen = 0;
       let worstDot = 0;

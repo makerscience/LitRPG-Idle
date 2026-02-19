@@ -8,7 +8,7 @@ import { on, EVENTS } from '../events.js';
 import { LAYOUT } from '../config.js';
 
 const COOLDOWN_MS = 45000; // 45s cooldown
-const SHIELD_HP_MULT = 2.0;
+const SHIELD_HP_MULT = 0.1;
 const SHIELD_DURATION_MS = 8000;
 
 export default class BulwarkButton {
