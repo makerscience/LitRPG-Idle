@@ -134,6 +134,9 @@ export const COMBAT_V2 = {
   playerBaseAtkSpeed: 1.0,
   spawnDelay: 1000,
   playerDeathRespawnDelay: 1500,
+  clickDamageScalar: 0.2,
+  maxEncounterSize: 5,
+  encounterSpread: 140,         // px between slot centers for multi-enemy layout
 };
 
 export const LOOT_V2 = {

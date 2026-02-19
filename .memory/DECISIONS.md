@@ -12,6 +12,55 @@ Format:
 
 ## 2026-02-18
 - Tags: architecture
+- Decision: Removed `_slotsActive` backward-compat gate and all old single-enemy rendering code. Slot-based encounter rendering is now the only render path. `COMBAT_ENEMY_SPAWNED` event deleted (no subscribers). Old `enemyRect`, `enemySprite`, `hpBarFill`, `hpBarBg`, `enemyNameText` properties no longer exist.
+- Rationale: The `_slotsActive` flag was never initialized or set to `true` — the new slot-based code paths were dead code while the old paths referenced objects that no longer existed (they were created in the removed `_onEnemySpawned` handler). The game would crash on any combat event. Removing the dual-path gating fixes the crash and eliminates ~280 lines of unreachable code.
+- Alternatives considered: Fix by initializing `_slotsActive` and wiring the flag properly (preserves dead code for no benefit), keep old code behind feature gate (same problem — no one will ever test it).
+- Consequences / Follow-ups: GameScene no longer has any single-enemy rendering capability. If encounters.js or CombatEngine breaks, there is no fallback — combat will be visually broken. This is acceptable because the old path was already broken (referenced non-existent objects).
+
+## 2026-02-18
+- Tags: architecture
+- Decision: Stance switching uses no cooldown + 0.5s attack pause instead of a timed cooldown. Each switch resets the pause timer. Auto-attacks don't fire until 0.5s after the last switch. Enemies keep attacking during the pause.
+- Rationale: The design vision calls for stances as a "decision, not a reflex." A timed cooldown (original plan: 3s) is an artificial gate that doesn't communicate the cost. The attack pause is a natural cost — rapid cycling means your character stands idle taking damage. Players can cycle freely to browse stances, but their DPS drops to zero until they commit. The punishment is proportional to indecision.
+- Alternatives considered: 3s cooldown between switches (artificial, doesn't match idle game pacing), instant switch with no cost (no commitment, degenerate rapid-cycling), 0.5s cooldown (too fast to feel like a decision).
+- Consequences / Follow-ups: CombatEngine unregisters auto-attack on STANCE_CHANGED, schedules `combat:stancePause` one-shot at 500ms that re-registers with new interval. TimeEngine.register overwrites existing keys, so rapid clicks naturally reset the timer.
+
+## 2026-02-18
+- Tags: architecture
+- Decision: Ability cooldowns tick globally (wall-clock timestamps) regardless of which stance is active. Power Smash cooldown runs down even when player is in Flurry stance. No cooldown pausing or resetting on stance switch.
+- Rationale: Rewards active stance swapping. The existing SmashButton cooldown uses `Date.now()` timestamps, which gives global ticking for free — no code changes needed. Pausing cooldowns per-stance would require tracking elapsed time instead of end timestamps, adding complexity for a worse player experience.
+- Alternatives considered: Pause cooldowns when leaving stance (punishes switching, complex elapsed-time tracking), reset cooldowns on switch (too punishing, discourages experimentation).
+- Consequences / Follow-ups: All three ability buttons (SmashButton, FlurryButton, BulwarkButton) use the same timestamp-based cooldown pattern. A player who uses Power Smash then switches to Flurry for 40s returns to find Power Smash ready.
+
+## 2026-02-18
+- Tags: architecture
+- Decision: Three separate ability button files (SmashButton.js, FlurryButton.js, BulwarkButton.js) instead of an AbilityManager system. All three occupy the same screen position; stance switcher shows/hides the correct one.
+- Rationale: Each ability is mechanically distinct — Power Smash is single-target burst, Rapid Strikes is 5 staggered hits with carry-over, Bulwark creates an absorb shield. A generic `execute(scene, state)` interface would immediately need ability-specific branches, creating a leaky abstraction. Three self-contained files following the same pattern (SmashButton is the template) is simpler and easier to modify independently.
+- Alternatives considered: AbilityManager system with stance-to-ability mapping and shared cooldown tracking (over-abstracted for 3 abilities), single GenericAbilityButton that switches behavior via config (leaky — each ability's edge cases differ).
+- Consequences / Follow-ups: SmashButton needs minimal changes (add STANCE_CHANGED visibility gate). FlurryButton and BulwarkButton are new files following SmashButton's pattern. No shared state manager. If future abilities share more mechanics, an AbilityManager can be extracted then.
+
+## 2026-02-18
+- Tags: architecture
+- Decision: Click damage is stance-neutral — stance `damageMult` does NOT apply to clicks. In `CombatEngine.getPlayerDamage()`, use `isClick ? 1 : stanceMult`. Power Smash calls with `isClick=true` but applies its own `smashMultiplier` separately.
+- Rationale: Clicks already apply `clickDamageScalar: 0.2`, making them weak. Stacking Flurry's 0.6x on top (0.2 x 0.6 = 0.12) would make clicks invisible. Clicks should feel consistent regardless of stance — the stance choice affects the auto-attack rhythm, not the clicking mini-game.
+- Alternatives considered: Apply stance mult to clicks (Flurry clicks almost invisible), apply inverse stance mult to clicks (complex, unintuitive).
+- Consequences / Follow-ups: ComputedStats.getClickDamage() does NOT include stanceDamageMult. Power Smash is technically `isClick=true` but its smash multiplier IS the Power stance's burst — the 2.0x stance damageMult is not double-applied.
+
+## 2026-02-18
+- Tags: architecture
+- Decision: Bulwark ability uses an absorb shield (dual-capped: damage amount + time duration) instead of invulnerability. Shield absorbs up to 200% of max HP for up to 8 seconds, whichever is reached first. Shield HP stored as ephemeral module-level state in CombatEngine, not saved.
+- Rationale: Absorb shield creates more interesting decisions than binary invulnerability — the player must choose when to activate (save it for the big hit or use it early?). Dual-capping prevents both infinite duration (saving a half-used shield forever) and infinite absorption. Stacks with Fortress base DR: incoming damage is reduced by 50% first, then remainder hits shield.
+- Alternatives considered: 3s invulnerability (simpler but binary — no partial use or timing decisions), absorb shield with no time cap (can be saved indefinitely), shield that replaces base DR instead of stacking (less value from Fortress identity).
+- Consequences / Follow-ups: CombatEngine.enemyAttack() gains shield check between DR and Store.damagePlayer(). Shield HP overflow spills to player HP. New CombatEngine.activateShield() and getShieldHp() methods. Shield cleared on: timer expiry, player death, or manual clear.
+
+## 2026-02-18
+- Tags: architecture
+- Decision: Stance switcher UI is a single rotary button in the upper-left corner of the game area. Click cycles through stances in order (Flurry -> Power -> Fortress -> Flurry). v1 uses text placeholder art (colored circle with stance initial letter).
+- Rationale: Three separate buttons take up too much space and create a "which do I click" moment. A single rotary button communicates "this is one thing with three states" and supports the rapid-cycling design (click-click-click to browse, then commit). Upper-left placement keeps it away from combat visuals and bottom-bar action buttons.
+- Alternatives considered: Three tab buttons in bottom bar (space-heavy, conflicts with DRINK/ability buttons), dropdown menu (too many clicks for combat-speed switching), right-side panel (competes with log/dialogue area).
+- Consequences / Follow-ups: StanceSwitcher.js is a new UI component. Position at ga.x + 50, ga.y + 50. During 0.5s attack pause: brief visual feedback (pulse or flash). Future: replace text placeholders with stance icon sprites.
+
+## 2026-02-18
+- Tags: architecture
 - Decision: Contested accuracy-vs-evade dodge formula instead of standalone `agi / (agi + K)` curve. Formula: `hitChance = clamp((acc + bias) / (acc + evadeRating + bias), 0.35, 0.95)` where `evadeRating = agi * 2.0` and `bias = 60`. Enemy `accuracy` is a new per-enemy stat (auto-derived from archetypes if not authored).
 - Rationale: Simple `agi / (agi + K)` is too weak at low AGI (2% dodge at agi=3), making DEF strictly dominant early game. Contested formula gives AGI meaningful early value by scaling against enemy accuracy — low-accuracy swarm enemies are dodgeable even with starter AGI, while high-accuracy brutes/bosses are harder to dodge. This creates archetype identity (fast swarms miss more, heavy brutes land hits) and makes AGI a real alternative to DEF from zone 1.
 - Alternatives considered: Simple `agi / (agi + 150)` (too weak early, DEF dominates until endgame), flat dodge% on gear (two knobs for one mechanic, complicates tooltips), dodge as upgrade-only (no gear choices).

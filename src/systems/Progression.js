@@ -23,20 +23,15 @@ const Progression = {
    * Process all rewards for killing an enemy: kill counters, gold, XP.
    * Called by CombatEngine on enemy death — single source of truth for kill tracking.
    */
-  grantKillRewards(enemy) {
+  grantKillRewards(member, rewardMult = 1) {
     Store.incrementKills();
-    Store.incrementEnemyKills(enemy.id);
+    Store.incrementEnemyKills(member.enemyId);
+    // zoneClearKills moved to CombatEngine._onEncounterEnd('cleared')
 
-    // Zone clear kills drive boss thresholds — boss kills don't count
-    if (!enemy.isBoss) {
-      const state = Store.getState();
-      Store.incrementZoneClearKills(state.currentArea, state.currentZone);
-    }
-
-    const goldAmount = D(enemy.goldDrop).times(getGoldMultiplier()).floor();
+    const goldAmount = D(member.goldDrop).times(rewardMult).times(getGoldMultiplier()).floor();
     Store.addGold(goldAmount);
 
-    const xpAmount = D(enemy.xpDrop).times(getXpMultiplier()).floor();
+    const xpAmount = D(member.xpDrop).times(rewardMult).times(getXpMultiplier()).floor();
     Progression.grantXp(xpAmount);
   },
 };

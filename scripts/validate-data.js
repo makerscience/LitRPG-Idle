@@ -6,6 +6,7 @@ import { ENEMIES } from '../src/data/enemies.js';
 import { BOSSES } from '../src/data/bosses.js';
 import { ITEMS } from '../src/data/items.js';
 import { AREAS, TOTAL_ZONES, AREA_COUNT } from '../src/data/areas.js';
+import { ENCOUNTERS } from '../src/data/encounters.js';
 
 let errors = 0;
 let warnings = 0;
@@ -246,6 +247,61 @@ if (uncoveredItemZones.length > 0) {
   console.log('  All zones 1-30 have item coverage.');
 }
 console.log('  Item zone coverage checked.');
+
+// ── 8. Encounter Template Validation ─────────────────────────────────
+section('Encounter Validation');
+const encounterIds = new Set();
+
+for (const enc of ENCOUNTERS) {
+  const ctx = `Encounter "${enc.id || '???'}"`;
+  if (!enc.id || typeof enc.id !== 'string') error(`${ctx}: missing or invalid id`);
+  if (encounterIds.has(enc.id)) error(`${ctx}: duplicate id`);
+  encounterIds.add(enc.id);
+
+  if (!Array.isArray(enc.members) || enc.members.length === 0) {
+    error(`${ctx}: members must be a non-empty array`);
+  } else {
+    for (const memberId of enc.members) {
+      if (!enemyIds.has(memberId)) {
+        error(`${ctx}: member "${memberId}" not found in ENEMIES`);
+      }
+    }
+  }
+
+  if (!Array.isArray(enc.zones) || enc.zones.length !== 2) {
+    error(`${ctx}: zones must be [min, max]`);
+  } else {
+    if (enc.zones[0] > enc.zones[1]) error(`${ctx}: zones[0] > zones[1]`);
+    if (enc.zones[0] < 1 || enc.zones[1] > TOTAL_ZONES) error(`${ctx}: zones out of range 1-${TOTAL_ZONES}`);
+  }
+
+  if (typeof enc.weight !== 'number' || enc.weight <= 0) error(`${ctx}: weight must be positive`);
+  if (typeof enc.attackSpeedMult !== 'number' || enc.attackSpeedMult <= 0) error(`${ctx}: attackSpeedMult must be positive`);
+  if (typeof enc.rewardMult !== 'number' || enc.rewardMult <= 0) error(`${ctx}: rewardMult must be positive`);
+
+  if (!enc.lootBonus || typeof enc.lootBonus !== 'object') {
+    error(`${ctx}: missing lootBonus`);
+  } else {
+    if (typeof enc.lootBonus.dropChanceMult !== 'number') error(`${ctx}: lootBonus.dropChanceMult must be a number`);
+    if (typeof enc.lootBonus.rarityBoost !== 'number') error(`${ctx}: lootBonus.rarityBoost must be a number`);
+  }
+}
+console.log(`  ${ENCOUNTERS.length} encounter templates checked.`);
+
+// ── 9. Boss Adds Validation ─────────────────────────────────────────
+section('Boss Adds Validation');
+let addsChecked = 0;
+for (const b of BOSSES) {
+  if (b.adds && Array.isArray(b.adds)) {
+    for (const addId of b.adds) {
+      if (!enemyIds.has(addId)) {
+        error(`Boss "${b.id}": adds reference "${addId}" not found in ENEMIES`);
+      }
+      addsChecked++;
+    }
+  }
+}
+console.log(`  ${addsChecked} boss add references checked.`);
 
 // ── Summary ─────────────────────────────────────────────────────────
 section('Summary');

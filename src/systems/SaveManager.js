@@ -80,7 +80,7 @@ const SaveManager = {
 
   /** Serialize state to localStorage. Rotates current → backup before writing. */
   save() {
-    if (!store) return;
+    if (!store || window.__saveWiped) return;
 
     const state = store.getState();
     if (!state) return;
@@ -142,8 +142,10 @@ const SaveManager = {
     emit(EVENTS.SAVE_LOADED, {});
   },
 
-  /** Wipe both save keys. Dev/debug tool. */
+  /** Wipe both save keys. Dev/debug tool.
+   *  Sets window.__saveWiped to block orphaned HMR listeners from re-saving. */
   deleteSave() {
+    window.__saveWiped = true;
     localStorage.removeItem(PRIMARY_KEY);
     localStorage.removeItem(BACKUP_KEY);
   },

@@ -51,6 +51,7 @@ const DialogueManager = {
 
     // ── First kill (one-shot) ────────────────────────────────────
     scope.on(EVENTS.COMBAT_ENEMY_KILLED, (data) => {
+      if (data.despawned) return;
       const state = Store.getState();
       if (!state.flags.firstKill) {
         Store.setFlag('firstKill', true);
@@ -59,7 +60,8 @@ const DialogueManager = {
     });
 
     // ── Kill milestones + random combat commentary ───────────────
-    scope.on(EVENTS.COMBAT_ENEMY_KILLED, () => {
+    scope.on(EVENTS.COMBAT_ENEMY_KILLED, (data) => {
+      if (data.despawned) return;
       const state = Store.getState();
       const kills = state.totalKills;
 

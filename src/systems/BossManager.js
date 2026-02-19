@@ -18,9 +18,9 @@ const BossManager = {
   init() {
     scope = createScope();
 
-    // Check boss threshold after kills (counting is handled by Progression)
-    scope.on(EVENTS.COMBAT_ENEMY_KILLED, (data) => {
-      if (data.isBoss) return;
+    // Check boss threshold after encounter cleared (zoneClearKills incremented before this fires)
+    scope.on(EVENTS.COMBAT_ENCOUNTER_ENDED, (data) => {
+      if (data.reason !== 'cleared') return;
       BossManager._checkThreshold();
     });
 

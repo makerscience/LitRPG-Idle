@@ -1,4 +1,6 @@
 // V2 boss definitions — named bosses per zone (zones 1-30).
+// Optional field: adds: string[] — enemy template IDs that spawn alongside the boss (slots 1+).
+// No boss uses adds in v1; the field is supported by the encounter system for future use.
 
 const AREA_1_LOOT_TABLE = [
   { itemId: 'a1_sharpened_stick',      weight: 16 },

@@ -33,6 +33,7 @@ const LootEngine = {
   // ── Kill dispatcher ──────────────────────────────────────────────
 
   _handleKill(data) {
+    if (data.despawned) return;
     if (data.isBoss) {
       LootEngine._handleBossKill(data);
     } else {
@@ -42,13 +43,15 @@ const LootEngine = {
 
   // ── Normal enemy kill: 10% drop chance ───────────────────────────
 
-  _handleNormalKill(_data) {
-    if (Math.random() > LOOT_V2.normalDropChance) return;
+  _handleNormalKill(data) {
+    const lootBonus = data.lootBonus || { dropChanceMult: 1.0, rarityBoost: 0 };
+    const dropChance = LOOT_V2.normalDropChance * lootBonus.dropChanceMult;
+    if (Math.random() > dropChance) return;
 
     const item = LootEngine._pickItem();
     if (!item) return;
 
-    const rarity = LootEngine._rollRarityV2();
+    const rarity = LootEngine._rollRarityV2(lootBonus.rarityBoost);
     LootEngine._awardDrop(item, rarity);
   },
 
@@ -141,8 +144,12 @@ const LootEngine = {
 
   // ── Rarity roll: weighted pick from rarityWeights ────────────────
 
-  _rollRarityV2() {
-    const weights = LOOT_V2.rarityWeights;
+  _rollRarityV2(rarityBoost = 0) {
+    const weights = { ...LOOT_V2.rarityWeights };
+    // Boost uncommon weight for group encounter loot bonus
+    if (rarityBoost > 0 && weights.uncommon != null) {
+      weights.uncommon += rarityBoost;
+    }
     const entries = Object.entries(weights);
     const totalWeight = entries.reduce((sum, [, w]) => sum + w, 0);
     let roll = Math.random() * totalWeight;

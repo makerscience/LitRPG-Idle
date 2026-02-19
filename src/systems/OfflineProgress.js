@@ -6,6 +6,8 @@ import Progression from './Progression.js';
 import { D } from './BigNum.js';
 import { getEffectiveDamage, getCritChance, getCritMultiplier, getAutoAttackInterval, getGoldMultiplier, getXpMultiplier } from './ComputedStats.js';
 import { getUnlockedEnemies, getZoneScaling } from '../data/areas.js';
+import { getEncountersForZone } from '../data/encounters.js';
+import { getEnemyById } from '../data/enemies.js';
 import { SAVE, ECONOMY, COMBAT_V2 } from '../config.js';
 import TerritoryManager from './TerritoryManager.js';
 
@@ -46,25 +48,44 @@ const OfflineProgress = {
 
     const offlineSeconds = offlineMs / 1000;
 
-    // ── Enemy pool with zone scaling ──────────────────────────────
-    const enemies = getUnlockedEnemies(state.currentArea, state.currentZone);
-    if (enemies.length === 0) return;
+    // ── Encounter pool with zone scaling ─────────────────────────
+    const encounterPool = getEncountersForZone(state.currentArea, state.currentZone);
+    if (encounterPool.length === 0) return;
 
     const hpScale = getZoneScaling(state.currentZone, 'hp');
     const goldScale = getZoneScaling(state.currentZone, 'gold');
     const xpScale = getZoneScaling(state.currentZone, 'xp');
 
-    let totalHp = 0;
-    let totalGold = 0;
-    let totalXp = 0;
-    for (const e of enemies) {
-      totalHp += Number(e.hp) * hpScale;
-      totalGold += Number(e.goldDrop) * goldScale;
-      totalXp += Number(e.xpDrop) * xpScale;
+    // Weighted average across encounter templates
+    let weightedHp = 0;
+    let weightedGold = 0;
+    let weightedXp = 0;
+    let totalWeight = 0;
+    for (const { template, weight } of encounterPool) {
+      let encHp = 0;
+      let encGold = 0;
+      let encXp = 0;
+      for (const memberId of template.members) {
+        const enemy = getEnemyById(memberId);
+        if (!enemy) continue;
+        encHp += Number(enemy.hp) * hpScale;
+        encGold += Number(enemy.goldDrop) * goldScale;
+        encXp += Number(enemy.xpDrop) * xpScale;
+      }
+      // Apply encounter reward multiplier
+      encGold *= template.rewardMult;
+      encXp *= template.rewardMult;
+
+      weightedHp += encHp * weight;
+      weightedGold += encGold * weight;
+      weightedXp += encXp * weight;
+      totalWeight += weight;
     }
-    const avgHp = totalHp / enemies.length;
-    const avgGold = totalGold / enemies.length;
-    const avgXp = totalXp / enemies.length;
+    if (totalWeight === 0) return;
+
+    const avgHp = weightedHp / totalWeight;
+    const avgGold = weightedGold / totalWeight;
+    const avgXp = weightedXp / totalWeight;
 
     // ── Player DPS ────────────────────────────────────────────────
     const effectiveDamage = getEffectiveDamage();

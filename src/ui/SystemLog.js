@@ -21,17 +21,37 @@ export default class SystemLog extends ScrollableLog {
       headerText: 'SYSTEM LOG',
     });
 
-    this._currentEnemyName = '';
-
     // Subscribe to events
-    this._unsubs.push(on(EVENTS.COMBAT_ENEMY_SPAWNED, (data) => {
-      this._currentEnemyName = data.name;
-      if (data.armorPen > 0) {
-        const penPct = Math.round(data.armorPen * 100);
-        this.addLine(`\u26A0 ${data.name} has ${penPct}% Armor Penetration`, 'warning');
+    this._unsubs.push(on(EVENTS.COMBAT_ENCOUNTER_STARTED, (data) => {
+      const members = data.members || [];
+      if (members.length === 0) return;
+
+      // Encounter summary for multi-member groups
+      if (members.length > 1) {
+        const nameCounts = {};
+        for (const m of members) {
+          nameCounts[m.name] = (nameCounts[m.name] || 0) + 1;
+        }
+        const parts = Object.entries(nameCounts).map(([name, count]) =>
+          count > 1 ? `${count} ${name}s` : name
+        );
+        this.addLine(`A group of ${parts.join(' and ')} appears!`, 'combat');
       }
-      if (data.dot) {
-        this.addLine(`\u26A0 ${data.name} deals ${data.dot} dmg/sec (bypasses defense)`, 'warning');
+
+      // Log mechanic warnings for the most dangerous member
+      let worstArmorPen = 0;
+      let worstDot = 0;
+      let warnName = '';
+      for (const m of members) {
+        if ((m.armorPen || 0) > worstArmorPen) { worstArmorPen = m.armorPen; warnName = m.name; }
+        if ((m.dot || 0) > worstDot) { worstDot = m.dot; warnName = m.name; }
+      }
+      if (worstArmorPen > 0) {
+        const penPct = Math.round(worstArmorPen * 100);
+        this.addLine(`\u26A0 ${warnName} has ${penPct}% Armor Penetration`, 'warning');
+      }
+      if (worstDot > 0) {
+        this.addLine(`\u26A0 ${warnName} deals ${worstDot} dmg/sec (bypasses defense)`, 'warning');
       }
     }));
 

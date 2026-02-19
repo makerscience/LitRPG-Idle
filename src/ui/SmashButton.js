@@ -90,8 +90,7 @@ export default class SmashButton {
     if (this._isOnCooldown()) return;
     if (!this._isUnlocked()) return;
 
-    const enemy = CombatEngine.getCurrentEnemy();
-    if (!enemy) return;
+    if (!CombatEngine.hasTarget()) return;
 
     const multiplier = this._getDamageMultiplier();
     const cooldownMs = this._getCooldownMs();

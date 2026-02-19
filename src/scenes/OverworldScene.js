@@ -70,7 +70,8 @@ export default class OverworldScene extends Phaser.Scene {
     this._infoPanelY = ga.y + 60;
 
     // Subscribe to events for live updates while map is open
-    this._unsubs.push(on(EVENTS.COMBAT_ENEMY_KILLED, () => {
+    this._unsubs.push(on(EVENTS.COMBAT_ENEMY_KILLED, (data) => {
+      if (data.despawned) return;
       if (this.scene.isActive()) this._refreshNodes();
     }));
     this._unsubs.push(on(EVENTS.STATE_CHANGED, () => {

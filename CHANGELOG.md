@@ -1,5 +1,78 @@
 # CHANGELOG
 
+## 2026-02-18 — Post-Multi-Enemy Bug Fixes
+- **Fixed game freeze (~1 min)**: `_attackLockCount` leaked — `_lockWalk()` called per enemy attack, but replacing `poseRevertTimer` lost the matching `_unlockWalk()`. Now balances count on timer replacement + resets to 0 on encounter end.
+- **Fixed slot visual state between encounters**: death tween faded nameText/hpBarBg/hpBarFill alpha to 0 permanently; now reset to 1 on encounter start. Rect position also reset.
+- **Fixed tween cleanup in encounter end**: `killTweensOf` now covers nameText/hpBarBg/hpBarFill (was only killing sprite/rect tweens)
+- **Guarded OverworldScene launch**: `scene.launch('OverworldScene')` now checks scene exists first (was failing silently when territory disabled)
+
+---
+
+## 2026-02-18 — Multi-Enemy Phase 14: Cleanup
+- **Removed old single-enemy rendering**: deleted all `_slotsActive`-gated fallback code in `_onEnemyDamaged`, `_onEnemyKilled`, `_onEnemyAttacked`, `_onPlayerDied` — slot-based path is now the only path
+- **Removed `COMBAT_ENEMY_SPAWNED` event**: no subscribers remain; all systems now use `COMBAT_ENCOUNTER_STARTED`
+- **Fixed crash bug**: `_slotsActive` flag was never initialized/set to `true`, so slot code never ran and old code path tried to reference non-existent objects (`enemyRect`, `enemySprite`, `hpBarFill`)
+- **Removed stale `getCurrentEnemy()` comment** from CombatEngine `hasTarget()` doc
+
+---
+
+## 2026-02-18 — Multi-Enemy Phase 12: Tooling Updates
+- **Data validator**: added encounter template validation — checks member enemy IDs exist, zones valid, weights positive, lootBonus schema; also validates boss `adds` field references
+- **Balance sim**: models encounter pools with weighted average encounter HP (sum of member HPs), incoming DPS (per-member attack × attackSpeed × attackSpeedMult), and reward scaling via rewardMult
+
+---
+
+## 2026-02-18 — Multi-Enemy Phase 11: Downstream Integration
+- **SmashButton**: replaced `getCurrentEnemy()` with `hasTarget()` for encounter-aware target checking
+- **LootEngine**: reads `lootBonus` from kill event — `dropChanceMult` scales normal drop chance, `rarityBoost` adds to uncommon rarity weight for group encounters
+- **SystemLog**: switched from `COMBAT_ENEMY_SPAWNED` to `COMBAT_ENCOUNTER_STARTED` — logs grouped encounter summaries ("A group of 3 Forest Rats appears!") and mechanic warnings for the most dangerous member
+- **OfflineProgress**: models encounters as composite kills — weighted average HP/gold/XP across encounter pool with `rewardMult` applied; solo encounters produce identical results to old formula
+- **CombatEngine**: enriched `COMBAT_ENCOUNTER_STARTED` members with `armorPen`/`dot` fields; added `lootBonus` to `COMBAT_ENEMY_KILLED` payload
+
+---
+
+## 2026-02-18 — Multi-Enemy Phases 9+10: Encounter Rendering + Per-Member Animations
+- **Encounter slot rendering**: slots bind to encounter members on start — positioned, shown, and highlighted; hidden + cleaned up on end
+- **Per-member damage/hit reactions**: HP bar updates, sprite reaction pose + knockback, and rect squish all routed to correct slot in local coordinates
+- **Per-member death animations**: rat spin, slime wobble, stalker decapitation, and default slide-away all work per-slot; stalker head spawned as absolute scene object
+- **Slot-aware positioning**: `_spawnDamageNumber` and `_spawnGoldParticles` accept optional position params for correct slot-relative VFX
+- **Target switching**: click handlers on slot rects/sprites call `setTarget` + `playerAttack`; `_highlightTarget` dims non-target slots to 0.7 alpha
+
+---
+
+## 2026-02-18 — Multi-Enemy Phase 8: GameScene Slot Model
+- **Slot view pool**: 5 hidden slot containers pre-created in `create()`, each with rect, sprite, name label, HP bar bg/fill — ready for Phase 9 binding
+- **Slot lookup helpers**: `_getSlotByInstanceId()` and `_getSlotByIndex()` for encounter rendering
+- **Walk timer lock counting**: `_lockWalk()` / `_unlockWalk()` with ref-counted `_attackLockCount` to safely pause/resume walk animation from multiple sources
+- **Encounter event subscriptions**: `COMBAT_ENCOUNTER_STARTED`, `COMBAT_ENCOUNTER_ENDED`, `COMBAT_TARGET_CHANGED` wired to stub handlers (Phase 9 fills in rendering)
+- **Slot cleanup on shutdown**: timers removed, extra objects destroyed, containers destroyed in `_shutdown()`
+
+---
+
+## 2026-02-18 — Multi-Enemy Phase 6: Death Handling, Retargeting & Encounter Completion
+- **Per-member death**: `_onMemberDeath(instanceId)` replaces `_onEnemyDeath()` — handles rewards, retargeting, and encounter completion per member
+- **Retargeting**: when target dies, lowest-slot living member becomes new target with bridge update and `COMBAT_TARGET_CHANGED` event
+- **Encounter completion**: `_onEncounterEnd(reason)` handles timer cleanup, despawning remaining alive members, zone clear kills, and spawn scheduling
+- **Despawned guards**: 6 downstream `COMBAT_ENEMY_KILLED` listeners now ignore `despawned: true` kills (boss adds cleaned up on encounter end)
+- **BossManager threshold fix**: listener swapped to `COMBAT_ENCOUNTER_ENDED` so it reads post-increment `zoneClearKills`
+
+---
+
+## 2026-02-18 — Multi-Enemy Phase 5: Per-Member Combat Actions
+- **Combat actions operate on encounter members**: `playerAttack`, `powerSmashAttack`, `enemyAttack`, DoT all read/write member data instead of `currentEnemy` bridge
+- **Per-member timers**: each encounter member registers its own attack + DoT timers via `_registerMemberTimers()` — multi-member encounters now have independent attack cadences
+- **Enriched event payloads**: `COMBAT_ENEMY_DAMAGED`, `COMBAT_ENEMY_ATTACKED`, `COMBAT_ENEMY_DODGED` now include `encounterId`, `instanceId`, `slot`
+- **Bridge sync preserved**: `currentEnemy.hp` synced after player damage for `_onEnemyDeath` compat (Phase 6 removes bridge)
+
+---
+
+## 2026-02-18 — Click Damage Nerf
+- **Click damage reduced to 20%**: manual clicks now deal 1/5th of previous damage via `clickDamageScalar: 0.2` in `COMBAT_V2`
+- **Power Smash unaffected**: scalar applies only in the click path, not in `getPlayerDamage`, so Power Smash keeps full scaling
+- **Stats panel updated**: `getClickDamage()` reflects the nerfed value
+
+---
+
 ## 2026-02-18 — Agility Stat + Dodge Mechanic
 - **New stat: AGI (Agility)**: base 3, +0.5/level, boosted by gear. Creates evasion build alternative to defense stacking
 - **Contested dodge formula**: enemy accuracy vs player evade rating — `hitChance = clamp((acc + 60) / (acc + evadeRating + 60), 0.35, 0.95)`. Fast swarm enemies miss more, heavy brutes land hits reliably

@@ -11,7 +11,8 @@ let scope = null;
 const FirstCrackDirector = {
   init() {
     scope = createScope();
-    scope.on(EVENTS.COMBAT_ENEMY_KILLED, () => {
+    scope.on(EVENTS.COMBAT_ENEMY_KILLED, (data) => {
+      if (data.despawned) return;
       const state = Store.getState();
       if (state.flags.crackTriggered) return;
 

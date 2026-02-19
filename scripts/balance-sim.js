@@ -6,6 +6,7 @@ import { ENEMIES } from '../src/data/enemies.js';
 import { BOSSES } from '../src/data/bosses.js';
 import { ITEMS } from '../src/data/items.js';
 import { AREAS, getZoneScaling, getBossKillThreshold } from '../src/data/areas.js';
+import { getEncountersForZone } from '../src/data/encounters.js';
 import { PROGRESSION_V2, COMBAT_V2 } from '../src/config.js';
 import { getAllUpgrades } from '../src/data/upgrades.js';
 
@@ -238,29 +239,80 @@ function runSimulation(policyName, gearPolicy) {
     equipBestGear(player, globalZone, gearPolicy);
     if (enemies.length === 0) continue;
 
-    let totalHp = 0, totalAtk = 0, totalAtkSpd = 0, totalDef = 0, totalArmorPen = 0, totalDot = 0, totalAcc = 0;
-    let totalGold = 0, totalXp = 0;
-    for (const e of enemies) {
-      totalHp += Math.floor(e.hp * hpScale);
-      totalAtk += Math.floor(e.attack * TUNE.enemyAtkMult * atkScale);
-      totalAtkSpd += e.attackSpeed;
-      totalDef += e.defense || 0;
-      totalArmorPen += e.armorPen || 0;
-      totalDot += e.dot || 0;
-      totalAcc += e.accuracy || 80;
-      totalGold += Math.floor(e.goldDrop * TUNE.goldMult * goldScale);
-      totalXp += Math.floor(e.xpDrop * TUNE.enemyXpMult * xpScale);
+    // Model encounter pools for weighted averages
+    const encounterPool = getEncountersForZone(areaId, localZone);
+
+    let avgHp, avgAtk, avgAtkSpd, avgDef, avgArmorPen, avgDot, avgAcc, avgGold, avgXp;
+
+    if (encounterPool.length > 0) {
+      // Weighted average across encounter templates
+      let wHp = 0, wAtk = 0, wAtkSpd = 0, wDef = 0, wArmorPen = 0, wDot = 0, wAcc = 0;
+      let wGold = 0, wXp = 0, wTotal = 0;
+      for (const { template, weight } of encounterPool) {
+        let encHp = 0, encAtk = 0, encAtkSpd = 0, encDef = 0, encArmorPen = 0, encDot = 0, encAcc = 0;
+        let encGold = 0, encXp = 0;
+        for (const memberId of template.members) {
+          const e = ENEMIES.find(x => x.id === memberId);
+          if (!e) continue;
+          encHp += Math.floor(e.hp * hpScale);
+          const effAtkSpd = e.attackSpeed * template.attackSpeedMult;
+          encAtk += Math.floor(e.attack * TUNE.enemyAtkMult * atkScale) * effAtkSpd;
+          encAtkSpd += effAtkSpd;
+          encDef += e.defense || 0;
+          encArmorPen += e.armorPen || 0;
+          encDot += e.dot || 0;
+          encAcc += e.accuracy || 80;
+          encGold += Math.floor(e.goldDrop * TUNE.goldMult * goldScale);
+          encXp += Math.floor(e.xpDrop * TUNE.enemyXpMult * xpScale);
+        }
+        const mc = template.members.length;
+        // Total encounter HP (player must kill all), weighted DPS-ATK, avg other stats
+        wHp += encHp * weight;
+        wAtk += (mc > 0 ? encAtk / encAtkSpd : 0) * weight; // weighted avg ATK per hit
+        wAtkSpd += (mc > 0 ? encAtkSpd : 0) * weight; // total attack rate
+        wDef += (mc > 0 ? encDef / mc : 0) * weight;
+        wArmorPen += (mc > 0 ? encArmorPen / mc : 0) * weight;
+        wDot += (mc > 0 ? encDot / mc : 0) * weight;
+        wAcc += (mc > 0 ? encAcc / mc : 0) * weight;
+        wGold += encGold * template.rewardMult * weight;
+        wXp += encXp * template.rewardMult * weight;
+        wTotal += weight;
+      }
+      avgHp = wHp / wTotal;
+      avgAtk = wAtk / wTotal;
+      avgAtkSpd = wAtkSpd / wTotal;
+      avgDef = wDef / wTotal;
+      avgArmorPen = wArmorPen / wTotal;
+      avgDot = wDot / wTotal;
+      avgAcc = wAcc / wTotal;
+      avgGold = wGold / wTotal;
+      avgXp = wXp / wTotal;
+    } else {
+      // Fallback: plain enemy averaging (for zones without encounter data)
+      let totalHp = 0, totalAtk = 0, totalAtkSpd = 0, totalDef = 0, totalArmorPen = 0, totalDot = 0, totalAcc = 0;
+      let totalGold = 0, totalXp = 0;
+      for (const e of enemies) {
+        totalHp += Math.floor(e.hp * hpScale);
+        totalAtk += Math.floor(e.attack * TUNE.enemyAtkMult * atkScale);
+        totalAtkSpd += e.attackSpeed;
+        totalDef += e.defense || 0;
+        totalArmorPen += e.armorPen || 0;
+        totalDot += e.dot || 0;
+        totalAcc += e.accuracy || 80;
+        totalGold += Math.floor(e.goldDrop * TUNE.goldMult * goldScale);
+        totalXp += Math.floor(e.xpDrop * TUNE.enemyXpMult * xpScale);
+      }
+      const n = enemies.length;
+      avgHp = totalHp / n;
+      avgAtk = totalAtk / n;
+      avgAtkSpd = totalAtkSpd / n;
+      avgDef = totalDef / n;
+      avgArmorPen = totalArmorPen / n;
+      avgDot = totalDot / n;
+      avgAcc = totalAcc / n;
+      avgGold = totalGold / n;
+      avgXp = totalXp / n;
     }
-    const n = enemies.length;
-    const avgHp = totalHp / n;
-    const avgAtk = totalAtk / n;
-    const avgAtkSpd = totalAtkSpd / n;
-    const avgDef = totalDef / n;
-    const avgArmorPen = totalArmorPen / n;
-    const avgDot = totalDot / n;
-    const avgAcc = totalAcc / n;
-    const avgGold = totalGold / n;
-    const avgXp = totalXp / n;
 
     const goldMult = getUpgradeMultiplier(player, 'goldMultiplier');
     for (let k = 0; k < killThreshold; k++) {

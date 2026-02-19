@@ -8,17 +8,25 @@ import Progression from './Progression.js';
 import { D, Decimal } from './BigNum.js';
 import { createScope, emit, EVENTS } from '../events.js';
 import { COMBAT_V2 } from '../config.js';
-import { getUnlockedEnemies, getZoneScaling } from '../data/areas.js';
+import { getZoneScaling } from '../data/areas.js';
+import { getEnemyById } from '../data/enemies.js';
+import { pickRandomEncounter } from '../data/encounters.js';
 import UpgradeManager from './UpgradeManager.js';
 import TerritoryManager from './TerritoryManager.js';
 import {
   getEffectiveMaxHp, getBaseDamage, getCritChance, getEffectiveDef, getPlayerAutoAttackInterval, getHpRegen, getEnemyHitChance,
 } from './ComputedStats.js';
 
-let currentEnemy = null;
 let scope = null;
 let forcedCritMultiplier = null;
 let _playerDead = false;
+
+// ── Encounter runtime ──
+let encounter = null;
+let _idCounter = 0;
+function _generateId(prefix) {
+  return `${prefix}_${++_idCounter}`;
+}
 
 const CombatEngine = {
   init() {
@@ -89,11 +97,10 @@ const CombatEngine = {
 
     // Subscribe to zone changes — spawn new enemy (not boss)
     scope.on(EVENTS.WORLD_ZONE_CHANGED, () => {
-      // Cancel pending spawn delay
       TimeEngine.unregister('combat:spawnDelay');
-      TimeEngine.unregister('combat:enemyAttack');
-      CombatEngine._stopDot();
-      currentEnemy = null;
+      if (encounter) {
+        CombatEngine._onEncounterEnd('zone_change');
+      }
       CombatEngine.spawnEnemy();
     });
 
@@ -103,199 +110,272 @@ const CombatEngine = {
 
   destroy() {
     BossManager.destroy();
+    CombatEngine._clearEncounterTimers();
     TimeEngine.unregister('combat:autoAttack');
     TimeEngine.unregister('combat:spawnDelay');
     TimeEngine.unregister('combat:bossDefeatedDelay');
-    TimeEngine.unregister('combat:enemyAttack');
-    TimeEngine.unregister('combat:enemyDot');
     TimeEngine.unregister('combat:playerRegen');
     TimeEngine.unregister('combat:playerRespawn');
     scope?.destroy();
     scope = null;
-    currentEnemy = null;
+    encounter = null;
   },
 
-  /** Register per-enemy attack timer based on enemy's attackSpeed. */
-  _registerEnemyAttackTimer() {
-    if (!currentEnemy) return;
-    const speed = currentEnemy.attackSpeed ?? 1.0;
+  // ── Encounter member builder and timer helpers ──
+
+  /**
+   * Build one EnemyRuntime from scaled enemy/boss data.
+   * @param {object} enemyData - Scaled stats (hp as number/string, attack, defense, etc.)
+   * @param {number} slot - Visual slot index (0-based)
+   * @param {object} opts - { isBoss, isAdd, attackSpeedMult }
+   */
+  _buildMember(enemyData, slot, opts = {}) {
+    const effectiveAtkSpeed = (enemyData.attackSpeed ?? 1.0) * (opts.attackSpeedMult ?? 1.0);
+    return {
+      instanceId: _generateId('mem'),
+      slot,
+      enemyId: enemyData.id,
+      name: enemyData.name,
+      hp: D(enemyData.hp),
+      maxHp: D(enemyData.hp),
+      attack: enemyData.attack,
+      attackSpeed: effectiveAtkSpeed,
+      defense: enemyData.defense ?? 0,
+      accuracy: enemyData.accuracy ?? 80,
+      armorPen: enemyData.armorPen ?? 0,
+      dot: enemyData.dot ?? null,
+      lootTable: enemyData.lootTable,
+      goldDrop: String(enemyData.goldDrop),
+      xpDrop: String(enemyData.xpDrop),
+      isBoss: opts.isBoss || false,
+      isAdd: opts.isAdd || false,
+      alive: true,
+    };
+  },
+
+  /**
+   * Build an EncounterRuntime from an array of built members and the source template.
+   */
+  _createEncounterRuntime(members, template, type) {
+    const memberById = new Map();
+    for (const m of members) memberById.set(m.instanceId, m);
+    return {
+      id: _generateId('enc'),
+      templateId: template?.id ?? null,
+      type,
+      members,
+      memberById,
+      targetId: null,
+      activeTimerIds: new Set(),
+      bossMemberId: null,
+      attackSpeedMult: template?.attackSpeedMult ?? 1.0,
+      rewardMult: template?.rewardMult ?? 1.0,
+      lootBonus: template?.lootBonus ?? { dropChanceMult: 1.0, rarityBoost: 0 },
+      attackLockCount: 0,
+    };
+  },
+
+  /**
+   * Shared startup for both spawn paths.
+   * Sets encounter state, registers timers, emits events.
+   */
+  _startEncounter(enc) {
+    encounter = enc;
+    enc.targetId = enc.members[0].instanceId;
+
+    // Per-member attack + DoT timers (staggered so they don't all fire at once)
+    for (let i = 0; i < enc.members.length; i++) {
+      CombatEngine._registerMemberTimers(enc.members[i], i);
+    }
+
+    // Emit encounter started with full member list
+    emit(EVENTS.COMBAT_ENCOUNTER_STARTED, {
+      encounterId: enc.id,
+      templateId: enc.templateId,
+      type: enc.type,
+      memberCount: enc.members.length,
+      members: enc.members.map(m => ({
+        instanceId: m.instanceId,
+        slot: m.slot,
+        enemyId: m.enemyId,
+        name: m.name,
+        maxHp: m.maxHp,
+        isBoss: m.isBoss,
+        armorPen: m.armorPen,
+        dot: m.dot,
+      })),
+    });
+  },
+
+  /** Register attack + DoT timers for a single encounter member.
+   *  staggerIndex offsets the first attack so grouped enemies don't all swing at once. */
+  _registerMemberTimers(member, staggerIndex = 0) {
+    if (!encounter) return;
+    const speed = member.attackSpeed;
     const interval = Math.max(400, Math.floor(COMBAT_V2.baseAttackIntervalMs / speed));
-    TimeEngine.register(
-      'combat:enemyAttack',
-      () => CombatEngine.enemyAttack(),
-      interval,
-      true,
-    );
-  },
+    const atkKey = `enc:${encounter.id}:atk:${member.instanceId}`;
+    // Stagger: each subsequent enemy delays its first attack by a fraction of the interval
+    const staggerOffset = staggerIndex > 0 ? -Math.floor(interval * staggerIndex / encounter.members.length) : 0;
+    TimeEngine.register(atkKey, () => CombatEngine.enemyAttack(member.instanceId), interval, true, staggerOffset);
+    encounter.activeTimerIds.add(atkKey);
 
-  /** Start DoT ticker if current enemy has a dot field. */
-  _startDot() {
-    if (!currentEnemy || !currentEnemy.dot) return;
-    const dot = currentEnemy.dot;
-    let dotTickCount = 0;
-    TimeEngine.register(
-      'combat:enemyDot',
-      () => {
-        // Flat damage bypasses defense
-        Store.damagePlayer(dot);
+    if (member.dot) {
+      const dotKey = `enc:${encounter.id}:dot:${member.instanceId}`;
+      let dotTickCount = 0;
+      TimeEngine.register(dotKey, () => {
+        Store.damagePlayer(member.dot);
         dotTickCount++;
         emit(EVENTS.COMBAT_DOT_TICK, {
-          damage: dot,
+          damage: member.dot,
           tickNumber: dotTickCount,
+          encounterId: encounter.id,
+          instanceId: member.instanceId,
+          slot: member.slot,
         });
-      },
-      1000,
-      true,
-    );
+      }, 1000, true);
+      encounter.activeTimerIds.add(dotKey);
+    }
   },
 
-  /** Stop DoT ticker. */
-  _stopDot() {
-    TimeEngine.unregister('combat:enemyDot');
+  /** Unregister attack + DoT timers for a single member. */
+  _unregisterMemberTimers(member) {
+    if (!encounter) return;
+    const atkKey = `enc:${encounter.id}:atk:${member.instanceId}`;
+    const dotKey = `enc:${encounter.id}:dot:${member.instanceId}`;
+    TimeEngine.unregister(atkKey);
+    TimeEngine.unregister(dotKey);
+    encounter.activeTimerIds.delete(atkKey);
+    encounter.activeTimerIds.delete(dotKey);
   },
 
-  /** Spawn a regular enemy using area/zone progressive unlock + zone scaling. */
+  /** Unregister all timers owned by the current encounter. */
+  _clearEncounterTimers() {
+    if (!encounter) return;
+    for (const timerId of encounter.activeTimerIds) {
+      TimeEngine.unregister(timerId);
+    }
+    encounter.activeTimerIds.clear();
+  },
+
+  /** Enable or disable all encounter timers (used during player death). */
+  _setEncounterTimersEnabled(enabled) {
+    if (!encounter) return;
+    for (const timerId of encounter.activeTimerIds) {
+      TimeEngine.setEnabled(timerId, enabled);
+    }
+  },
+
+  /** Spawn a regular enemy using encounter templates + zone scaling. */
   spawnEnemy() {
     const state = Store.getState();
     const area = state.currentArea;
     const zone = state.currentZone;
 
-    // Get unlocked enemies for this area+zone
-    const pool = getUnlockedEnemies(area, zone);
-    if (!pool || pool.length === 0) return;
+    // Pick a weighted random encounter template for this area+zone
+    const encTemplate = pickRandomEncounter(area, zone);
+    if (!encTemplate) return;
 
-    const template = pool[Math.floor(Math.random() * pool.length)];
+    // Build members array — scale each member's stats by zone
+    const members = encTemplate.members.map((memberId, slotIndex) => {
+      const enemyTemplate = getEnemyById(memberId);
+      if (!enemyTemplate) return null;
 
-    const scaledHp = D(template.hp).times(getZoneScaling(zone, 'hp')).floor();
-    const scaledAtk = Math.floor(template.attack * getZoneScaling(zone, 'atk'));
-    const scaledGold = D(template.goldDrop).times(getZoneScaling(zone, 'gold')).floor();
-    const scaledXp = D(template.xpDrop).times(getZoneScaling(zone, 'xp')).floor();
+      const scaledData = {
+        ...enemyTemplate,
+        hp: D(enemyTemplate.hp).times(getZoneScaling(zone, 'hp')).floor().toString(),
+        attack: Math.floor(enemyTemplate.attack * getZoneScaling(zone, 'atk')),
+        goldDrop: D(enemyTemplate.goldDrop).times(getZoneScaling(zone, 'gold')).floor().toString(),
+        xpDrop: D(enemyTemplate.xpDrop).times(getZoneScaling(zone, 'xp')).floor().toString(),
+      };
 
-    currentEnemy = {
-      id: template.id,
-      name: template.name,
-      maxHp: scaledHp,
-      hp: scaledHp,
-      attack: scaledAtk,
-      goldDrop: scaledGold.toString(),
-      xpDrop: scaledXp.toString(),
-      lootTable: template.lootTable,
-      isBoss: false,
-      defense: template.defense ?? 0,
-      accuracy: template.accuracy ?? 80,
-      armorPen: template.armorPen ?? 0,
-      attackSpeed: template.attackSpeed ?? 1.0,
-      dot: template.dot ?? null,
-    };
+      return CombatEngine._buildMember(scaledData, slotIndex, {
+        attackSpeedMult: encTemplate.attackSpeedMult,
+      });
+    }).filter(Boolean);
 
-    emit(EVENTS.COMBAT_ENEMY_SPAWNED, {
-      enemyId: currentEnemy.id,
-      name: currentEnemy.name,
-      maxHp: currentEnemy.maxHp,
-      isBoss: false,
-      armorPen: currentEnemy.armorPen,
-      accuracy: currentEnemy.accuracy,
-      dot: currentEnemy.dot,
-      defense: currentEnemy.defense,
-    });
+    if (members.length === 0) return;
 
-    CombatEngine._registerEnemyAttackTimer();
-    CombatEngine._startDot();
+    const enc = CombatEngine._createEncounterRuntime(members, encTemplate, 'normal');
+    CombatEngine._startEncounter(enc);
   },
 
   /** Spawn a boss enemy (called by BossManager via BossChallenge UI). */
   spawnBoss(bossTemplate) {
-    // Cancel any pending spawn
+    // Cancel any pending spawn + all encounter timers
     TimeEngine.unregister('combat:spawnDelay');
-    TimeEngine.unregister('combat:enemyAttack');
-    CombatEngine._stopDot();
-    currentEnemy = null;
+    CombatEngine._clearEncounterTimers();
+    encounter = null;
 
-    const maxHp = D(bossTemplate.hp);
-    currentEnemy = {
-      id: bossTemplate.id,
-      name: bossTemplate.name,
-      maxHp,
-      hp: maxHp,
-      attack: bossTemplate.attack,
-      goldDrop: bossTemplate.goldDrop,
-      xpDrop: bossTemplate.xpDrop,
-      lootTable: bossTemplate.lootTable,
-      isBoss: true,
-      bossType: bossTemplate.bossType,
-      defense: bossTemplate.defense ?? 0,
-      accuracy: bossTemplate.accuracy ?? 90,
-      armorPen: bossTemplate.armorPen ?? 0,
-      attackSpeed: bossTemplate.attackSpeed ?? 1.0,
-      dot: bossTemplate.dot ?? null,
-    };
+    // Build boss member — no zone scaling (boss stats are hand-authored)
+    const bossMember = CombatEngine._buildMember(bossTemplate, 0, { isBoss: true });
 
-    emit(EVENTS.COMBAT_ENEMY_SPAWNED, {
-      enemyId: bossTemplate.baseEnemyId || bossTemplate.id,
-      name: currentEnemy.name,
-      maxHp: currentEnemy.maxHp,
-      isBoss: true,
-      bossType: bossTemplate.bossType,
-      spriteSize: bossTemplate.spriteSize || null,
-      spriteOffsetY: bossTemplate.spriteOffsetY ?? null,
-      armorPen: currentEnemy.armorPen,
-      accuracy: currentEnemy.accuracy,
-      dot: currentEnemy.dot,
-      defense: currentEnemy.defense,
-    });
-
-    CombatEngine._registerEnemyAttackTimer();
-    CombatEngine._startDot();
+    const enc = CombatEngine._createEncounterRuntime([bossMember], null, 'boss');
+    enc.bossMemberId = bossMember.instanceId;
+    CombatEngine._startEncounter(enc);
   },
 
   /** Power Smash — active ability dealing smashMultiplier × base click damage. */
   powerSmashAttack(smashMultiplier) {
-    if (!currentEnemy) return;
+    const target = CombatEngine.getTargetMember();
+    if (!target) return;
 
     const state = Store.getState();
     const { damage, isCrit } = CombatEngine.getPlayerDamage(state, true);
     const smashDamage = damage.times(smashMultiplier).floor();
 
-    currentEnemy.hp = Decimal.max(currentEnemy.hp.minus(smashDamage), 0);
+    target.hp = Decimal.max(target.hp.minus(smashDamage), 0);
 
     emit(EVENTS.COMBAT_ENEMY_DAMAGED, {
-      enemyId: currentEnemy.id,
+      enemyId: target.enemyId,
       amount: smashDamage,
       isCrit,
       isPowerSmash: true,
-      remainingHp: currentEnemy.hp,
-      maxHp: currentEnemy.maxHp,
+      remainingHp: target.hp,
+      maxHp: target.maxHp,
+      encounterId: encounter?.id ?? null,
+      instanceId: target.instanceId,
+      slot: target.slot,
     });
 
-    if (currentEnemy.hp.lte(0)) {
-      CombatEngine._onEnemyDeath();
+    if (target.hp.lte(0)) {
+      CombatEngine._onMemberDeath(target.instanceId);
     }
   },
 
   playerAttack(isClick = false) {
-    if (!currentEnemy) return;
+    const target = CombatEngine.getTargetMember();
+    if (!target) return;
 
     const state = Store.getState();
-    const { damage, isCrit } = CombatEngine.getPlayerDamage(state, isClick);
+    let { damage, isCrit } = CombatEngine.getPlayerDamage(state, isClick);
 
-    currentEnemy.hp = Decimal.max(currentEnemy.hp.minus(damage), 0);
+    if (isClick) {
+      damage = damage.mul(COMBAT_V2.clickDamageScalar);
+    }
+
+    target.hp = Decimal.max(target.hp.minus(damage), 0);
 
     emit(EVENTS.COMBAT_ENEMY_DAMAGED, {
-      enemyId: currentEnemy.id,
+      enemyId: target.enemyId,
       amount: damage,
       isCrit,
-      remainingHp: currentEnemy.hp,
-      maxHp: currentEnemy.maxHp,
+      isClick,
+      remainingHp: target.hp,
+      maxHp: target.maxHp,
+      encounterId: encounter?.id ?? null,
+      instanceId: target.instanceId,
+      slot: target.slot,
     });
 
-    if (currentEnemy.hp.lte(0)) {
-      CombatEngine._onEnemyDeath();
+    if (target.hp.lte(0)) {
+      CombatEngine._onMemberDeath(target.instanceId);
     }
   },
 
   getPlayerDamage(state, isClick = false) {
     const str = getBaseDamage();
-    const enemyDef = currentEnemy?.defense ?? 0;
+    const target = CombatEngine.getTargetMember();
+    const enemyDef = target?.defense ?? 0;
     const rawDamage = COMBAT_V2.playerDamage(str, enemyDef);
 
     const prestigeMult = state.prestigeMultiplier;
@@ -324,40 +404,86 @@ const CombatEngine = {
     forcedCritMultiplier = mult;
   },
 
-  getCurrentEnemy() {
-    if (!currentEnemy) return null;
-    return {
-      id: currentEnemy.id,
-      name: currentEnemy.name,
-      hp: currentEnemy.hp,
-      maxHp: currentEnemy.maxHp,
-      isBoss: currentEnemy.isBoss || false,
-    };
+  // ── Encounter selectors ──
+
+  /** Returns the active EncounterRuntime or null. */
+  getEncounter() {
+    return encounter;
   },
 
-  enemyAttack() {
-    if (!currentEnemy) return;
-    const accuracy = currentEnemy.accuracy ?? 80;
+  /** Returns the EnemyRuntime currently targeted, or null. */
+  getTargetMember() {
+    if (!encounter) return null;
+    return encounter.memberById.get(encounter.targetId) ?? null;
+  },
+
+  /** Returns array of alive EnemyRuntime members. */
+  getLivingMembers() {
+    if (!encounter) return [];
+    return encounter.members.filter(m => m.alive);
+  },
+
+  /** Map lookup by instanceId. */
+  getMemberByInstanceId(id) {
+    if (!encounter) return null;
+    return encounter.memberById.get(id) ?? null;
+  },
+
+  /** True if there is a living target. */
+  hasTarget() {
+    if (!encounter) return false;
+    const target = encounter.memberById.get(encounter.targetId);
+    return target?.alive === true;
+  },
+
+  /** Set the current target to a living member. Emits COMBAT_TARGET_CHANGED. */
+  setTarget(instanceId) {
+    if (!encounter) return;
+    const member = encounter.memberById.get(instanceId);
+    if (!member || !member.alive) return;
+    encounter.targetId = instanceId;
+    emit(EVENTS.COMBAT_TARGET_CHANGED, {
+      encounterId: encounter.id,
+      instanceId: member.instanceId,
+      slot: member.slot,
+      enemyId: member.enemyId,
+    });
+  },
+
+  enemyAttack(instanceId) {
+    // Look up attacker by instanceId, fall back to target member for safety
+    const member = instanceId
+      ? CombatEngine.getMemberByInstanceId(instanceId)
+      : CombatEngine.getTargetMember();
+    if (!member?.alive) return;
+
+    const accuracy = member.accuracy ?? 80;
     const hitChance = getEnemyHitChance(accuracy);
     emit(EVENTS.COMBAT_ENEMY_ATTACKED, {
-      enemyId: currentEnemy.id,
-      name: currentEnemy.name,
+      enemyId: member.enemyId,
+      name: member.name,
       accuracy,
       hitChance,
+      encounterId: encounter?.id ?? null,
+      instanceId: member.instanceId,
+      slot: member.slot,
     });
     if (Math.random() > hitChance) {
       emit(EVENTS.COMBAT_ENEMY_DODGED, {
-        enemyId: currentEnemy.id,
-        name: currentEnemy.name,
+        enemyId: member.enemyId,
+        name: member.name,
         accuracy,
         hitChance,
         dodgeChance: 1 - hitChance,
+        encounterId: encounter?.id ?? null,
+        instanceId: member.instanceId,
+        slot: member.slot,
       });
       return;
     }
     const playerDef = getEffectiveDef();
-    const armorPen = currentEnemy.armorPen ?? 0;
-    const damage = COMBAT_V2.enemyDamage(currentEnemy.attack, playerDef, armorPen);
+    const armorPen = member.armorPen ?? 0;
+    const damage = COMBAT_V2.enemyDamage(member.attack, playerDef, armorPen);
     Store.damagePlayer(damage);
   },
 
@@ -380,15 +506,14 @@ const CombatEngine = {
     _playerDead = true;
     // Pause combat
     TimeEngine.setEnabled('combat:autoAttack', false);
-    TimeEngine.setEnabled('combat:enemyAttack', false);
     TimeEngine.setEnabled('combat:playerRegen', false);
-    CombatEngine._stopDot();
+    CombatEngine._clearEncounterTimers();
 
     // If fighting a boss, cancel the boss fight
-    if (currentEnemy && currentEnemy.isBoss) {
+    if (encounter?.type === 'boss') {
       BossManager.cancelBoss();
     }
-    currentEnemy = null;
+    encounter = null;
 
     // Respawn after delay
     TimeEngine.scheduleOnce('combat:playerRespawn', () => {
@@ -403,34 +528,104 @@ const CombatEngine = {
     }, COMBAT_V2.playerDeathRespawnDelay);
   },
 
-  _onEnemyDeath() {
-    const dead = currentEnemy;
+  _onMemberDeath(instanceId) {
+    if (!encounter) return;
+    const member = encounter.memberById.get(instanceId);
+    if (!member || !member.alive) return;
 
-    // Stop DoT and enemy attack before nulling
-    CombatEngine._stopDot();
-    TimeEngine.unregister('combat:enemyAttack');
-    currentEnemy = null;
+    // 1. Mark dead, stop this member's timers
+    member.alive = false;
+    CombatEngine._unregisterMemberTimers(member);
 
-    // Reward orchestration lives in Progression
-    Progression.grantKillRewards(dead);
+    // 2. Grant per-member rewards (gold, XP, kill counts) scaled by encounter rewardMult
+    Progression.grantKillRewards(member, encounter.rewardMult);
 
+    // 3. Emit kill event with full encounter context
     emit(EVENTS.COMBAT_ENEMY_KILLED, {
-      enemyId: dead.id, name: dead.name, lootTable: dead.lootTable,
-      isBoss: dead.isBoss || false,
+      enemyId: member.enemyId,
+      name: member.name,
+      lootTable: member.lootTable,
+      isBoss: member.isBoss,
+      encounterId: encounter.id,
+      instanceId: member.instanceId,
+      slot: member.slot,
+      lootBonus: encounter.lootBonus,
     });
 
-    // If boss was killed, delay zone advancement so the death anim can play
-    // (120ms knockback + 200ms slide-away in GameScene, plus breathing room)
-    if (dead.isBoss) {
-      TimeEngine.scheduleOnce('combat:bossDefeatedDelay', () => {
-        BossManager.onBossDefeated();
-      }, 500);
+    // 4. Boss killed → immediate encounter end
+    if (member.instanceId === encounter.bossMemberId) {
+      CombatEngine._onEncounterEnd('boss_killed');
       return;
     }
 
-    TimeEngine.scheduleOnce('combat:spawnDelay', () => {
-      CombatEngine.spawnEnemy();
-    }, COMBAT_V2.spawnDelay);
+    // 5. Retarget if dead member was current target
+    if (encounter.targetId === instanceId) {
+      const living = CombatEngine.getLivingMembers();
+      if (living.length === 0) {
+        CombatEngine._onEncounterEnd('cleared');
+        return;
+      }
+      // Lowest-slot living member becomes new target
+      living.sort((a, b) => a.slot - b.slot);
+      const next = living[0];
+      encounter.targetId = next.instanceId;
+      emit(EVENTS.COMBAT_TARGET_CHANGED, {
+        encounterId: encounter.id,
+        instanceId: next.instanceId,
+        slot: next.slot,
+        enemyId: next.enemyId,
+      });
+    } else {
+      // Non-target died — check if encounter is fully cleared
+      if (CombatEngine.getLivingMembers().length === 0) {
+        CombatEngine._onEncounterEnd('cleared');
+      }
+    }
+  },
+
+  _onEncounterEnd(reason) {
+    if (!encounter) return;
+    const enc = encounter;
+
+    // 1. Clear all remaining encounter timers
+    CombatEngine._clearEncounterTimers();
+
+    // 2. Despawn remaining alive members (boss adds) — no rewards
+    for (const m of enc.members) {
+      if (m.alive) {
+        m.alive = false;
+        emit(EVENTS.COMBAT_ENEMY_KILLED, {
+          enemyId: m.enemyId, name: m.name,
+          lootTable: m.lootTable, isBoss: m.isBoss,
+          encounterId: enc.id, instanceId: m.instanceId,
+          slot: m.slot, despawned: true,
+        });
+      }
+    }
+
+    // 3. Null state before emitting (prevent stale reads)
+    encounter = null;
+
+    // 4. Emit encounter ended
+    emit(EVENTS.COMBAT_ENCOUNTER_ENDED, {
+      encounterId: enc.id,
+      type: enc.type,
+      reason,
+    });
+
+    // 5. Reason-specific scheduling
+    if (reason === 'cleared') {
+      const state = Store.getState();
+      Store.incrementZoneClearKills(state.currentArea, state.currentZone);
+      TimeEngine.scheduleOnce('combat:spawnDelay', () => {
+        CombatEngine.spawnEnemy();
+      }, COMBAT_V2.spawnDelay);
+    } else if (reason === 'boss_killed') {
+      TimeEngine.scheduleOnce('combat:bossDefeatedDelay', () => {
+        BossManager.onBossDefeated();
+      }, 500);
+    }
+    // 'zone_change', 'player_death': no scheduling (Phase 7 wires these)
   },
 };
 

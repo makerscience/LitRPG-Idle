@@ -40,9 +40,17 @@
       "Bash(pip install:*)",
       "Bash(npm run thumbs:*)",
       "Bash(ffprobe:*)",
-      "Bash(git lfs:*)"
+      "Bash(git lfs:*)",
+      "Bash(node scripts/balance-sim.js:*)",
+      "Bash(node -e:*)",
+      "Bash(node scripts/validate-data.js:*)",
+      "Bash(ssh-keygen:*)",
+      "Bash(git remote set-url:*)",
+      "Bash(ssh:*)",
+      "Bash(echo:*)",
+      "Bash(wc:*)"
     ]
   },
-  "prefersReducedMotion": false,
-  "outputStyle": "default"
+  "outputStyle": "default",
+  "prefersReducedMotion": false
 }

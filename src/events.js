@@ -12,8 +12,12 @@ export const EVENTS = {
   WORLD_ZONE_CHANGED:   'world:zoneChanged',
   WORLD_AREA_CHANGED:   'world:areaChanged',
 
-  // Combat
-  COMBAT_ENEMY_SPAWNED: 'combat:enemySpawned',
+  // Combat — encounter lifecycle
+  COMBAT_ENCOUNTER_STARTED: 'combat:encounterStarted',
+  COMBAT_ENCOUNTER_ENDED:   'combat:encounterEnded',
+  COMBAT_TARGET_CHANGED:    'combat:targetChanged',
+
+  // Combat — per-member events
   COMBAT_ENEMY_DAMAGED: 'combat:enemyDamaged',
   COMBAT_ENEMY_KILLED:  'combat:enemyKilled',
   COMBAT_ENEMY_ATTACKED:'combat:enemyAttacked',
@@ -130,9 +134,17 @@ export function createScope() {
 // --- Event contracts (dev-mode validation) ---
 
 const EVENT_CONTRACTS = {
-  [EVENTS.COMBAT_ENEMY_KILLED]:  ['enemyId', 'name', 'isBoss'],
-  [EVENTS.COMBAT_ENEMY_ATTACKED]:['enemyId', 'name', 'hitChance', 'accuracy'],
-  [EVENTS.COMBAT_ENEMY_DODGED]:  ['enemyId', 'name', 'hitChance', 'dodgeChance', 'accuracy'],
+  // Encounter lifecycle
+  [EVENTS.COMBAT_ENCOUNTER_STARTED]: ['encounterId', 'templateId', 'type', 'memberCount', 'members'],
+  [EVENTS.COMBAT_ENCOUNTER_ENDED]:   ['encounterId', 'type', 'reason'],
+  [EVENTS.COMBAT_TARGET_CHANGED]:    ['encounterId', 'instanceId', 'slot', 'enemyId'],
+
+  // Per-member combat (enriched with encounterId, instanceId, slot)
+  [EVENTS.COMBAT_ENEMY_KILLED]:  ['enemyId', 'name', 'isBoss', 'encounterId', 'instanceId', 'slot'],
+  [EVENTS.COMBAT_ENEMY_ATTACKED]:['enemyId', 'name', 'hitChance', 'accuracy', 'encounterId', 'instanceId', 'slot'],
+  [EVENTS.COMBAT_ENEMY_DODGED]:  ['enemyId', 'name', 'hitChance', 'dodgeChance', 'accuracy', 'encounterId', 'instanceId', 'slot'],
+
+  // Other
   [EVENTS.STATE_CHANGED]:        [],
   [EVENTS.PRESTIGE_PERFORMED]:   ['count'],
   [EVENTS.TERRITORY_CLAIMED]:    ['territoryId', 'name', 'buff'],

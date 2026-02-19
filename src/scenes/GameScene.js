@@ -72,43 +72,88 @@ export default class GameScene extends Phaser.Scene {
     this.playerHpBarFill = this.add.rectangle(playerX - 100, this._hpBarY, 200, 16, 0x22c55e);
     this.playerHpBarFill.setOrigin(0, 0.5);
 
-    // Enemy placeholder â€” red rect (click target for enemies without sprites)
-    this.enemyRect = this.add.rectangle(this._enemyX, this._enemyY, 200, 250, 0xef4444);
-    this.enemyRect.setInteractive({ useHandCursor: true });
-    this.enemyRect.on('pointerdown', () => CombatEngine.playerAttack(true));
+    // Pre-create encounter slot views (hidden)
+    this._enemySlots = [];
+    this._attackLockCount = 0;
+    for (let i = 0; i < COMBAT_V2.maxEncounterSize; i++) {
+      const container = this.add.container(this._enemyX, this._enemyY);
+      container.setVisible(false);
 
-    // Enemy sprite (for enemies with sprite assets)
-    this.enemySprite = this.add.image(this._enemyX, this._enemyY, 'goblin001_default');
-    this.enemySprite.setVisible(false);
-    this.enemySprite.on('pointerdown', () => CombatEngine.playerAttack(true));
-    this._currentEnemySprites = null;
-    this._poseRevertTimer = null;
-    this._deathFadeTimer = null;
-    this._spriteW = 200;
-    this._spriteH = 250;
+      // Enemy rect fallback (centered in container at 0,0)
+      const rect = this.add.rectangle(0, 0, 200, 250, 0xef4444);
+      rect.setVisible(false);
+      container.add(rect);
 
-    // Enemy name text
-    this.enemyNameText = this.add.text(this._enemyX, this._nameLabelY, '', {
-      fontFamily: 'monospace', fontSize: '16px', color: '#ffffff',
-      stroke: '#000000', strokeThickness: 4,
-    }).setOrigin(0.5);
+      // Enemy sprite (centered in container at 0,0)
+      const sprite = this.add.image(0, 0, '__DEFAULT');
+      sprite.setVisible(false);
+      container.add(sprite);
 
-    // HP bar background
-    this.hpBarBg = this.add.rectangle(this._enemyX, this._hpBarY, 200, 20, 0x374151);
+      // Click handlers — target + attack on click
+      const slotIndex = i;
+      const onClick = () => {
+        const s = this._enemySlots[slotIndex];
+        if (s?.state?.instanceId) {
+          CombatEngine.setTarget(s.state.instanceId);
+          CombatEngine.playerAttack(true);
+        }
+      };
+      rect.on('pointerdown', onClick);
+      sprite.on('pointerdown', onClick);
 
-    // HP bar fill â€” anchored to left edge
-    this.hpBarFill = this.add.rectangle(this._enemyX - 100, this._hpBarY, 200, 20, 0x22c55e);
-    this.hpBarFill.setOrigin(0, 0.5);
+      // Name label (above slot, relative to container)
+      const nameText = this.add.text(0, -(250 / 2) - 40, '', {
+        fontFamily: 'monospace', fontSize: '16px', color: '#ffffff',
+        stroke: '#000000', strokeThickness: 4,
+      }).setOrigin(0.5);
+      container.add(nameText);
 
-    // Initially hide enemy elements
-    this._setEnemyVisible(false);
+      // HP bar background
+      const hpBarBg = this.add.rectangle(0, -(250 / 2) - 22, 100, 8, 0x374151);
+      container.add(hpBarBg);
+
+      // HP bar fill (left-anchored)
+      const hpBarFill = this.add.rectangle(-50, -(250 / 2) - 22, 100, 8, 0x22c55e);
+      hpBarFill.setOrigin(0, 0.5);
+      container.add(hpBarFill);
+
+      this._enemySlots.push({
+        container,
+        sprite,
+        rect,
+        hpBarBg,
+        hpBarFill,
+        nameText,
+        targetIndicator: null,
+        state: {
+          instanceId: null,
+          enemyId: null,
+          currentSprites: null,
+          spriteW: 200,
+          spriteH: 250,
+          spriteOffsetY: 0,
+          bottomAlignOffsetY: 0,
+          lungeDist: 20,
+          poseRevertTimer: null,
+          reactDelayTimer: null,
+          deathFadeTimer: null,
+          extraObjects: [],
+        },
+        baseX: this._enemyX,
+        baseY: this._enemyY,
+      });
+    }
 
     // Subscribe to combat events
-    this._unsubs.push(on(EVENTS.COMBAT_ENEMY_SPAWNED, (data) => this._onEnemySpawned(data)));
     this._unsubs.push(on(EVENTS.COMBAT_ENEMY_DAMAGED, (data) => this._onEnemyDamaged(data)));
     this._unsubs.push(on(EVENTS.COMBAT_ENEMY_KILLED, (data) => this._onEnemyKilled(data)));
-    this._unsubs.push(on(EVENTS.COMBAT_ENEMY_ATTACKED, () => this._onEnemyAttacked()));
-    this._unsubs.push(on(EVENTS.COMBAT_ENEMY_DODGED, () => this._onEnemyDodged()));
+    this._unsubs.push(on(EVENTS.COMBAT_ENEMY_ATTACKED, (data) => this._onEnemyAttacked(data)));
+    this._unsubs.push(on(EVENTS.COMBAT_ENEMY_DODGED, (data) => this._onEnemyDodged(data)));
+
+    // Encounter lifecycle events
+    this._unsubs.push(on(EVENTS.COMBAT_ENCOUNTER_STARTED, (data) => this._onEncounterStarted(data)));
+    this._unsubs.push(on(EVENTS.COMBAT_ENCOUNTER_ENDED, (data) => this._onEncounterEnded(data)));
+    this._unsubs.push(on(EVENTS.COMBAT_TARGET_CHANGED, (data) => this._onTargetChanged(data)));
 
     // Player HP events
     this._unsubs.push(on(EVENTS.COMBAT_PLAYER_DAMAGED, (data) => this._onPlayerDamaged(data)));
@@ -136,7 +181,9 @@ export default class GameScene extends Phaser.Scene {
     this.scene.launch('UIScene');
 
     // Launch OverworldScene (starts sleeping — toggled by UIScene via M key)
-    this.scene.launch('OverworldScene');
+    if (this.scene.get('OverworldScene')) {
+      this.scene.launch('OverworldScene');
+    }
 
     // Background music — use HTML5 Audio for streaming (file is ~200MB, too large for Web Audio decode)
     this._bgm = new Audio('Sound/soundtrack/ambient progression.mp3');
@@ -301,360 +348,390 @@ export default class GameScene extends Phaser.Scene {
     }
   }
 
-  _setEnemyVisible(visible) {
-    const alpha = visible ? 1 : 0;
-    if (this._currentEnemySprites) {
-      this.enemySprite.setAlpha(alpha);
-      if (visible) this.enemySprite.setInteractive({ useHandCursor: true });
-      else this.enemySprite.disableInteractive();
-      this.enemyRect.setAlpha(0); // always hidden when sprite is active
-      this.enemyRect.disableInteractive();
-    } else {
-      this.enemyRect.setAlpha(alpha);
-      if (visible) this.enemyRect.setInteractive({ useHandCursor: true });
-      else this.enemyRect.disableInteractive();
-    }
-    this.enemyNameText.setAlpha(alpha);
-    this.hpBarBg.setAlpha(alpha);
-    this.hpBarFill.setAlpha(alpha);
+  // ── Slot lookup helpers ──────────────────────────────────────────
+
+  _getSlotByInstanceId(instanceId) {
+    return this._enemySlots.find(s => s.state.instanceId === instanceId) || null;
   }
 
-  _onEnemySpawned(data) {
-    // Cancel any pending death-fade timer from a previous kill
-    if (this._deathFadeTimer) { this._deathFadeTimer.remove(); this._deathFadeTimer = null; }
+  _getSlotByIndex(index) {
+    return this._enemySlots[index] || null;
+  }
 
-    // Kill any lingering death-animation tweens from previous enemy
-    this.tweens.killTweensOf(this.enemySprite);
-    this.tweens.killTweensOf(this.enemyRect);
-    this.tweens.killTweensOf(this.enemyNameText);
-    this.tweens.killTweensOf(this.hpBarBg);
-    this.tweens.killTweensOf(this.hpBarFill);
+  // ── Walk timer lock counting ────────────────────────────────────
 
-    // Clean up stalker head if still present from previous death
-    if (this._stalkerHead) { this._stalkerHead.destroy(); this._stalkerHead = null; }
+  _lockWalk() {
+    this._attackLockCount++;
+    this._walkTimer.paused = true;
+  }
 
-    const template = getEnemyById(data.enemyId);
-    this._currentEnemyId = data.enemyId;
-    this._currentEnemySprites = template?.sprites || null;
-    this._spriteOffsetY = data.spriteOffsetY ?? template?.spriteOffsetY ?? 0;
-    this._enemyLungeDist = (template?.lungeDistance || 20) * 2;
-    const size = data.spriteSize || template?.spriteSize || { w: 200, h: 250 };
-    this._spriteW = size.w;
-    this._spriteH = size.h;
-    const baseH = template?.spriteSize?.h || 250;
-    const hDiff = this._spriteH - baseH;
-    this._bottomAlignOffsetY = hDiff > 0 ? -hDiff / 2 + 40 : 0;
+  _unlockWalk() {
+    this._attackLockCount = Math.max(0, this._attackLockCount - 1);
+    if (this._attackLockCount === 0) this._walkTimer.paused = false;
+  }
 
-    // Reset X position (death knockback may have displaced it)
-    this.enemySprite.x = this._enemyX;
-    this.enemyRect.x = this._enemyX;
+  // ── Encounter slot positioning ──────────────────────────────────
 
-    if (this._currentEnemySprites) {
-      // Show sprite with default pose (apply Y offset for living poses)
-      this.enemySprite.setTexture(this._currentEnemySprites.default);
+  _getSlotPositions(count) {
+    const spread = COMBAT_V2.encounterSpread;
+    const startX = this._enemyX - ((count - 1) * spread) / 2;
+    const positions = [];
+    for (let i = 0; i < count; i++) {
+      positions.push({ x: startX + i * spread, y: this._enemyY });
+    }
+    return positions;
+  }
 
-      this.enemySprite.setScale(1).setAngle(0).setOrigin(0.5, 0.5);  // reset from death anim before resizing
-      this.enemySprite.setDisplaySize(this._spriteW, this._spriteH);
-      this.enemySprite.y = this._enemyY + this._spriteOffsetY + this._bottomAlignOffsetY;
-      this.enemySprite.setVisible(true);
-      this.enemySprite.setAlpha(1);
-      this.enemySprite.setInteractive({ useHandCursor: true });
-      // Hide rect
-      this.enemyRect.setAlpha(0);
-      this.enemyRect.disableInteractive();
-    } else {
-      // No sprites â€” use rect (existing behavior)
-      this.enemySprite.setVisible(false);
-      this.enemyRect.setFillStyle(0xef4444);
-      this.enemyRect.setAlpha(1);
-      this.enemyRect.setScale(1);
-      this.enemyRect.setInteractive({ useHandCursor: true });
+  _highlightTarget(_instanceId) {
+    // All enemies render at full opacity — no dimming for non-targets
+  }
+
+  // ── Encounter lifecycle ───────────────────────────────────────
+
+  _onEncounterStarted(data) {
+
+    const positions = this._getSlotPositions(data.memberCount);
+
+    for (const memberData of data.members) {
+      const slot = this._getSlotByIndex(memberData.slot);
+      if (!slot) continue;
+
+      const template = getEnemyById(memberData.enemyId);
+      const sprites = template?.sprites || null;
+      const size = template?.spriteSize || { w: 200, h: 250 };
+      const spriteOffsetY = template?.spriteOffsetY ?? 0;
+      const baseH = template?.spriteSize?.h || 250;
+      const hDiff = size.h - baseH;
+      const bottomAlignOffsetY = hDiff > 0 ? -hDiff / 2 + 40 : 0;
+
+      // Bind state
+      slot.state.instanceId = memberData.instanceId;
+      slot.state.enemyId = memberData.enemyId;
+      slot.state.currentSprites = sprites;
+      slot.state.spriteW = size.w;
+      slot.state.spriteH = size.h;
+      slot.state.spriteOffsetY = spriteOffsetY;
+      slot.state.bottomAlignOffsetY = bottomAlignOffsetY;
+      slot.state.lungeDist = (template?.lungeDistance || 20) * 2;
+
+      // Position container
+      const pos = positions[memberData.slot];
+      slot.container.setPosition(pos.x, pos.y);
+      slot.baseX = pos.x;
+      slot.baseY = pos.y;
+
+      // Reposition name/HP based on actual sprite height
+      const halfH = size.h / 2;
+      slot.nameText.setY(-(halfH) - 40);
+      slot.hpBarBg.setY(-(halfH) - 22);
+      slot.hpBarFill.setY(-(halfH) - 22);
+      slot.hpBarFill.setX(-50); // reset left anchor
+
+      // Configure sprite or rect
+      if (sprites) {
+        slot.sprite.setTexture(sprites.default);
+        slot.sprite.setScale(1).setAngle(0).setOrigin(0.5, 0.5);
+        slot.sprite.setDisplaySize(size.w, size.h);
+        slot.sprite.setPosition(0, spriteOffsetY + bottomAlignOffsetY);
+        slot.sprite.setVisible(true).setAlpha(1);
+        slot.sprite.setInteractive({ useHandCursor: true });
+        slot.rect.setVisible(false);
+        slot.rect.disableInteractive();
+      } else {
+        slot.rect.setFillStyle(0xef4444);
+        slot.rect.setPosition(0, 0);
+        slot.rect.setVisible(true).setAlpha(1).setScale(1);
+        slot.rect.setInteractive({ useHandCursor: true });
+        slot.sprite.setVisible(false);
+        slot.sprite.disableInteractive();
+      }
+
+      // Name + HP bar — reset alpha in case death tween faded them
+      slot.nameText.setText(memberData.name).setAlpha(1);
+      slot.hpBarBg.setAlpha(1);
+      slot.hpBarFill.setDisplaySize(100, 8).setAlpha(1);
+      slot.hpBarFill.setFillStyle(0x22c55e);
+
+      // Show container
+      slot.container.setVisible(true).setAlpha(1);
     }
 
-    // Common: name + HP bar
-    this.enemyNameText.setText(data.name);
-    this.hpBarFill.setDisplaySize(200, 20);
-    this.hpBarFill.setFillStyle(0x22c55e);
-    this._setEnemyVisible(true);
+    // Highlight initial target (first member)
+    if (data.members.length > 0) {
+      this._highlightTarget(data.members[0].instanceId);
+    }
+  }
+
+  _onEncounterEnded(_data) {
+    // Reset walk lock count to prevent drift from replaced timers
+    this._attackLockCount = 0;
+    this._walkTimer.paused = false;
+
+    for (const slot of this._enemySlots) {
+      if (!slot.state.instanceId) continue;
+
+      // Kill tweens
+      this.tweens.killTweensOf(slot.sprite);
+      this.tweens.killTweensOf(slot.rect);
+      this.tweens.killTweensOf(slot.nameText);
+      this.tweens.killTweensOf(slot.hpBarBg);
+      this.tweens.killTweensOf(slot.hpBarFill);
+
+      // Clear timers
+      if (slot.state.poseRevertTimer) { slot.state.poseRevertTimer.remove(); slot.state.poseRevertTimer = null; }
+      if (slot.state.reactDelayTimer) { slot.state.reactDelayTimer.remove(); slot.state.reactDelayTimer = null; }
+      if (slot.state.deathFadeTimer) { slot.state.deathFadeTimer.remove(); slot.state.deathFadeTimer = null; }
+
+      // Clean up extra objects (e.g. stalker head)
+      for (const obj of slot.state.extraObjects) obj.destroy();
+      slot.state.extraObjects = [];
+
+      // Hide + disable
+      slot.container.setVisible(false);
+      slot.sprite.disableInteractive();
+      slot.rect.disableInteractive();
+
+      // Reset state
+      slot.state.instanceId = null;
+      slot.state.enemyId = null;
+      slot.state.currentSprites = null;
+    }
+
+  }
+
+  _onTargetChanged(data) {
+    this._highlightTarget(data.instanceId);
   }
 
   _onEnemyDamaged(data) {
-    // Update HP bar
-    const ratio = data.maxHp.gt(0)
-      ? data.remainingHp.div(data.maxHp).toNumber()
-      : 0;
-    const barWidth = Math.max(0, ratio * 200);
-    this.hpBarFill.setDisplaySize(barWidth, 20);
+    const slot = this._getSlotByInstanceId(data.instanceId);
+      if (!slot) return;
 
-    // Color: green â†’ yellow â†’ red
-    let color;
-    if (ratio > 0.5) {
-      color = 0x22c55e;
-    } else if (ratio > 0.25) {
-      color = 0xeab308;
-    } else {
-      color = 0xef4444;
-    }
-    this.hpBarFill.setFillStyle(color);
+      // Update HP bar
+      const sRatio = data.maxHp.gt(0) ? data.remainingHp.div(data.maxHp).toNumber() : 0;
+      const sBarWidth = Math.max(0, sRatio * 100);
+      slot.hpBarFill.setDisplaySize(sBarWidth, 8);
+      const sColor = sRatio > 0.5 ? 0x22c55e : sRatio > 0.25 ? 0xeab308 : 0xef4444;
+      slot.hpBarFill.setFillStyle(sColor);
 
-    const isPowerSmash = data.isPowerSmash || false;
+      const sIsPowerSmash = data.isPowerSmash || false;
+      const sIsClick = data.isClick || false;
 
-    // Player attack pose — force strong punch for Power Smash, random otherwise
-    const attackKey = isPowerSmash
-      ? 'player001_strongpunch'
-      : this._playerAttackSprites[Math.floor(Math.random() * this._playerAttackSprites.length)];
-    this._walkTimer.paused = true;
-    this.playerRect.setTexture(attackKey);
+      // Click attacks (non-Power Smash): damage number only
+      if (sIsClick && !sIsPowerSmash) {
+        this._spawnDamageNumber(data.amount, data.isCrit, false, slot.baseX, slot.baseY);
+        return;
+      }
 
-    if (attackKey === 'player001_roundhousekick') {
-      this.playerRect.setDisplaySize(300 * 0.95, 375 * 0.95);
-    } else {
-      this.playerRect.setDisplaySize(300, 375);
-    }
-    // Lunge toward enemy — bigger for Power Smash
-    const lungeDist = isPowerSmash ? 40 : 20;
-    const lungeDur = isPowerSmash ? 100 : 80;
-    this.tweens.killTweensOf(this.playerRect);
-    this.playerRect.x = this._playerX;
-    this.tweens.add({
-      targets: this.playerRect,
-      x: this._playerX + lungeDist,
-      duration: lungeDur,
-      ease: 'Quad.easeOut',
-      yoyo: true,
-    });
-
-    // Screen shake for Power Smash
-    if (isPowerSmash) {
-      this.cameras.main.shake(150, 0.006);
-    }
-
-    if (this._playerPoseTimer) this._playerPoseTimer.remove();
-    this._playerPoseTimer = this.time.delayedCall(400, () => {
-      this._walkTimer.paused = false;
-    });
-
-    const target = this._currentEnemySprites ? this.enemySprite : this.enemyRect;
-    const knockbackDist = isPowerSmash ? 24 : 12;
-
-    // Delay enemy reaction so the player's lunge lands first
-    const reactDelay = 60;
-    if (this._currentEnemySprites) {
-      // Spawn damage number immediately so it appears even on one-shot kills
-      this._spawnDamageNumber(data.amount, data.isCrit, isPowerSmash);
-
-      if (this._reactDelayTimer) this._reactDelayTimer.remove();
-      this._reactDelayTimer = this.time.delayedCall(reactDelay, () => {
-        // Sprite: switch to reaction pose for 500ms
-        this.enemySprite.setTexture(this._currentEnemySprites.reaction);
-
-        this.enemySprite.setDisplaySize(this._spriteW, this._spriteH);
-        this.enemySprite.setTint(0xffffff);
-        this.time.delayedCall(80, () => this.enemySprite.clearTint());
-
-        // Reset position before knockback (prevents drift from interrupted lunge/knockback tweens)
-        this.tweens.killTweensOf(this.enemySprite);
-        this.enemySprite.x = this._enemyX;
-        this.enemySprite.y = this._enemyY + this._spriteOffsetY + this._bottomAlignOffsetY;
-
-        // Knockback on hit — bigger for Power Smash
-        this.tweens.add({
-          targets: this.enemySprite,
-          x: this._enemyX + knockbackDist,
-          duration: 80,
-          ease: 'Quad.easeOut',
-          yoyo: true,
-        });
-
-        // Clear any existing pose-revert timer
-        if (this._poseRevertTimer) this._poseRevertTimer.remove();
-        this._poseRevertTimer = this.time.delayedCall(500, () => {
-          if (this._currentEnemySprites) {
-            this.enemySprite.setTexture(this._currentEnemySprites.default);
-      
-            this.enemySprite.setDisplaySize(this._spriteW, this._spriteH);
-          }
-        });
+      // Player attack pose + lunge (same as old path)
+      const sAttackKey = sIsPowerSmash
+        ? 'player001_strongpunch'
+        : this._playerAttackSprites[Math.floor(Math.random() * this._playerAttackSprites.length)];
+      this._lockWalk();
+      this.playerRect.setTexture(sAttackKey);
+      if (sAttackKey === 'player001_roundhousekick') {
+        this.playerRect.setDisplaySize(300 * 0.95, 375 * 0.95);
+      } else {
+        this.playerRect.setDisplaySize(300, 375);
+      }
+      const sLungeDist = sIsPowerSmash ? 40 : 20;
+      const sLungeDur = sIsPowerSmash ? 100 : 80;
+      this.tweens.killTweensOf(this.playerRect);
+      this.playerRect.x = this._playerX;
+      this.tweens.add({
+        targets: this.playerRect,
+        x: this._playerX + sLungeDist,
+        duration: sLungeDur,
+        ease: 'Quad.easeOut',
+        yoyo: true,
       });
-    } else {
-      // Spawn damage number immediately so it appears even on one-shot kills
-      this._spawnDamageNumber(data.amount, data.isCrit, isPowerSmash);
+      if (sIsPowerSmash) this.cameras.main.shake(150, 0.006);
 
-      this.time.delayedCall(reactDelay, () => {
-        // Rect: existing hit flash behavior
-        this.enemyRect.setFillStyle(0xffffff);
-        this.time.delayedCall(80, () => {
-          if (this.enemyRect) this.enemyRect.setFillStyle(0xef4444);
-        });
-
-        // Hit reaction — squish + knockback
-        if (this._hitReactionTween) this._hitReactionTween.stop();
-        target.setScale(1);
-        target.x = this._enemyX;
-        this._hitReactionTween = this.tweens.add({
-          targets: target,
-          scaleX: 0.85,
-          scaleY: 1.15,
-          x: this._enemyX + (isPowerSmash ? 16 : 8),
-          duration: 60,
-          ease: 'Quad.easeOut',
-          yoyo: true,
-        });
+      if (this._playerPoseTimer) this._playerPoseTimer.remove();
+      this._playerPoseTimer = this.time.delayedCall(400, () => {
+        this._unlockWalk();
       });
-    }
-  }
 
-  _onEnemyKilled(_data) {
-    const target = this._currentEnemySprites ? this.enemySprite : this.enemyRect;
+      const sKnockbackDist = sIsPowerSmash ? 24 : 12;
+      const sReactDelay = 60;
 
-    // Kill hit-reaction tweens so the death slide continues from current position
-    this.tweens.killTweensOf(this.enemySprite);
-    this.tweens.killTweensOf(this.enemyRect);
-    if (this._hitReactionTween) { this._hitReactionTween.stop(); this._hitReactionTween = null; }
+      // Spawn damage number immediately
+      this._spawnDamageNumber(data.amount, data.isCrit, sIsPowerSmash, slot.baseX, slot.baseY);
 
-    // Clear any pending reaction delay or pose revert
-    if (this._reactDelayTimer) { this._reactDelayTimer.remove(); this._reactDelayTimer = null; }
-    if (this._poseRevertTimer) { this._poseRevertTimer.remove(); this._poseRevertTimer = null; }
+      if (slot.state.currentSprites) {
+        // Sprite hit reaction
+        if (slot.state.reactDelayTimer) slot.state.reactDelayTimer.remove();
+        slot.state.reactDelayTimer = this.time.delayedCall(sReactDelay, () => {
+          slot.sprite.setTexture(slot.state.currentSprites.reaction);
+          slot.sprite.setDisplaySize(slot.state.spriteW, slot.state.spriteH);
+          slot.sprite.setTint(0xffffff);
+          this.time.delayedCall(80, () => slot.sprite.clearTint());
 
-    if (this._currentEnemySprites) {
-      // Show dead pose at base position (no living-pose offset), then fade out
-      this.enemySprite.setTexture(this._currentEnemySprites.dead);
+          // Reset to local home position before knockback
+          this.tweens.killTweensOf(slot.sprite);
+          slot.sprite.x = 0;
+          slot.sprite.y = slot.state.spriteOffsetY + slot.state.bottomAlignOffsetY;
 
-      this.enemySprite.setDisplaySize(this._spriteW, this._spriteH);
-      this.enemySprite.y = this._enemyY + this._spriteOffsetY + this._bottomAlignOffsetY;
-      this.enemySprite.disableInteractive();
+          this.tweens.add({
+            targets: slot.sprite,
+            x: sKnockbackDist,
+            duration: 80,
+            ease: 'Quad.easeOut',
+            yoyo: true,
+          });
 
-      if (this._currentEnemyId === 'a1_forest_rat') {
-        // Rats spin off into the upper-right
-        this.tweens.add({
-          targets: this.enemySprite,
-          x: this._enemyX + 350,
-          y: this._enemyY - 400,
-          angle: 720,
-          scaleX: 0.3,
-          scaleY: 0.3,
-          alpha: 0,
-          duration: 500,
-          ease: 'Quad.easeIn',
-        });
-      } else if (this._currentEnemyId === 'a1_hollow_slime') {
-        // Slime warbles toward the lower-right: alternating squash/stretch while sliding down
-        this.tweens.add({
-          targets: this.enemySprite,
-          x: this._enemyX + 200,
-          y: this._enemyY + 250,
-          alpha: 0,
-          duration: 700,
-          ease: 'Sine.easeIn',
-        });
-        // Horizontal squash-stretch wobble (relative to current display scale)
-        const baseScaleX = this.enemySprite.scaleX;
-        const baseScaleY = this.enemySprite.scaleY;
-        this.tweens.add({
-          targets: this.enemySprite,
-          scaleX: { from: baseScaleX * 1.15, to: baseScaleX * 0.8 },
-          scaleY: { from: baseScaleY * 0.85, to: baseScaleY * 1.2 },
-          duration: 140,
-          yoyo: true,
-          repeat: 2,
-          ease: 'Sine.easeInOut',
-        });
-      } else if (this._currentEnemyId === 'a1_blighted_stalker') {
-        // Switch to headless body sprite
-        this.enemySprite.setTexture('blightedstalker_dead2');
-        this.enemySprite.setDisplaySize(this._spriteW, this._spriteH);
-
-        // Spawn severed head at the top of the body
-        const headSize = 80;
-        const headX = this.enemySprite.x;
-        const headY = this.enemySprite.y - this.enemySprite.displayHeight / 2 - headSize * 0.25;
-        this._stalkerHead = this.add.image(headX, headY, 'blightedstalker_head')
-          .setDisplaySize(headSize, headSize)
-          .setDepth(this.enemySprite.depth + 1);
-
-        // Head tumbles upward and to the right, spinning
-        this.tweens.add({
-          targets: this._stalkerHead,
-          x: headX + 120,
-          y: headY - 200,
-          angle: 360 + Math.random() * 180,
-          scaleX: 0.4,
-          scaleY: 0.4,
-          alpha: 0,
-          duration: 700,
-          ease: 'Quad.easeOut',
-          onComplete: () => {
-            if (this._stalkerHead) { this._stalkerHead.destroy(); this._stalkerHead = null; }
-          },
-        });
-
-        // Body fades away in place
-        this.tweens.add({
-          targets: this.enemySprite,
-          alpha: 0,
-          delay: 300,
-          duration: 400,
-          ease: 'Linear',
+          if (slot.state.poseRevertTimer) slot.state.poseRevertTimer.remove();
+          slot.state.poseRevertTimer = this.time.delayedCall(500, () => {
+            if (slot.state.currentSprites) {
+              slot.sprite.setTexture(slot.state.currentSprites.default);
+              slot.sprite.setDisplaySize(slot.state.spriteW, slot.state.spriteH);
+            }
+          });
         });
       } else {
-        // Default: knockback then immediately slide away
+        // Rect hit reaction
+        this.time.delayedCall(sReactDelay, () => {
+          slot.rect.setFillStyle(0xffffff);
+          this.time.delayedCall(80, () => slot.rect.setFillStyle(0xef4444));
+
+          this.tweens.killTweensOf(slot.rect);
+          slot.rect.setScale(1);
+          slot.rect.x = 0;
+          this.tweens.add({
+            targets: slot.rect,
+            scaleX: 0.85,
+            scaleY: 1.15,
+            x: sIsPowerSmash ? 16 : 8,
+            duration: 60,
+            ease: 'Quad.easeOut',
+            yoyo: true,
+          });
+        });
+      }
+  }
+
+  _onEnemyKilled(data) {
+    if (data.despawned) return;
+
+    const slot = this._getSlotByInstanceId(data.instanceId);
+      if (!slot) return;
+
+      // Kill tweens + clear timers
+      this.tweens.killTweensOf(slot.sprite);
+      this.tweens.killTweensOf(slot.rect);
+      if (slot.state.reactDelayTimer) { slot.state.reactDelayTimer.remove(); slot.state.reactDelayTimer = null; }
+      if (slot.state.poseRevertTimer) { slot.state.poseRevertTimer.remove(); slot.state.poseRevertTimer = null; }
+
+      if (slot.state.currentSprites) {
+        slot.sprite.setTexture(slot.state.currentSprites.dead);
+        slot.sprite.setDisplaySize(slot.state.spriteW, slot.state.spriteH);
+        slot.sprite.y = slot.state.spriteOffsetY + slot.state.bottomAlignOffsetY;
+        slot.sprite.disableInteractive();
+
+        if (slot.state.enemyId === 'a1_forest_rat') {
+          // Rat spin — local coords
+          this.tweens.add({
+            targets: slot.sprite,
+            x: 350, y: slot.sprite.y - 400,
+            angle: 720, scaleX: 0.3, scaleY: 0.3, alpha: 0,
+            duration: 500, ease: 'Quad.easeIn',
+          });
+        } else if (slot.state.enemyId === 'a1_hollow_slime') {
+          // Slime wobble — local coords
+          this.tweens.add({
+            targets: slot.sprite,
+            x: 200, y: slot.sprite.y + 250, alpha: 0,
+            duration: 700, ease: 'Sine.easeIn',
+          });
+          const bsX = slot.sprite.scaleX;
+          const bsY = slot.sprite.scaleY;
+          this.tweens.add({
+            targets: slot.sprite,
+            scaleX: { from: bsX * 1.15, to: bsX * 0.8 },
+            scaleY: { from: bsY * 0.85, to: bsY * 1.2 },
+            duration: 140, yoyo: true, repeat: 2, ease: 'Sine.easeInOut',
+          });
+        } else if (slot.state.enemyId === 'a1_blighted_stalker') {
+          // Stalker decapitation — head is scene-level (absolute coords)
+          slot.sprite.setTexture('blightedstalker_dead2');
+          slot.sprite.setDisplaySize(slot.state.spriteW, slot.state.spriteH);
+
+          const headSize = 80;
+          const headX = slot.baseX + slot.sprite.x;
+          const headY = slot.baseY + slot.sprite.y - slot.sprite.displayHeight / 2 - headSize * 0.25;
+          const head = this.add.image(headX, headY, 'blightedstalker_head')
+            .setDisplaySize(headSize, headSize)
+            .setDepth(slot.sprite.depth + 1);
+          slot.state.extraObjects.push(head);
+
+          this.tweens.add({
+            targets: head,
+            x: headX + 120, y: headY - 200,
+            angle: 360 + Math.random() * 180,
+            scaleX: 0.4, scaleY: 0.4, alpha: 0,
+            duration: 700, ease: 'Quad.easeOut',
+            onComplete: () => {
+              head.destroy();
+              slot.state.extraObjects = slot.state.extraObjects.filter(o => o !== head);
+            },
+          });
+
+          this.tweens.add({
+            targets: slot.sprite,
+            alpha: 0, delay: 300, duration: 400, ease: 'Linear',
+          });
+        } else {
+          // Default: knockback then slide away — local coords
+          this.tweens.add({
+            targets: slot.sprite,
+            x: 40, duration: 120, ease: 'Quad.easeOut',
+            onComplete: () => {
+              this.tweens.add({
+                targets: slot.sprite,
+                x: 250, alpha: 0, duration: 200, ease: 'Quad.easeIn',
+              });
+            },
+          });
+        }
+
+        // Fade name/HP
         this.tweens.add({
-          targets: this.enemySprite,
-          x: this._enemyX + 40,
-          duration: 120,
-          ease: 'Quad.easeOut',
+          targets: [slot.nameText, slot.hpBarBg, slot.hpBarFill],
+          alpha: 0, duration: 150, ease: 'Power2',
+        });
+      } else {
+        // Rect death — local coords
+        slot.rect.disableInteractive();
+        this.tweens.add({
+          targets: slot.rect,
+          x: 40, scaleX: 1.2, scaleY: 1.2,
+          duration: 120, ease: 'Quad.easeOut',
           onComplete: () => {
             this.tweens.add({
-              targets: this.enemySprite,
-              x: this._enemyX + 250,
-              alpha: 0,
-              duration: 200,
-              ease: 'Quad.easeIn',
+              targets: slot.rect,
+              x: 250, alpha: 0, scaleX: 0.5, scaleY: 0.5,
+              duration: 200, ease: 'Quad.easeIn',
+            });
+            this.tweens.add({
+              targets: [slot.nameText, slot.hpBarBg, slot.hpBarFill],
+              alpha: 0, duration: 150, ease: 'Power2',
             });
           },
         });
       }
-      this.tweens.add({
-        targets: [this.enemyNameText, this.hpBarBg, this.hpBarFill],
-        alpha: 0, duration: 150, ease: 'Power2',
-      });
-    } else {
-      // Rect death: knockback then immediately slide away
-      this.tweens.add({
-        targets: this.enemyRect,
-        x: this._enemyX + 40,
-        scaleX: 1.2, scaleY: 1.2,
-        duration: 120,
-        ease: 'Quad.easeOut',
-        onComplete: () => {
-          // Slide away fast and fade out
-          this.tweens.add({
-            targets: this.enemyRect,
-            x: this._enemyX + 250,
-            alpha: 0,
-            scaleX: 0.5, scaleY: 0.5,
-            duration: 200,
-            ease: 'Quad.easeIn',
-          });
-          this.tweens.add({
-            targets: [this.enemyNameText, this.hpBarBg, this.hpBarFill],
-            alpha: 0, duration: 150, ease: 'Power2',
-          });
-        },
-      });
-      this.enemyRect.disableInteractive();
-    }
 
-    // Gold particles flying to TopBar
-    this._spawnGoldParticles();
+      // Gold particles from slot position
+      this._spawnGoldParticles(slot.baseX, slot.baseY);
   }
 
   // â”€â”€ Damage numbers (magnitude-tiered) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-  _spawnDamageNumber(amount, isCrit, isPowerSmash = false) {
+  _spawnDamageNumber(amount, isCrit, isPowerSmash = false, targetX = null, targetY = null) {
+    const baseX = targetX ?? this._enemyX;
+    const baseY = targetY ?? this._enemyY;
     const xOffset = (Math.random() - 0.5) * 60;
-    const x = this._enemyX + xOffset;
-    const y = this._enemyY - 50;
+    const x = baseX + xOffset;
+    const y = baseY - 50;
 
     // Select tier by magnitude
     const mag = amount.toNumber ? amount.toNumber() : Number(amount);
@@ -771,14 +848,16 @@ export default class GameScene extends Phaser.Scene {
 
   // â”€â”€ Visual juice â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-  _spawnGoldParticles() {
+  _spawnGoldParticles(sourceX = null, sourceY = null) {
+    const baseX = sourceX ?? this._enemyX;
+    const baseY = sourceY ?? this._enemyY;
     const count = 5 + Math.floor(Math.random() * 4); // 5-8
     const targetX = 20;
     const targetY = 25;
 
     for (let i = 0; i < count; i++) {
-      const startX = this._enemyX + (Math.random() - 0.5) * 40;
-      const startY = this._enemyY + (Math.random() - 0.5) * 40;
+      const startX = baseX + (Math.random() - 0.5) * 40;
+      const startY = baseY + (Math.random() - 0.5) * 40;
       const particle = this.add.circle(startX, startY, 3, 0xeab308);
 
       // Arc offset for variety
@@ -823,49 +902,59 @@ export default class GameScene extends Phaser.Scene {
     });
   }
 
-  _onEnemyAttacked() {
-    // Show attack pose on enemy sprite for 500ms
-    if (this._currentEnemySprites) {
-      this.enemySprite.setTexture(this._currentEnemySprites.attack);
+  _onEnemyAttacked(data) {
+    const slot = this._getSlotByInstanceId(data.instanceId);
+      if (!slot) return;
 
-      this.enemySprite.setDisplaySize(this._spriteW, this._spriteH);
-      // Reset position before lunge (prevents drift from interrupted knockback/lunge tweens)
-      this.tweens.killTweensOf(this.enemySprite);
-      this.enemySprite.x = this._enemyX;
-      this.enemySprite.y = this._enemyY + this._spriteOffsetY + this._bottomAlignOffsetY;
-      // Lunge toward player on attack
-      const isLeaper = this._currentEnemyId === 'a1_forest_rat' || this._currentEnemyId === 'a1_hollow_slime';
-      const lungeDist = isLeaper ? this._enemyLungeDist * 2 : this._enemyLungeDist;
-      const lungeProps = { x: this._enemyX - lungeDist };
-      if (isLeaper) lungeProps.y = this._combatY - 60;
-      this.tweens.add({
-        targets: this.enemySprite,
-        ...lungeProps,
-        duration: isLeaper ? 120 : 80,
-        ease: 'Quad.easeOut',
-        yoyo: true,
-      });
-      if (this._poseRevertTimer) this._poseRevertTimer.remove();
-      this._poseRevertTimer = this.time.delayedCall(500, () => {
-        if (this._currentEnemySprites) {
-          this.enemySprite.setTexture(this._currentEnemySprites.default);
-          this.enemySprite.setDisplaySize(this._spriteW, this._spriteH);
+      if (slot.state.currentSprites) {
+        slot.sprite.setTexture(slot.state.currentSprites.attack);
+        slot.sprite.setDisplaySize(slot.state.spriteW, slot.state.spriteH);
+
+        // Reset to local home position before lunge
+        this.tweens.killTweensOf(slot.sprite);
+        slot.sprite.x = 0;
+        slot.sprite.y = slot.state.spriteOffsetY + slot.state.bottomAlignOffsetY;
+
+        const isLeaper = slot.state.enemyId === 'a1_forest_rat' || slot.state.enemyId === 'a1_hollow_slime';
+        const lungeDist = isLeaper ? slot.state.lungeDist * 2 : slot.state.lungeDist;
+        const lungeProps = { x: -lungeDist };
+        // Leaper lunge Y: local -100 (container is at _enemyY = _combatY + 40, target ~_combatY - 60)
+        if (isLeaper) lungeProps.y = -100;
+
+        this._lockWalk();
+        this.tweens.add({
+          targets: slot.sprite,
+          ...lungeProps,
+          duration: isLeaper ? 120 : 80,
+          ease: 'Quad.easeOut',
+          yoyo: true,
+        });
+
+        // If replacing an existing timer, balance the lock count it would have released
+        if (slot.state.poseRevertTimer) {
+          slot.state.poseRevertTimer.remove();
+          this._unlockWalk();
         }
-      });
-      return;
-    }
-
-    // Rect: lunge toward player on attack
-    this.tweens.add({
-      targets: this.enemyRect,
-      x: this._enemyX - this._enemyLungeDist,
-      duration: 80,
-      ease: 'Quad.easeOut',
-      yoyo: true,
-    });
+        slot.state.poseRevertTimer = this.time.delayedCall(500, () => {
+          if (slot.state.currentSprites) {
+            slot.sprite.setTexture(slot.state.currentSprites.default);
+            slot.sprite.setDisplaySize(slot.state.spriteW, slot.state.spriteH);
+          }
+          this._unlockWalk();
+        });
+      } else {
+        // Rect lunge — local coords
+        this.tweens.add({
+          targets: slot.rect,
+          x: -slot.state.lungeDist,
+          duration: 80,
+          ease: 'Quad.easeOut',
+          yoyo: true,
+        });
+      }
   }
 
-  _onEnemyDodged() {
+  _onEnemyDodged(_data) {
     this._spawnDodgeText();
   }
 
@@ -979,8 +1068,10 @@ export default class GameScene extends Phaser.Scene {
     });
 
     // 5. Disable enemy click interaction during death
-    this.enemyRect.disableInteractive();
-    this.enemySprite.disableInteractive();
+    for (const slot of this._enemySlots) {
+      slot.sprite.disableInteractive();
+      slot.rect.disableInteractive();
+    }
 
     // 6. Respawn restoration after delay
     this.time.delayedCall(COMBAT_V2.playerDeathRespawnDelay, () => {
@@ -990,17 +1081,13 @@ export default class GameScene extends Phaser.Scene {
       this.playerRect.setAlpha(1);
       this.playerRect.x = this._playerX;
       this.playerRect.setTexture('player001_walk1');
-  
+
       this.playerRect.setDisplaySize(300, 375);
       this._walkTimer.paused = false;
 
       // Restore HP bar
       this.playerHpBarFill.setDisplaySize(200, 16);
       this.playerHpBarFill.setFillStyle(0x22c55e);
-
-      // Re-enable enemy click interaction
-      this.enemyRect.setInteractive({ useHandCursor: true });
-      this.enemySprite.setInteractive({ useHandCursor: true });
     });
   }
 
@@ -1298,6 +1385,17 @@ export default class GameScene extends Phaser.Scene {
     for (const unsub of this._unsubs) unsub();
     this._unsubs = [];
     this._destroyParallax();
+
+    // Clean up slot containers
+    for (const slot of this._enemySlots) {
+      if (slot.state.poseRevertTimer) slot.state.poseRevertTimer.remove();
+      if (slot.state.reactDelayTimer) slot.state.reactDelayTimer.remove();
+      if (slot.state.deathFadeTimer) slot.state.deathFadeTimer.remove();
+      for (const obj of slot.state.extraObjects) obj.destroy();
+      slot.container.destroy(true);
+    }
+    this._enemySlots = [];
+
     CombatEngine.destroy();
     console.log('[GameScene] shutdown â€” cleaned up');
   }

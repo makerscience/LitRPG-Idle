@@ -76,10 +76,10 @@ export function getEffectiveDamage() {
   return Math.floor(baseDmg * prestigeMult * territoryDmgMult);
 }
 
-/** Effective click damage per hit (auto-attack damage x click damage upgrade multiplier). */
+/** Effective click damage per hit (auto-attack damage x click damage upgrade multiplier, nerfed by clickDamageScalar). */
 export function getClickDamage() {
   const clickDmgMult = UpgradeManager.getMultiplier('clickDamage');
-  return Math.floor(getEffectiveDamage() * clickDmgMult);
+  return Math.floor(getEffectiveDamage() * clickDmgMult * COMBAT_V2.clickDamageScalar);
 }
 
 /** Crit chance from base + upgrades + territory. */

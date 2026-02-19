@@ -31,11 +31,11 @@ const TimeEngine = {
     }
   },
 
-  /** Add a recurring ticker. */
-  register(id, callback, intervalMs, enabled = true) {
+  /** Add a recurring ticker. initialElapsed offsets the first tick (use negative to delay). */
+  register(id, callback, intervalMs, enabled = true, initialElapsed = 0) {
     // Replace if already registered
     TimeEngine.unregister(id);
-    tickers.push({ id, callback, interval: intervalMs, elapsed: 0, enabled, once: false });
+    tickers.push({ id, callback, interval: intervalMs, elapsed: initialElapsed, enabled, once: false });
   },
 
   /** Remove a ticker by id. */
