@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## 2026-02-19 — Encounter Bug Fixes + Area 1 Rebalance
+- **Fixed leftover enemy sprites on player death**: `_onPlayerDeath()` now calls `_onEncounterEnd('player_death')` so GameScene clears all enemy slots
+- **Fixed leftover enemy sprites on boss challenge**: `spawnBoss()` now properly ends the current encounter before starting the boss fight
+- **Fixed boss sprites not rendering**: bosses fall back to `baseEnemyId` for sprite/size lookup; bosses render at 1.4× base enemy size
+- **Area 1 encounter rebalance**: added Slime Pair + Rat Pair (z1-2), removed Blighted Stalker from regular spawns, extended Hound (z1-5) and Boar (z2-5), moved 3-rat pack to z2-3
+
+---
+
 ## 2026-02-18 — Post-Multi-Enemy Bug Fixes
 - **Fixed game freeze (~1 min)**: `_attackLockCount` leaked — `_lockWalk()` called per enemy attack, but replacing `poseRevertTimer` lost the matching `_unlockWalk()`. Now balances count on timer replacement + resets to 0 on encounter end.
 - **Fixed slot visual state between encounters**: death tween faded nameText/hpBarBg/hpBarFill alpha to 0 permanently; now reset to 1 on encounter start. Rect position also reset.

@@ -396,11 +396,14 @@ export default class GameScene extends Phaser.Scene {
       const slot = this._getSlotByIndex(memberData.slot);
       if (!slot) continue;
 
-      const template = getEnemyById(memberData.enemyId);
+      const template = getEnemyById(memberData.enemyId)
+        || (memberData.baseEnemyId ? getEnemyById(memberData.baseEnemyId) : null);
       const sprites = template?.sprites || null;
-      const size = template?.spriteSize || { w: 200, h: 250 };
+      const bossScale = memberData.isBoss ? 1.4 : 1;
+      const baseSize = template?.spriteSize || { w: 200, h: 250 };
+      const size = { w: baseSize.w * bossScale, h: baseSize.h * bossScale };
       const spriteOffsetY = template?.spriteOffsetY ?? 0;
-      const baseH = template?.spriteSize?.h || 250;
+      const baseH = baseSize.h;
       const hDiff = size.h - baseH;
       const bottomAlignOffsetY = hDiff > 0 ? -hDiff / 2 + 40 : 0;
 

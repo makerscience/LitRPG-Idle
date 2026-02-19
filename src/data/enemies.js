@@ -123,7 +123,7 @@ const ENEMIES = [
     defense: 0,
     armorPen: 0,
     dot: null,
-    zones: [1, 3],
+    zones: [1, 5],
     goldDrop: 5,
     xpDrop: 5,
     sprites: {
@@ -145,7 +145,7 @@ const ENEMIES = [
     defense: 10,
     armorPen: 0,
     dot: null,
-    zones: [2, 4],
+    zones: [2, 5],
     goldDrop: 10,
     xpDrop: 10,
     sprites: {
@@ -168,7 +168,7 @@ const ENEMIES = [
     defense: 10,
     armorPen: 0,
     dot: null,
-    zones: [3, 5],
+    zones: [0, 0],
     goldDrop: 14,
     xpDrop: 14,
     sprites: {

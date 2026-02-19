@@ -1,7 +1,7 @@
 # CURRENT_FOCUS
 
 ## One-liner
-- Multi-enemy playtested and freeze bug fixed. Stances implementation next.
+- Multi-enemy encounter bugs fixed, Area 1 encounters rebalanced. Stances implementation next.
 
 ## Active Objectives (max 3)
 1. **Stances implementation:** Follow `Plans/Stances_Implementation_Plan.md` (v2)
@@ -28,7 +28,7 @@
 
 ## How to Resume in 30 Seconds
 - **Open:** `.memory/CURRENT_FOCUS.md`
-- **Last change:** Fixed game freeze bug + slot visual reset issues post multi-enemy implementation
+- **Last change:** Fixed encounter cleanup bugs (player death, boss challenge), boss sprites, Area 1 encounter rebalance
 - **Architecture:** Progression.js owns XP/level + kill rewards. Store is pure state. EventScope pattern for subscriptions. ComputedStats for derived values. BossManager looks up named bosses via `getBossForZone()`. LootEngine uses zone-based item pools with slot weighting and pity.
 - **Multi-enemy plan:** `Plans/Multi_Enemy_Implementation_Plan.md` (v2) — all 14 phases complete
 - **Encounter data:** `src/data/encounters.js` — encounter templates + `pickRandomEncounter(areaId, zoneNum)`
@@ -51,11 +51,12 @@
 ---
 
 ## Last Session Summary (max ~8 bullets)
-- Removed transparency effect on non-targeted enemies in groups (was 0.7 alpha, now all full opacity)
-- Staggered multi-enemy attack timers so grouped enemies don't all swing at once (offset by `interval * index / memberCount`)
-- Added `initialElapsed` parameter to `TimeEngine.register()` to support stagger offsets
-- Halved enemy HP bar size: 200×16 → 100×8 (all 4 references: creation, anchor, encounter reset, damage update)
-- Fixed save wipe not sticking: Vite HMR leaked orphaned `beforeunload` listeners that re-saved state after `deleteSave()`. Fix: `window.__saveWiped` flag blocks all save attempts across module instances
+- Fixed enemy slots persisting after player death (encounter end event wasn't firing → GameScene never cleared slots)
+- Fixed enemy slots persisting when challenging a boss mid-encounter (same root cause — `spawnBoss` now calls `_onEncounterEnd('boss_challenge')`)
+- Fixed boss sprites not showing: bosses now fall back to `baseEnemyId` for sprite lookup
+- Bosses render at 1.4× base enemy sprite size
+- Area 1 encounters rebalanced: added Slime Pair (z1-2) and Rat Pair (z1-2), removed Stalker from regular spawns, extended Hound/Boar to zone 5
+- 3-rat pack moved from z1-3 to z2-3
 
 ## Pinned References
 - Governance rules: `CLAUDE.md`

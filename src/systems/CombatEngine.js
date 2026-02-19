@@ -149,6 +149,7 @@ const CombatEngine = {
       xpDrop: String(enemyData.xpDrop),
       isBoss: opts.isBoss || false,
       isAdd: opts.isAdd || false,
+      baseEnemyId: enemyData.baseEnemyId ?? null,
       alive: true,
     };
   },
@@ -203,6 +204,7 @@ const CombatEngine = {
         isBoss: m.isBoss,
         armorPen: m.armorPen,
         dot: m.dot,
+        baseEnemyId: m.baseEnemyId ?? null,
       })),
     });
   },
@@ -301,10 +303,13 @@ const CombatEngine = {
 
   /** Spawn a boss enemy (called by BossManager via BossChallenge UI). */
   spawnBoss(bossTemplate) {
-    // Cancel any pending spawn + all encounter timers
+    // Cancel any pending spawn
     TimeEngine.unregister('combat:spawnDelay');
-    CombatEngine._clearEncounterTimers();
-    encounter = null;
+
+    // End current encounter properly so GameScene clears all enemy slots
+    if (encounter) {
+      CombatEngine._onEncounterEnd('boss_challenge');
+    }
 
     // Build boss member — no zone scaling (boss stats are hand-authored)
     const bossMember = CombatEngine._buildMember(bossTemplate, 0, { isBoss: true });
@@ -507,13 +512,14 @@ const CombatEngine = {
     // Pause combat
     TimeEngine.setEnabled('combat:autoAttack', false);
     TimeEngine.setEnabled('combat:playerRegen', false);
-    CombatEngine._clearEncounterTimers();
 
     // If fighting a boss, cancel the boss fight
     if (encounter?.type === 'boss') {
       BossManager.cancelBoss();
     }
-    encounter = null;
+
+    // End the encounter properly so GameScene clears all enemy slots
+    CombatEngine._onEncounterEnd('player_death');
 
     // Respawn after delay
     TimeEngine.scheduleOnce('combat:playerRespawn', () => {
