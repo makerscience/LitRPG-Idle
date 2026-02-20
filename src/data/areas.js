@@ -7,7 +7,7 @@ const AREAS = {
   1: {
     id: 1,
     name: 'The Harsh Threshold',
-    zoneCount: 5,
+    zoneCount: 10,
     zoneStart: 1,
     enemies: () => getEnemiesForArea(1),
   },
@@ -55,6 +55,24 @@ export const ZONE_SCALING = {
 export function getZoneScaling(zoneNum, stat) {
   const rate = (stat && ZONE_SCALING[stat]) ?? 0.10;
   return 1 + (zoneNum - 1) * rate;
+}
+
+/**
+ * Per-zone stat bias — multipliers applied ON TOP of getZoneScaling().
+ * Key: global zone number. Stat keys: hp, atk, def, speed, regen, dot, gold, xp.
+ * Omitting a stat (or a zone) = 1.0 (no correction). All other zones unaffected.
+ *
+ * Example:
+ *   5: { atk: 0.85 },            // zone 5 enemies hit 15% softer than the curve
+ *   7: { hp: 1.25, atk: 1.1 },  // zone 7 spike — tankier and harder
+ */
+export const ZONE_BALANCE = {
+  2: { hp: 0.7, atk: 0.7, def: 0.85, gold: 1.5, xp: 1.5 },
+};
+
+/** Returns the bias multiplier for a given global zone + stat. Defaults to 1.0. */
+export function getZoneBias(globalZone, stat) {
+  return ZONE_BALANCE[globalZone]?.[stat] ?? 1.0;
 }
 
 /** Kill threshold to trigger "Challenge Boss" button. */

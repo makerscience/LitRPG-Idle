@@ -69,7 +69,7 @@ const AREA_3_LOOT_TABLE = [
 ];
 
 const ENEMIES = [
-  // ── Area 1: The Harsh Threshold (zones 1-5) ────────────────────────
+  // ── Area 1: The Harsh Threshold (zones 1-10) ───────────────────────
   {
     id: 'a1_hollow_slime',
     name: 'Hollow Slime',
@@ -80,7 +80,8 @@ const ENEMIES = [
     armorPen: 0,
     dot: null,
     regen: 5,
-    zones: [1, 2],
+    chargeBar: false,
+    zones: [1, 3],
     goldDrop: 3,
     xpDrop: 3,
     sprites: {
@@ -102,7 +103,7 @@ const ENEMIES = [
     defense: -10,
     armorPen: 0,
     dot: null,
-    zones: [1, 3],
+    zones: [1, 2],
     goldDrop: 4,
     xpDrop: 4,
     sprites: {
@@ -125,7 +126,7 @@ const ENEMIES = [
     armorPen: 0,
     dot: null,
     enrage: { threshold: 0.4, atkMult: 1.6, speedMult: 1.3 },
-    zones: [1, 5],
+    zones: [2, 4],
     goldDrop: 5,
     xpDrop: 5,
     sprites: {
@@ -142,13 +143,14 @@ const ENEMIES = [
     id: 'a1_thornback_boar',
     name: 'Thornback Boar',
     hp: 105,
-    attack: 15,
+    attack: 30,
     attackSpeed: 0.8,
     defense: 10,
     armorPen: 0,
     dot: null,
     thorns: 3,
-    zones: [2, 5],
+    chargeArmor: 0.5,
+    zones: [6, 10],
     goldDrop: 10,
     xpDrop: 10,
     sprites: {
@@ -159,6 +161,7 @@ const ENEMIES = [
     },
     spriteSize: { w: 280, h: 153 },
     spriteOffsetY: -50,
+    nameplateOffsetY: -20,
     lungeDistance: 40,
     lootTable: AREA_1_LOOT_TABLE,
   },

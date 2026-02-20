@@ -1,5 +1,42 @@
 # CHANGELOG
 
+## 2026-02-20 — Zone Balance GUI Visual Redesign
+- **Upgrade 1 — Heat-map backgrounds:** `td.stat-cell` background fades orange (value < 1) or green (value > 1), interpolated from transparent at 1.0 to full color at ±0.5
+- **Upgrade 2 — Slider + readout cells:** Each cell now has a `range` input (0.5–2.0, step 0.05) with a fill-color gradient track (orange left of center, green right); `×1.00` readout span below; clicking span opens inline `<input type="number">` for precision entry (blur/Enter commits, Escape cancels)
+- **Upgrade 3 — Sparklines:** Row of 7 mini SVG bar charts (120×44px, one per stat) pinned above the table; bars above center = green (boost), below = orange (penalty); clicking a bar scrolls to that zone row with a brief red flash highlight
+- **Shared state:** `cellRefs` object maps `zone-stat` keys to `{slider, span, td}` refs; `refreshCell()` and `resetRow()` use refs for zero-query updates; `redrawSparkline()` does full SVG innerHTML replace (fast for 30 bars)
+
+## 2026-02-20 — Zone Balance GUI Editor
+- **New:** `scripts/zone-balance-gui.js` — local HTTP server (port 3001) serving a visual GUI for editing `ZONE_BALANCE` in `areas.js`
+- **Table layout:** 30 rows × 7 stat columns (hp, atk, def, speed, regen, gold, xp); color-coded inputs (green >1, orange <1)
+- **Buttons:** Save to areas.js (writes sparse map, omits 1.0 entries), Run Sim (embeds balance-sim.js output), Copy Code (copies JS snippet to clipboard)
+- **UX:** Double-click or right-click row to reset all stats to 1.0; area group headers with colored borders
+- **`package.json`** — added `"balance:gui": "node scripts/zone-balance-gui.js"` script
+
+---
+
+## 2026-02-20 — Per-Zone Stat Dials (ZONE_BALANCE)
+- **`ZONE_BALANCE`** sparse map + **`getZoneBias(globalZone, stat)`** added to `areas.js` — multiplier layer applied on top of `getZoneScaling()`; defaults to `1.0` (no change) when empty
+- **`CombatEngine.spawnEnemy()`** applies bias to `hp`, `atk`, `def`, `speed`, `gold`, `xp`, `regen`, `thorns` — composed as `baseVal × zoneScale × zoneBias`
+- **`OfflineProgress.js`** mirrors same bias on offline `hp/gold/xp` scales so offline rewards match runtime
+- **`balance-sim.js`** folds bias into zone scale vars so `npm run balance:sim` reflects dials accurately
+- `ZONE_BALANCE = {}` by default — zero behavior change until dials are populated
+
+---
+
+## 2026-02-20 — Area 1 Expanded to 10 Zones, Encounter Redesign (Zones 1–5)
+- **Area 1 zoneCount**: 5 → 10; zones 6–10 placeholder-ready (boar solo + duo fills the gap)
+- **Enemy solo zone ranges**: rat [1,3]→[1,2], slime [1,2]→[1,3], hound [1,5]→[2,4], boar [2,5]→[6,10]
+- **Encounter templates redesigned**: rat_pair [2–4], rat_pack [3–5], slime_pair [3–5], hound_pair [4–5], boar_duo [6–10]; weights and rewardMults tuned per formation size
+
+---
+
+## 2026-02-19 — Thornback Boar Rework + Enemy Attack Charge Bars
+- **Thornback Boar rebalanced**: attack doubled (15→30), attack speed halved (0.8→0.4) — slow heavy hitter archetype
+- **Enemy attack charge bar**: red bar below HP bar telegraphs incoming attacks for slow enemies (attackSpeed < 0.6); fills left to right via TimeEngine.getProgress()
+
+---
+
 ## 2026-02-19 — Stance Visuals, Trait Indicators & Combat UI Polish
 - **Trait indicators on enemy nameplates**: colored symbols right of HP bar — ✚ regen (green), ◆ thorns (purple), ⚡ fast (yellow), ⊘ armor pen (orange), ☠ DoT (lime), ⬢ defense (blue), ▲ enrage (red, appears on trigger)
 - **Player HP bar moved above head**: halved to 100x8, 2px black borders on all HP bars

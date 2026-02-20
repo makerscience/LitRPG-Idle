@@ -5,7 +5,7 @@ import Store from './Store.js';
 import Progression from './Progression.js';
 import { D } from './BigNum.js';
 import { getEffectiveDamage, getCritChance, getCritMultiplier, getAutoAttackInterval, getGoldMultiplier, getXpMultiplier } from './ComputedStats.js';
-import { getUnlockedEnemies, getZoneScaling } from '../data/areas.js';
+import { getUnlockedEnemies, getZoneScaling, getZoneBias, getArea } from '../data/areas.js';
 import { getEncountersForZone } from '../data/encounters.js';
 import { getEnemyById } from '../data/enemies.js';
 import { SAVE, ECONOMY, COMBAT_V2 } from '../config.js';
@@ -52,9 +52,11 @@ const OfflineProgress = {
     const encounterPool = getEncountersForZone(state.currentArea, state.currentZone);
     if (encounterPool.length === 0) return;
 
-    const hpScale = getZoneScaling(state.currentZone, 'hp');
-    const goldScale = getZoneScaling(state.currentZone, 'gold');
-    const xpScale = getZoneScaling(state.currentZone, 'xp');
+    const offlineArea = getArea(state.currentArea);
+    const offlineGlobalZone = offlineArea ? offlineArea.zoneStart + state.currentZone - 1 : state.currentZone;
+    const hpScale   = getZoneScaling(state.currentZone, 'hp')   * getZoneBias(offlineGlobalZone, 'hp');
+    const goldScale = getZoneScaling(state.currentZone, 'gold') * getZoneBias(offlineGlobalZone, 'gold');
+    const xpScale   = getZoneScaling(state.currentZone, 'xp')   * getZoneBias(offlineGlobalZone, 'xp');
 
     // Weighted average across encounter templates
     let weightedHp = 0;

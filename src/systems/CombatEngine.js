@@ -8,7 +8,7 @@ import Progression from './Progression.js';
 import { D, Decimal } from './BigNum.js';
 import { createScope, emit, EVENTS } from '../events.js';
 import { COMBAT_V2, STANCES, STANCE_IDS, STANCE_SWITCH_PAUSE_MS } from '../config.js';
-import { getZoneScaling } from '../data/areas.js';
+import { getZoneScaling, getZoneBias, getArea } from '../data/areas.js';
 import { getEnemyById } from '../data/enemies.js';
 import { pickRandomEncounter } from '../data/encounters.js';
 import UpgradeManager from './UpgradeManager.js';
@@ -341,6 +341,10 @@ const CombatEngine = {
     const encTemplate = pickRandomEncounter(area, zone);
     if (!encTemplate) return;
 
+    // Compute global zone for per-zone bias lookups
+    const areaData = getArea(area);
+    const globalZone = areaData ? areaData.zoneStart + zone - 1 : zone;
+
     // Build members array — scale each member's stats by zone
     const members = encTemplate.members.map((memberId, slotIndex) => {
       const enemyTemplate = getEnemyById(memberId);
@@ -349,12 +353,14 @@ const CombatEngine = {
       const atkScale = getZoneScaling(zone, 'atk');
       const scaledData = {
         ...enemyTemplate,
-        hp: D(enemyTemplate.hp).times(getZoneScaling(zone, 'hp')).floor().toString(),
-        attack: Math.floor(enemyTemplate.attack * atkScale),
-        goldDrop: D(enemyTemplate.goldDrop).times(getZoneScaling(zone, 'gold')).floor().toString(),
-        xpDrop: D(enemyTemplate.xpDrop).times(getZoneScaling(zone, 'xp')).floor().toString(),
-        regen: enemyTemplate.regen ? Math.floor(enemyTemplate.regen * atkScale) : 0,
-        thorns: enemyTemplate.thorns ? Math.floor(enemyTemplate.thorns * atkScale) : 0,
+        hp:          D(enemyTemplate.hp).times(getZoneScaling(zone, 'hp') * getZoneBias(globalZone, 'hp')).floor().toString(),
+        attack:      Math.floor(enemyTemplate.attack * atkScale * getZoneBias(globalZone, 'atk')),
+        defense:     Math.floor((enemyTemplate.defense || 0) * getZoneBias(globalZone, 'def')),
+        attackSpeed: (enemyTemplate.attackSpeed ?? 1) * getZoneBias(globalZone, 'speed'),
+        goldDrop:    D(enemyTemplate.goldDrop).times(getZoneScaling(zone, 'gold') * getZoneBias(globalZone, 'gold')).floor().toString(),
+        xpDrop:      D(enemyTemplate.xpDrop).times(getZoneScaling(zone, 'xp') * getZoneBias(globalZone, 'xp')).floor().toString(),
+        regen:       enemyTemplate.regen ? Math.floor(enemyTemplate.regen * atkScale * getZoneBias(globalZone, 'regen')) : 0,
+        thorns:      enemyTemplate.thorns ? Math.floor(enemyTemplate.thorns * atkScale * getZoneBias(globalZone, 'atk')) : 0,
       };
 
       return CombatEngine._buildMember(scaledData, slotIndex, {

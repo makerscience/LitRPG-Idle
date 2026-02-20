@@ -7,52 +7,49 @@ import { getUnlockedEnemies } from './areas.js';
 // ── Authored multi-member encounters ─────────────────────────────────
 
 const ENCOUNTERS = [
-  // ── Area 1: The Harsh Threshold (global zones 1-5) ────────────────
+  // ── Area 1: The Harsh Threshold (global zones 1-10) ───────────────
 
-  // Early zones: weak packs, roughly same total difficulty as a solo medium enemy
-  {
-    id: 'a1_slime_pair',
-    members: ['a1_hollow_slime', 'a1_hollow_slime'],
-    weight: 2,
-    zones: [1, 2],
-    attackSpeedMult: 1.0,
-    rewardMult: 1.0,
-    lootBonus: { dropChanceMult: 1.0, rarityBoost: 0 },
-  },
   {
     id: 'a1_rat_pair',
     members: ['a1_forest_rat', 'a1_forest_rat'],
     weight: 2,
-    zones: [1, 2],
+    zones: [2, 4],
     attackSpeedMult: 1.0,
-    rewardMult: 1.0,
+    rewardMult: 1.1,
     lootBonus: { dropChanceMult: 1.0, rarityBoost: 0 },
   },
   {
     id: 'a1_rat_pack',
     members: ['a1_forest_rat', 'a1_forest_rat', 'a1_forest_rat'],
     weight: 2,
-    zones: [2, 3],
+    zones: [3, 5],
     attackSpeedMult: 1.0,
-    rewardMult: 1.0,
+    rewardMult: 1.25,
     lootBonus: { dropChanceMult: 1.0, rarityBoost: 0 },
   },
   {
-    id: 'a1_wolf_pair',
+    id: 'a1_slime_pair',
+    members: ['a1_hollow_slime', 'a1_hollow_slime'],
+    weight: 2,
+    zones: [3, 5],
+    attackSpeedMult: 1.0,
+    rewardMult: 1.1,
+    lootBonus: { dropChanceMult: 1.0, rarityBoost: 0 },
+  },
+  {
+    id: 'a1_hound_pair',
     members: ['a1_feral_hound', 'a1_feral_hound'],
     weight: 1,
-    zones: [2, 5],
-    attackSpeedMult: 0.7,
-    rewardMult: 1.15,
+    zones: [4, 5],
+    attackSpeedMult: 0.8,
+    rewardMult: 1.2,
     lootBonus: { dropChanceMult: 1.1, rarityBoost: 0 },
   },
-
-  // Late zones: strong groups as gear-check
   {
     id: 'a1_boar_duo',
     members: ['a1_thornback_boar', 'a1_thornback_boar'],
     weight: 1,
-    zones: [2, 5],
+    zones: [6, 10],
     attackSpeedMult: 0.5,
     rewardMult: 1.3,
     lootBonus: { dropChanceMult: 1.3, rarityBoost: 0.05 },

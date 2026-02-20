@@ -128,20 +128,27 @@ export default class GameScene extends Phaser.Scene {
       sprite.on('pointerdown', onClick);
 
       // Name label (above slot, relative to container)
-      const nameText = this.add.text(0, -(250 / 2) - 40, '', {
+      const nameText = this.add.text(0, -(250 / 2) - 60, '', {
         fontFamily: 'monospace', fontSize: '16px', color: '#ffffff',
         stroke: '#000000', strokeThickness: 4,
       }).setOrigin(0.5);
       container.add(nameText);
 
       // HP bar background
-      const hpBarBg = this.add.rectangle(0, -(250 / 2) - 22, 100, 8, 0x374151).setStrokeStyle(2, 0x000000);
+      const hpBarBg = this.add.rectangle(0, -(250 / 2) - 42, 100, 8, 0x374151).setStrokeStyle(2, 0x000000);
       container.add(hpBarBg);
 
       // HP bar fill (left-anchored)
-      const hpBarFill = this.add.rectangle(-50, -(250 / 2) - 22, 100, 8, 0x22c55e);
+      const hpBarFill = this.add.rectangle(-50, -(250 / 2) - 42, 100, 8, 0x22c55e);
       hpBarFill.setOrigin(0, 0.5);
       container.add(hpBarFill);
+
+      // Enemy attack charge bar (below HP bar, hidden by default)
+      const chargeBarBg = this.add.rectangle(0, -(250 / 2) - 32, 100, 4, 0x374151).setStrokeStyle(1, 0x000000).setVisible(false);
+      container.add(chargeBarBg);
+      const chargeBarFill = this.add.rectangle(-50, -(250 / 2) - 32, 100, 4, 0xef4444);
+      chargeBarFill.setOrigin(0, 0.5).setDisplaySize(0, 4).setVisible(false);
+      container.add(chargeBarFill);
 
       this._enemySlots.push({
         container,
@@ -149,6 +156,8 @@ export default class GameScene extends Phaser.Scene {
         rect,
         hpBarBg,
         hpBarFill,
+        chargeBarBg,
+        chargeBarFill,
         nameText,
         traitObjs: [],
         targetIndicator: null,
@@ -166,6 +175,7 @@ export default class GameScene extends Phaser.Scene {
           deathFadeTimer: null,
           extraObjects: [],
           enraged: false,
+          atkTimerKey: null,
         },
         baseX: this._enemyX,
         baseY: this._enemyY,
@@ -282,6 +292,14 @@ export default class GameScene extends Phaser.Scene {
         if (!this._playerAttacking && this._attackLockCount === 0) {
           this._walkTimer.paused = false;
         }
+      }
+    }
+
+    // Update enemy attack charge bars
+    for (const slot of this._enemySlots) {
+      if (slot.state.atkTimerKey && slot.chargeBarFill.visible) {
+        const progress = TimeEngine.getProgress(slot.state.atkTimerKey);
+        slot.chargeBarFill.setDisplaySize(Math.max(0, progress * 100), 4);
       }
     }
 
@@ -515,6 +533,7 @@ export default class GameScene extends Phaser.Scene {
       const baseSize = template?.spriteSize || { w: 200, h: 250 };
       const size = { w: baseSize.w * bossScale, h: baseSize.h * bossScale };
       const spriteOffsetY = template?.spriteOffsetY ?? 0;
+      const nameplateOffsetY = template?.nameplateOffsetY ?? 0;
       const baseH = baseSize.h;
       const hDiff = size.h - baseH;
       const bottomAlignOffsetY = hDiff > 0 ? -hDiff / 2 + 40 : 0;
@@ -537,9 +556,10 @@ export default class GameScene extends Phaser.Scene {
 
       // Reposition name/HP based on actual sprite height
       const halfH = size.h / 2;
-      slot.nameText.setY(-(halfH) - 40);
-      slot.hpBarBg.setY(-(halfH) - 22);
-      slot.hpBarFill.setY(-(halfH) - 22);
+      const npOff = nameplateOffsetY;
+      slot.nameText.setY(-(halfH) - 60 + npOff);
+      slot.hpBarBg.setY(-(halfH) - 42 + npOff);
+      slot.hpBarFill.setY(-(halfH) - 42 + npOff);
       slot.hpBarFill.setX(-50); // reset left anchor
 
       // Configure sprite or rect
@@ -577,7 +597,7 @@ export default class GameScene extends Phaser.Scene {
       if (memberData.armorPen > 0) traits.push({ label: '⊘', color: '#f97316' });
       if (memberData.dot > 0) traits.push({ label: '☠', color: '#84cc16' });
       if ((memberData.defense ?? 0) > 0) traits.push({ label: '⬢', color: '#60a5fa' });
-      const traitY = -(halfH) - 22;
+      const traitY = -(halfH) - 42 + npOff;
       let traitX = 56;
       for (const t of traits) {
         const txt = this.add.text(traitX, traitY, t.label, {
@@ -590,6 +610,21 @@ export default class GameScene extends Phaser.Scene {
       }
       slot._traitY = traitY;
       slot._nextTraitX = traitX;
+
+      // Always store attack timer key (needed for chargeArmor immunity checks)
+      slot.state.atkTimerKey = `enc:${data.encounterId}:atk:${memberData.instanceId}`;
+      slot.state.chargeArmor = template?.chargeArmor ?? 0;
+
+      // Enemy attack charge bar — show for slow attackers (attackSpeed <= 0.8) unless chargeBar: false
+      const atkSpeed = memberData.attackSpeed ?? 1.0;
+      if (atkSpeed <= 0.8 && template?.chargeBar !== false) {
+        const chargeY = -(halfH) - 32 + npOff;
+        slot.chargeBarBg.setY(chargeY).setVisible(true).setAlpha(1);
+        slot.chargeBarFill.setY(chargeY).setDisplaySize(0, 4).setVisible(true).setAlpha(1);
+      } else {
+        slot.chargeBarBg.setVisible(false);
+        slot.chargeBarFill.setVisible(false);
+      }
 
       // Show container
       slot.container.setVisible(true).setAlpha(1);
@@ -637,6 +672,7 @@ export default class GameScene extends Phaser.Scene {
       slot.state.enemyId = null;
       slot.state.currentSprites = null;
       slot.state.enraged = false;
+      slot.state.atkTimerKey = null;
     }
 
   }
@@ -710,6 +746,12 @@ export default class GameScene extends Phaser.Scene {
 
       // Spawn damage number immediately
       this._spawnDamageNumber(data.amount, data.isCrit, sIsPowerSmash, slot.baseX, slot.baseY);
+
+      // chargeArmor: skip hit reaction when enemy attack is half-charged or more
+      if (slot.state.chargeArmor > 0 && slot.state.atkTimerKey) {
+        const progress = TimeEngine.getProgress(slot.state.atkTimerKey);
+        if (progress >= slot.state.chargeArmor) return;
+      }
 
       if (slot.state.currentSprites) {
         // Sprite hit reaction
@@ -976,7 +1018,7 @@ export default class GameScene extends Phaser.Scene {
 
         // Fade name/HP
         this.tweens.add({
-          targets: [slot.nameText, ...slot.traitObjs, slot.hpBarBg, slot.hpBarFill],
+          targets: [slot.nameText, ...slot.traitObjs, slot.hpBarBg, slot.hpBarFill, slot.chargeBarBg, slot.chargeBarFill],
           alpha: 0, duration: 150, ease: 'Power2',
         });
       } else {
@@ -993,7 +1035,7 @@ export default class GameScene extends Phaser.Scene {
               duration: 200, ease: 'Quad.easeIn',
             });
             this.tweens.add({
-              targets: [slot.nameText, ...slot.traitObjs, slot.hpBarBg, slot.hpBarFill],
+              targets: [slot.nameText, ...slot.traitObjs, slot.hpBarBg, slot.hpBarFill, slot.chargeBarBg, slot.chargeBarFill],
               alpha: 0, duration: 150, ease: 'Power2',
             });
           },

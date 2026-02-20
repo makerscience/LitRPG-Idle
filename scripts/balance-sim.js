@@ -5,7 +5,7 @@
 import { ENEMIES } from '../src/data/enemies.js';
 import { BOSSES } from '../src/data/bosses.js';
 import { ITEMS } from '../src/data/items.js';
-import { AREAS, getZoneScaling, getBossKillThreshold } from '../src/data/areas.js';
+import { AREAS, getZoneScaling, getZoneBias, getBossKillThreshold } from '../src/data/areas.js';
 import { getEncountersForZone } from '../src/data/encounters.js';
 import { PROGRESSION_V2, COMBAT_V2, STANCES } from '../src/config.js';
 import { getAllUpgrades } from '../src/data/upgrades.js';
@@ -247,10 +247,10 @@ function runSimulation(policyName, gearPolicy, stance = STANCES.power) {
 
   for (let globalZone = 1; globalZone <= 30; globalZone++) {
     const { areaId, localZone } = getAreaLocalZone(globalZone);
-    const hpScale = getZoneScaling(localZone, 'hp');
-    const atkScale = getZoneScaling(localZone, 'atk');
-    const goldScale = getZoneScaling(localZone, 'gold');
-    const xpScale = getZoneScaling(localZone, 'xp');
+    const hpScale   = getZoneScaling(localZone, 'hp')   * getZoneBias(globalZone, 'hp');
+    const atkScale  = getZoneScaling(localZone, 'atk')  * getZoneBias(globalZone, 'atk');
+    const goldScale = getZoneScaling(localZone, 'gold') * getZoneBias(globalZone, 'gold');
+    const xpScale   = getZoneScaling(localZone, 'xp')   * getZoneBias(globalZone, 'xp');
     const killThreshold = getBossKillThreshold(localZone);
     const boss = BOSSES.find(b => b.zone === globalZone);
     const enemies = getEnemiesForGlobalZone(globalZone);

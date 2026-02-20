@@ -1,17 +1,19 @@
 # CURRENT_FOCUS
 
 ## One-liner
-- Stance visual polish + combat UI overhaul session. Trait indicators, shield bar, charge bar, per-stance sprites all done.
+- Area 1 expanded to 10 zones; balance GUI overhauled with sliders, heat-map, and sparklines.
 
 ## Active Objectives (max 3)
-1. **Continued playtesting:** Tune encounter weights/attackSpeedMult/rewardMult based on feel
-2. **Area 2-3 content:** Author multi-member encounter templates, fill sprite gaps
-3. **Further stance polish:** Flurry stance could get custom walk sprites like fortress did
+1. **Playtest Area 1 zones 1–10:** Verify zone-by-zone encounter mix feels right in-game
+2. **Author zones 6–10 content:** Need named bosses for zones 6–10 (currently none); add boss definitions to bosses.js
+3. **Area 2-3 content:** Author multi-member encounter templates, fill sprite gaps
 
 ## Next Actions
-- [ ] Playtest traits: verify regen isn't unkillable, enrage feels dangerous, thorns punishes click spam
+- [ ] Playtest zones 1–5: confirm rat/slime/hound progression feels correct per-zone
+- [ ] Playtest zone 6+: confirm only boar solo + boar_duo appear (no rats/slimes/hounds)
+- [ ] Author bosses for Area 1 zones 6–10 in bosses.js (currently no bosses cover those zones)
 - [ ] Author multi-member encounter templates for Areas 2-3
-- [ ] Consider custom walk sprites for flurry stance
+- [ ] Tune ZONE_BALANCE dials in areas.js using `npm run balance:gui` (GUI now available)
 - [ ] Consider tooltip/legend for trait symbols (player education)
 
 ## Open Loops / Blockers
@@ -32,7 +34,7 @@
 - **Key new sprites:** `fortressstance_001/002` (fortress walk), `powerstance_001charge` (power charge-up) — loaded + downscaled in BootScene
 - **Key new files:** `src/ui/FlurryButton.js`, `src/ui/BulwarkButton.js`, `src/ui/StanceSwitcher.js`
 - **Key changes this session:** `GameScene.js` (trait indicators as individual colored text objects per slot, shield HP bar, power charge bar, per-stance walk frames, `_playerAttacking`/`_powerCharging` flags for hit reaction immunity, `_unlockWalk` guards), `TimeEngine.js` (new `getProgress()` method), `BulwarkButton.js` (shield mult 2.0→0.1), `SystemLog.js` (removed group spawn messages)
-- **Balance tool:** `npm run balance:sim` — zone-by-zone idle progression simulation
+- **Balance tools:** `npm run balance:sim` (CLI), `npm run balance:gui` (visual GUI editor for ZONE_BALANCE, port 3001)
 
 ## Key Context
 - Tech stack: Phaser 3, Vite 7, break_infinity.js, localStorage saves
@@ -50,14 +52,12 @@
 ---
 
 ## Last Session Summary (max ~8 bullets)
-- Added trait indicator symbols on enemy nameplates: ✚ regen, ◆ thorns, ⚡ fast, ⊘ armor pen, ☠ DoT, ⬢ defense, ▲ enrage (appears on trigger only)
-- Each trait renders as its own colored text object (supports multi-trait enemies with correct per-symbol colors)
-- Moved player HP bar above head, halved to 100x8, added 2px black borders on all HP bars
-- Added blue shield HP bar below player HP (shows on Bulwark activation, drains in real-time)
-- Added red power charge bar (polls TimeEngine.getProgress, visible in power stance only)
-- Per-stance visuals: fortress uses fortressstance_001/002 walk sprites, power uses powerstance_001charge at 75% then strongpunch for 1s, strongpunch removed from flurry/fortress rotation
-- Hit reaction immunity: power stance blocks reactions during charge + attack hold, fortress blocks all hit reactions
-- Bulwark shield HP mult reduced from 2.0 to 0.1, removed group encounter SystemLog messages
+- Zone Balance GUI visual redesign: three upgrades to `scripts/zone-balance-gui.js` (HTML template only)
+- Upgrade 1: heat-map td backgrounds — orange (< 1.0) to green (> 1.0), interpolated opacity; scan 30×7 grid at a glance
+- Upgrade 2: slider + readout per cell — `range` input (0.5–2.0) with live fill-color gradient track; `×1.00` span below; click span to open inline number input for precision entry
+- Upgrade 3: sparklines — 7 SVG bar charts (120×44px) above table, one per stat; bars above center = green, below = orange; clicking a bar scrolls to that zone row with a red flash pulse
+- `cellRefs` map (`zone-stat` → `{slider, span, td}`) powers `refreshCell()` and `resetRow()` without DOM queries
+- Server-side code, Save/Run Sim/Copy Code buttons, and data format all unchanged
 
 ## Pinned References
 - Governance rules: `CLAUDE.md`

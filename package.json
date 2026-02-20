@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "validate:data": "node scripts/validate-data.js",
     "balance:sim": "node scripts/balance-sim.js",
+    "balance:gui": "node scripts/zone-balance-gui.js",
     "thumbs": "node scripts/generate-thumbs.js"
   },
   "repository": {

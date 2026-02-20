@@ -48,7 +48,11 @@
       "Bash(git remote set-url:*)",
       "Bash(ssh:*)",
       "Bash(echo:*)",
-      "Bash(wc:*)"
+      "Bash(wc:*)",
+      "Bash(grep:*)",
+      "Bash(npm run balance:gui:*)",
+      "Bash(netstat:*)",
+      "Bash(taskkill:*)"
     ]
   },
   "outputStyle": "default",
