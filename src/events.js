@@ -24,7 +24,13 @@ export const EVENTS = {
   COMBAT_ENEMY_DODGED:  'combat:enemyDodged',
   COMBAT_PLAYER_DAMAGED:'combat:playerDamaged',
   COMBAT_PLAYER_DIED:   'combat:playerDied',
+  COMBAT_PLAYER_MISSED: 'combat:playerMissed',
   COMBAT_DOT_TICK:      'combat:dotTick',
+  COMBAT_MEMBER_ADDED:  'combat:memberAdded',
+  COMBAT_ENEMY_CASTING: 'combat:enemyCasting',
+  COMBAT_INTERRUPTED:   'combat:interrupted',
+  CORRUPTION_CHANGED:   'corruption:changed',
+  CORRUPTION_CLEANSED:  'corruption:cleansed',
 
   // Economy / Currencies
   ECON_GOLD_GAINED:     'econ:goldGained',
@@ -68,6 +74,8 @@ export const EVENTS = {
   COMBAT_ENEMY_REGEN:   'combat:enemyRegen',
   COMBAT_ENEMY_ENRAGED: 'combat:enemyEnraged',
   COMBAT_THORNS_DAMAGE: 'combat:thornsDamage',
+  COMBAT_ARMOR_BROKEN:  'combat:armorBroken',
+  COMBAT_ARMOR_RESTORED:'combat:armorRestored',
 
   // Consumable / Abilities
   WATERSKIN_USED:       'waterskin:used',
@@ -153,6 +161,12 @@ const EVENT_CONTRACTS = {
   [EVENTS.COMBAT_ENEMY_KILLED]:  ['enemyId', 'name', 'isBoss', 'encounterId', 'instanceId', 'slot'],
   [EVENTS.COMBAT_ENEMY_ATTACKED]:['enemyId', 'name', 'hitChance', 'accuracy', 'encounterId', 'instanceId', 'slot'],
   [EVENTS.COMBAT_ENEMY_DODGED]:  ['enemyId', 'name', 'hitChance', 'dodgeChance', 'accuracy', 'encounterId', 'instanceId', 'slot'],
+  [EVENTS.COMBAT_PLAYER_MISSED]: ['encounterId', 'instanceId', 'slot', 'enemyId', 'source'],
+  [EVENTS.COMBAT_MEMBER_ADDED]:  ['encounterId', 'memberCount', 'member'],
+  [EVENTS.COMBAT_ENEMY_CASTING]: ['encounterId', 'instanceId', 'slot', 'enemyId', 'castTime'],
+  [EVENTS.COMBAT_INTERRUPTED]:   ['encounterId', 'instanceId', 'slot', 'enemyId', 'source'],
+  [EVENTS.CORRUPTION_CHANGED]:   ['encounterId', 'stacks', 'maxStacks', 'reason'],
+  [EVENTS.CORRUPTION_CLEANSED]:  ['encounterId', 'removedStacks', 'reason'],
 
   // Other
   [EVENTS.STATE_CHANGED]:        [],
@@ -165,10 +179,12 @@ const EVENT_CONTRACTS = {
   [EVENTS.COMBAT_ENEMY_REGEN]:   ['amount', 'remainingHp', 'maxHp', 'encounterId', 'instanceId', 'slot'],
   [EVENTS.COMBAT_ENEMY_ENRAGED]: ['enemyId', 'name', 'encounterId', 'instanceId', 'slot'],
   [EVENTS.COMBAT_THORNS_DAMAGE]: ['amount', 'encounterId', 'instanceId', 'slot'],
+  [EVENTS.COMBAT_ARMOR_BROKEN]:  ['encounterId', 'instanceId', 'slot', 'enemyId'],
+  [EVENTS.COMBAT_ARMOR_RESTORED]:['encounterId', 'instanceId', 'slot', 'enemyId'],
 };
 
 export function emit(event, payload) {
-  if (import.meta.env.DEV) {
+  if (import.meta.env?.DEV) {
     const required = EVENT_CONTRACTS[event];
     if (required) {
       for (const key of required) {

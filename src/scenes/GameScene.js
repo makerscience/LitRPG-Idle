@@ -187,6 +187,12 @@ export default class GameScene extends Phaser.Scene {
     this._unsubs.push(on(EVENTS.COMBAT_ENEMY_KILLED, (data) => this._onEnemyKilled(data)));
     this._unsubs.push(on(EVENTS.COMBAT_ENEMY_ATTACKED, (data) => this._onEnemyAttacked(data)));
     this._unsubs.push(on(EVENTS.COMBAT_ENEMY_DODGED, (data) => this._onEnemyDodged(data)));
+    this._unsubs.push(on(EVENTS.COMBAT_PLAYER_MISSED, (data) => this._onPlayerMissed(data)));
+    this._unsubs.push(on(EVENTS.COMBAT_MEMBER_ADDED, (data) => this._onMemberAdded(data)));
+    this._unsubs.push(on(EVENTS.COMBAT_ENEMY_CASTING, (data) => this._onEnemyCasting(data)));
+    this._unsubs.push(on(EVENTS.COMBAT_INTERRUPTED, (data) => this._onInterrupted(data)));
+    this._unsubs.push(on(EVENTS.CORRUPTION_CHANGED, (data) => this._onCorruptionChanged(data)));
+    this._unsubs.push(on(EVENTS.CORRUPTION_CLEANSED, (data) => this._onCorruptionCleansed(data)));
     this._unsubs.push(on(EVENTS.COMBAT_ENEMY_REGEN, (data) => this._onEnemyRegen(data)));
     this._unsubs.push(on(EVENTS.COMBAT_ENEMY_ENRAGED, (data) => this._onEnemyEnraged(data)));
     this._unsubs.push(on(EVENTS.COMBAT_THORNS_DAMAGE, (data) => this._onThornsDamage(data)));
@@ -516,124 +522,169 @@ export default class GameScene extends Phaser.Scene {
     // All enemies render at full opacity — no dimming for non-targets
   }
 
+  _reflowEncounterSlots(layoutCount) {
+    const positions = this._getSlotPositions(Math.max(1, layoutCount));
+    for (let i = 0; i < this._enemySlots.length; i++) {
+      const slot = this._enemySlots[i];
+      if (!slot.state.instanceId) continue;
+      if (!positions[i]) continue;
+      slot.container.setPosition(positions[i].x, positions[i].y);
+      slot.baseX = positions[i].x;
+      slot.baseY = positions[i].y;
+    }
+  }
+
+  _spawnEncounterMember(memberData, encounterId, layoutCount) {
+    const slot = this._getSlotByIndex(memberData.slot);
+    if (!slot) return;
+
+    // Reusing a slot (for runtime summons) must clear stale visuals/state first.
+    if (slot.state.instanceId && slot.state.instanceId !== memberData.instanceId) {
+      this.tweens.killTweensOf(slot.sprite);
+      this.tweens.killTweensOf(slot.rect);
+      this.tweens.killTweensOf(slot.nameText);
+      this.tweens.killTweensOf(slot.hpBarBg);
+      this.tweens.killTweensOf(slot.hpBarFill);
+      this.tweens.killTweensOf(slot.chargeBarBg);
+      this.tweens.killTweensOf(slot.chargeBarFill);
+      for (const t of slot.traitObjs) t.destroy();
+      slot.traitObjs = [];
+      if (slot.state.poseRevertTimer) { slot.state.poseRevertTimer.remove(); slot.state.poseRevertTimer = null; }
+      if (slot.state.reactDelayTimer) { slot.state.reactDelayTimer.remove(); slot.state.reactDelayTimer = null; }
+      if (slot.state.deathFadeTimer) { slot.state.deathFadeTimer.remove(); slot.state.deathFadeTimer = null; }
+      for (const obj of slot.state.extraObjects) obj.destroy();
+      slot.state.extraObjects = [];
+      slot.sprite.clearTint();
+      slot.rect.setFillStyle(0xef4444);
+    }
+
+    const template = getEnemyById(memberData.enemyId)
+      || (memberData.baseEnemyId ? getEnemyById(memberData.baseEnemyId) : null);
+    const sprites = template?.sprites || null;
+    const bossScale = memberData.isBoss ? 1.4 : 1;
+    const baseSize = template?.spriteSize || { w: 200, h: 250 };
+    const size = { w: baseSize.w * bossScale, h: baseSize.h * bossScale };
+    const spriteOffsetY = template?.spriteOffsetY ?? 0;
+    const nameplateOffsetY = template?.nameplateOffsetY ?? 0;
+    const baseH = baseSize.h;
+    const hDiff = size.h - baseH;
+    const bottomAlignOffsetY = hDiff > 0 ? -hDiff / 2 + 40 : 0;
+
+    // Bind state
+    slot.state.instanceId = memberData.instanceId;
+    slot.state.enemyId = memberData.enemyId;
+    slot.state.currentSprites = sprites;
+    slot.state.spriteW = size.w;
+    slot.state.spriteH = size.h;
+    slot.state.spriteOffsetY = spriteOffsetY;
+    slot.state.bottomAlignOffsetY = bottomAlignOffsetY;
+    slot.state.lungeDist = (template?.lungeDistance || 20) * 2;
+    slot.state.enraged = false;
+
+    // Position container (layoutCount can grow as summons are added)
+    const count = Math.max(layoutCount || 1, memberData.slot + 1);
+    const positions = this._getSlotPositions(count);
+    const pos = positions[memberData.slot];
+    slot.container.setPosition(pos.x, pos.y);
+    slot.baseX = pos.x;
+    slot.baseY = pos.y;
+
+    // Reposition name/HP based on actual sprite height
+    const halfH = size.h / 2;
+    const npOff = nameplateOffsetY;
+    slot.nameText.setY(-(halfH) - 60 + npOff);
+    slot.hpBarBg.setY(-(halfH) - 42 + npOff);
+    slot.hpBarFill.setY(-(halfH) - 42 + npOff);
+    slot.hpBarFill.setX(-50); // reset left anchor
+
+    // Configure sprite or rect
+    if (sprites) {
+      slot.sprite.setTexture(sprites.default);
+      slot.sprite.setScale(1).setAngle(0).setOrigin(0.5, 0.5);
+      slot.sprite.setDisplaySize(size.w, size.h);
+      slot.sprite.setPosition(0, spriteOffsetY + bottomAlignOffsetY);
+      slot.sprite.setVisible(true).setAlpha(1);
+      slot.sprite.setInteractive({ useHandCursor: true });
+      slot.rect.setVisible(false);
+      slot.rect.disableInteractive();
+    } else {
+      slot.rect.setFillStyle(0xef4444);
+      slot.rect.setPosition(0, 0);
+      slot.rect.setVisible(true).setAlpha(1).setScale(1);
+      slot.rect.setInteractive({ useHandCursor: true });
+      slot.sprite.setVisible(false);
+      slot.sprite.disableInteractive();
+    }
+
+    // Name + HP bar
+    slot.nameText.setText(memberData.name).setAlpha(1);
+    slot.hpBarBg.setAlpha(1);
+    slot.hpBarFill.setDisplaySize(100, 8).setAlpha(1);
+    slot.hpBarFill.setFillStyle(0x22c55e);
+
+    // Trait indicators
+    for (const obj of slot.traitObjs) obj.destroy();
+    slot.traitObjs = [];
+    const traits = [];
+    if (memberData.regen > 0) traits.push({ label: '✚', color: '#22c55e' });
+    if (memberData.thorns > 0) traits.push({ label: '◆', color: '#a855f7' });
+    if ((memberData.attackSpeed ?? 1.0) >= 1.4) traits.push({ label: '⚡', color: '#facc15' });
+    if (memberData.armorPen > 0) traits.push({ label: '⊘', color: '#f97316' });
+    if (memberData.dot > 0) traits.push({ label: '☠', color: '#84cc16' });
+    if ((memberData.defense ?? 0) > 0) traits.push({ label: '⬢', color: '#60a5fa' });
+    if ((memberData.evasion ?? 0) > 0) traits.push({ label: 'E', color: '#22d3ee' });
+    if ((memberData.armor?.reduction ?? 0) > 0) traits.push({ label: 'A', color: '#93c5fd' });
+    if ((memberData.corruption ?? 0) > 0) traits.push({ label: 'C', color: '#f472b6' });
+    if (memberData.summon) traits.push({ label: 'S', color: '#f59e0b' });
+    const traitY = -(halfH) - 42 + npOff;
+    let traitX = 56;
+    for (const t of traits) {
+      const txt = this.add.text(traitX, traitY, t.label, {
+        fontFamily: 'monospace', fontSize: '13px', color: t.color,
+        stroke: '#000000', strokeThickness: 3,
+      }).setOrigin(0, 0.5);
+      slot.container.add(txt);
+      slot.traitObjs.push(txt);
+      traitX += txt.width + 1;
+    }
+    slot._traitY = traitY;
+    slot._nextTraitX = traitX;
+
+    // Charge bar tracking
+    slot.state.atkTimerKey = `enc:${encounterId}:atk:${memberData.instanceId}`;
+    slot.state.chargeArmor = template?.chargeArmor ?? 0;
+
+    const atkSpeed = memberData.attackSpeed ?? 1.0;
+    if (atkSpeed <= 0.8 && template?.chargeBar !== false) {
+      const chargeY = -(halfH) - 32 + npOff;
+      slot.chargeBarBg.setY(chargeY).setVisible(true).setAlpha(1);
+      slot.chargeBarFill.setY(chargeY).setDisplaySize(0, 4).setVisible(true).setAlpha(1);
+    } else {
+      slot.chargeBarBg.setVisible(false);
+      slot.chargeBarFill.setVisible(false);
+    }
+
+    slot.container.setVisible(true).setAlpha(1);
+  }
+
   // ── Encounter lifecycle ───────────────────────────────────────
 
   _onEncounterStarted(data) {
-
-    const positions = this._getSlotPositions(data.memberCount);
-
     for (const memberData of data.members) {
-      const slot = this._getSlotByIndex(memberData.slot);
-      if (!slot) continue;
-
-      const template = getEnemyById(memberData.enemyId)
-        || (memberData.baseEnemyId ? getEnemyById(memberData.baseEnemyId) : null);
-      const sprites = template?.sprites || null;
-      const bossScale = memberData.isBoss ? 1.4 : 1;
-      const baseSize = template?.spriteSize || { w: 200, h: 250 };
-      const size = { w: baseSize.w * bossScale, h: baseSize.h * bossScale };
-      const spriteOffsetY = template?.spriteOffsetY ?? 0;
-      const nameplateOffsetY = template?.nameplateOffsetY ?? 0;
-      const baseH = baseSize.h;
-      const hDiff = size.h - baseH;
-      const bottomAlignOffsetY = hDiff > 0 ? -hDiff / 2 + 40 : 0;
-
-      // Bind state
-      slot.state.instanceId = memberData.instanceId;
-      slot.state.enemyId = memberData.enemyId;
-      slot.state.currentSprites = sprites;
-      slot.state.spriteW = size.w;
-      slot.state.spriteH = size.h;
-      slot.state.spriteOffsetY = spriteOffsetY;
-      slot.state.bottomAlignOffsetY = bottomAlignOffsetY;
-      slot.state.lungeDist = (template?.lungeDistance || 20) * 2;
-
-      // Position container
-      const pos = positions[memberData.slot];
-      slot.container.setPosition(pos.x, pos.y);
-      slot.baseX = pos.x;
-      slot.baseY = pos.y;
-
-      // Reposition name/HP based on actual sprite height
-      const halfH = size.h / 2;
-      const npOff = nameplateOffsetY;
-      slot.nameText.setY(-(halfH) - 60 + npOff);
-      slot.hpBarBg.setY(-(halfH) - 42 + npOff);
-      slot.hpBarFill.setY(-(halfH) - 42 + npOff);
-      slot.hpBarFill.setX(-50); // reset left anchor
-
-      // Configure sprite or rect
-      if (sprites) {
-        slot.sprite.setTexture(sprites.default);
-        slot.sprite.setScale(1).setAngle(0).setOrigin(0.5, 0.5);
-        slot.sprite.setDisplaySize(size.w, size.h);
-        slot.sprite.setPosition(0, spriteOffsetY + bottomAlignOffsetY);
-        slot.sprite.setVisible(true).setAlpha(1);
-        slot.sprite.setInteractive({ useHandCursor: true });
-        slot.rect.setVisible(false);
-        slot.rect.disableInteractive();
-      } else {
-        slot.rect.setFillStyle(0xef4444);
-        slot.rect.setPosition(0, 0);
-        slot.rect.setVisible(true).setAlpha(1).setScale(1);
-        slot.rect.setInteractive({ useHandCursor: true });
-        slot.sprite.setVisible(false);
-        slot.sprite.disableInteractive();
-      }
-
-      // Name + HP bar — reset alpha in case death tween faded them
-      slot.nameText.setText(memberData.name).setAlpha(1);
-      slot.hpBarBg.setAlpha(1);
-      slot.hpBarFill.setDisplaySize(100, 8).setAlpha(1);
-      slot.hpBarFill.setFillStyle(0x22c55e);
-
-      // Trait indicators — individual colored texts right of HP bar
-      for (const obj of slot.traitObjs) obj.destroy();
-      slot.traitObjs = [];
-      const traits = [];
-      if (memberData.regen > 0) traits.push({ label: '✚', color: '#22c55e' });
-      if (memberData.thorns > 0) traits.push({ label: '◆', color: '#a855f7' });
-      if ((memberData.attackSpeed ?? 1.0) >= 1.4) traits.push({ label: '⚡', color: '#facc15' });
-      if (memberData.armorPen > 0) traits.push({ label: '⊘', color: '#f97316' });
-      if (memberData.dot > 0) traits.push({ label: '☠', color: '#84cc16' });
-      if ((memberData.defense ?? 0) > 0) traits.push({ label: '⬢', color: '#60a5fa' });
-      const traitY = -(halfH) - 42 + npOff;
-      let traitX = 56;
-      for (const t of traits) {
-        const txt = this.add.text(traitX, traitY, t.label, {
-          fontFamily: 'monospace', fontSize: '13px', color: t.color,
-          stroke: '#000000', strokeThickness: 3,
-        }).setOrigin(0, 0.5);
-        slot.container.add(txt);
-        slot.traitObjs.push(txt);
-        traitX += txt.width + 1;
-      }
-      slot._traitY = traitY;
-      slot._nextTraitX = traitX;
-
-      // Always store attack timer key (needed for chargeArmor immunity checks)
-      slot.state.atkTimerKey = `enc:${data.encounterId}:atk:${memberData.instanceId}`;
-      slot.state.chargeArmor = template?.chargeArmor ?? 0;
-
-      // Enemy attack charge bar — show for slow attackers (attackSpeed <= 0.8) unless chargeBar: false
-      const atkSpeed = memberData.attackSpeed ?? 1.0;
-      if (atkSpeed <= 0.8 && template?.chargeBar !== false) {
-        const chargeY = -(halfH) - 32 + npOff;
-        slot.chargeBarBg.setY(chargeY).setVisible(true).setAlpha(1);
-        slot.chargeBarFill.setY(chargeY).setDisplaySize(0, 4).setVisible(true).setAlpha(1);
-      } else {
-        slot.chargeBarBg.setVisible(false);
-        slot.chargeBarFill.setVisible(false);
-      }
-
-      // Show container
-      slot.container.setVisible(true).setAlpha(1);
+      this._spawnEncounterMember(memberData, data.encounterId, data.memberCount);
     }
+    this._reflowEncounterSlots(data.memberCount);
 
     // Highlight initial target (first member)
     if (data.members.length > 0) {
       this._highlightTarget(data.members[0].instanceId);
     }
+  }
+
+  _onMemberAdded(data) {
+    if (!data?.member) return;
+    this._spawnEncounterMember(data.member, data.encounterId, data.memberCount);
+    this._reflowEncounterSlots(Math.max(data.memberCount || 1, data.member.slot + 1));
   }
 
   _onEncounterEnded(_data) {
@@ -1168,6 +1219,58 @@ export default class GameScene extends Phaser.Scene {
     });
   }
 
+  _spawnMissText(x, y) {
+    const text = this.add.text(x, y, 'MISS!', {
+      fontFamily: 'monospace',
+      fontSize: '24px',
+      color: '#e5e7eb',
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 4,
+    }).setOrigin(0.5);
+
+    this.tweens.add({
+      targets: text,
+      y: y - 55,
+      duration: 900,
+      ease: 'Power2',
+    });
+    this.tweens.add({
+      targets: text,
+      alpha: 0,
+      delay: 520,
+      duration: 380,
+      ease: 'Linear',
+      onComplete: () => text.destroy(),
+    });
+  }
+
+  _spawnStatusText(x, y, label, color = '#ffffff') {
+    const text = this.add.text(x, y, label, {
+      fontFamily: 'monospace',
+      fontSize: '20px',
+      color,
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 4,
+    }).setOrigin(0.5);
+
+    this.tweens.add({
+      targets: text,
+      y: y - 45,
+      duration: 700,
+      ease: 'Power2',
+    });
+    this.tweens.add({
+      targets: text,
+      alpha: 0,
+      delay: 400,
+      duration: 300,
+      ease: 'Linear',
+      onComplete: () => text.destroy(),
+    });
+  }
+
   // â”€â”€ Visual juice â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   _spawnPlayerDamageNumber(amount) {
@@ -1307,6 +1410,33 @@ export default class GameScene extends Phaser.Scene {
 
   _onEnemyDodged(_data) {
     this._spawnDodgeText();
+  }
+
+  _onEnemyCasting(data) {
+    const slot = this._getSlotByInstanceId(data.instanceId);
+    if (!slot) return;
+    this._spawnStatusText(slot.baseX, slot.baseY - 115, 'CASTING', '#f59e0b');
+  }
+
+  _onInterrupted(data) {
+    const slot = this._getSlotByInstanceId(data.instanceId);
+    if (!slot) return;
+    this._spawnStatusText(slot.baseX, slot.baseY - 115, 'INTERRUPTED!', '#22d3ee');
+  }
+
+  _onPlayerMissed(data) {
+    const slot = this._getSlotByInstanceId(data.instanceId);
+    if (!slot) return;
+    this._spawnMissText(slot.baseX, slot.baseY - 80);
+  }
+
+  _onCorruptionChanged(data) {
+    if (data.reason !== 'gain') return;
+    this._spawnStatusText(this._playerX, this._combatY - 150, `CORRUPTION x${data.stacks}`, '#f472b6');
+  }
+
+  _onCorruptionCleansed(_data) {
+    this._spawnStatusText(this._playerX, this._combatY - 150, 'CLEANSED', '#34d399');
   }
 
   _onPlayerDamaged(data) {

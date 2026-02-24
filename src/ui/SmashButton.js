@@ -1,7 +1,6 @@
 // SmashButton — "SMASH" button for the Power Smash active ability.
 // Visible when stance is 'power'. Cooldown driven by upgrade levels.
 
-import Store from '../systems/Store.js';
 import CombatEngine from '../systems/CombatEngine.js';
 import UpgradeManager from '../systems/UpgradeManager.js';
 import { on, emit, EVENTS } from '../events.js';
@@ -14,6 +13,7 @@ export default class SmashButton {
     this._cooldownStart = 0;
     this._cooldownEnd = 0;
     this._cooldownTimer = null;
+    this._manualVisible = false;
 
     const ga = LAYOUT.gameArea;
     const btnX = ga.x + 110;
@@ -45,7 +45,6 @@ export default class SmashButton {
       }
     });
 
-    this._unsubs.push(on(EVENTS.STANCE_CHANGED, () => this._refreshVisibility()));
     this._unsubs.push(on(EVENTS.SAVE_LOADED, () => this._refreshVisibility()));
     this._unsubs.push(on(EVENTS.UPG_PURCHASED, (data) => {
       if (data.upgradeId === 'power_smash_recharge' && this._isOnCooldown()) {
@@ -54,10 +53,6 @@ export default class SmashButton {
     }));
 
     this._refreshVisibility();
-  }
-
-  _isActiveStance() {
-    return Store.getState().currentStance === 'power';
   }
 
   _isOnCooldown() {
@@ -73,7 +68,7 @@ export default class SmashButton {
   }
 
   _refreshVisibility() {
-    if (this._isActiveStance()) {
+    if (this._manualVisible) {
       this._btn.setVisible(true);
       if (!this._isOnCooldown()) {
         this._btn.setText('SMASH');
@@ -86,8 +81,6 @@ export default class SmashButton {
 
   _onSmash() {
     if (this._isOnCooldown()) return;
-    if (!this._isActiveStance()) return;
-
     if (!CombatEngine.hasTarget()) return;
 
     const multiplier = this._getDamageMultiplier();
@@ -150,11 +143,17 @@ export default class SmashButton {
   }
 
   show() {
+    this._manualVisible = true;
     this._refreshVisibility();
   }
 
   hide() {
+    this._manualVisible = false;
     this._btn.setVisible(false);
+  }
+
+  setPosition(x, y) {
+    this._btn.setPosition(x, y);
   }
 
   destroy() {

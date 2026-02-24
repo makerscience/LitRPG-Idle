@@ -1,5 +1,38 @@
 # CHANGELOG
 
+## 2026-02-24 - Enemy Roster Redesign Phases 0-4 (Data, Encounters, Bosses)
+- **World structure updated to 35 zones:** `TOTAL_ZONES` is now 35, with area starts moved to 1/11/21 and Area 2/3 labels updated (`The Whispering Woods`, `The Blighted Mire`, `The Shattered Ruins`)
+- **Boundary-sensitive data shifted by +5 for Areas 2-3:** enemy zone ranges, encounter area starts, and boss zone mappings were updated for the new global zone layout
+- **Enemy schema expanded:** enemies now support additive optional fields for `evasion`, `armor`, `corruption`, and `summon`; validator checks were added for each
+- **Roster rewrite completed:** enemy roster now covers zones 1-35 with redesigned trait distribution and updated area-boundary derivation (no hardcoded 1-5/6-15/16-30 split)
+- **Encounter rewrite completed:** encounter template coverage and validation were updated for the 35-zone model (46 templates validated)
+- **Boss roster expanded to one per zone:** 35 bosses validated, including new Area 1 zone 6-10 bosses (`Thornback Alpha`, `The Grime King`, `Hawkeye`, `Bandit Captain`, `Rotfang Reborn`)
+
+## 2026-02-24 - Enemy Roster Redesign Phases 5-7 (Mechanics, UI, Verification)
+- **Evasion path added:** player attacks can miss via `COMBAT_PLAYER_MISSED`, with GameScene visual feedback for misses
+- **Armor break lifecycle added:** temporary armor debuff + timed restore with `COMBAT_ARMOR_BROKEN` and `COMBAT_ARMOR_RESTORED`
+- **Summon/interrupt flow added:** cast timers, slot-cap safety, max-add safety, and runtime member insertion via `COMBAT_MEMBER_ADDED`, plus `COMBAT_ENEMY_CASTING` and `COMBAT_INTERRUPTED`
+- **Summon reward policy hardened:** summoned adds are progression-neutral by default (`summonedAddRewardMult: 0`) and do not apply encounter loot bonuses
+- **Corruption system added:** encounter-scoped stacks with clamp bounds, DoT, decay, cleanse, and debuff integration (`attackMult`, `regenMult`) plus `CORRUPTION_CHANGED`/`CORRUPTION_CLEANSED`
+- **Stance action UI refactor completed:** UIScene now owns Slot A/Slot B stance actions; added `ArmorBreakButton`, `InterruptButton`, `CleanseButton`, and `CorruptionIndicator`
+- **Ability constants centralized:** new `ABILITIES` config namespace in `src/config.js` for armor break, interrupt, and cleanse tuning
+- **Automated verification gate added:** `scripts/verify-combat-mechanics.js` with `npm run verify:combat` now validates event contracts and key mechanic invariants
+- **Verification status:** `npm run verify:combat` passed, `npm run build` passed, `npm run validate:data` passed with one warning (zones 31-35 have no droppable items)
+
+## 2026-02-20 — Area 1 Boss Order Change (Rotfang to Zone 5)
+- **Rotfang moved to zone 5:** `boss_a1z1_rotfang` now appears at global zone 5
+- **Zone 1 boss backfilled:** `boss_a1z5_the_hollow` moved to global zone 1 so early progression still has a boss challenge
+- **Area-boss gate preserved at zone 5:** Rotfang is now `bossType: 'AREA'`; The Hollow is now `bossType: 'MINI'`
+- **Pacing stats swapped for natural curve:** Rotfang now has the former zone-5 boss values (`hp 1850`, `attack 63`, `gold 250`, `xp 125`), while The Hollow now has the former zone-1 boss values (`hp 660`, `attack 18`, `gold 45`, `xp 23`)
+- **Waterskin guarantee moved to zone 1 boss:** `guaranteedFirstKillItem: 'a1_rotfang_waterskin'` now lives on The Hollow (zone 1) instead of Rotfang (zone 5)
+
+## 2026-02-20 — Balance GUI Entity Tabs + Combat Entity Bias
+- **New data module:** `src/data/balance.js` with sparse `ENEMY_BALANCE` and `BOSS_BALANCE` maps plus `getEnemyBias()` / `getBossBias()` accessors (default `1.0`)
+- **New data dump helper:** `scripts/dump-zone-data.mjs` exports enemy and boss metadata JSON for the GUI server
+- **Combat scaling update:** `CombatEngine.spawnEnemy()` now applies per-enemy bias on top of zone scaling/zone bias; `spawnBoss()` now applies per-boss bias to hand-authored boss stats
+- **Balance GUI upgrade:** `scripts/zone-balance-gui.js` now includes **Zones / Enemies / Bosses** tabs, plus `/api/entity-data`, `/api/balance-data`, and `/api/save-balance` endpoints
+- **GUI behavior updates:** entity tabs use the same 7 stat dials (`hp/atk/def/speed/regen/gold/xp`), save to `src/data/balance.js`, and Copy Code now exports the active tab block (`ZONE_BALANCE`, `ENEMY_BALANCE`, or `BOSS_BALANCE`)
+
 ## 2026-02-20 — Zone Balance GUI Visual Redesign
 - **Upgrade 1 — Heat-map backgrounds:** `td.stat-cell` background fades orange (value < 1) or green (value > 1), interpolated from transparent at 1.0 to full color at ±0.5
 - **Upgrade 2 — Slider + readout cells:** Each cell now has a `range` input (0.5–2.0, step 0.05) with a fill-color gradient track (orange left of center, green right); `×1.00` readout span below; clicking span opens inline `<input type="number">` for precision entry (blur/Enter commits, Escape cancels)
@@ -670,3 +703,4 @@
 
 ## 2026-01-24
 - Initialized governance-only memory system (CLAUDE.md + .memory files).
+

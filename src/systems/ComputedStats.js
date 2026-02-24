@@ -8,6 +8,16 @@ import { D } from './BigNum.js';
 import { COMBAT_V2, STANCES } from '../config.js';
 import { getScaledItem } from '../data/items.js';
 
+let _combatDebuffs = {
+  attackMult: 1,
+  regenMult: 1,
+};
+
+function _clampMultiplier(value, fallback = 1) {
+  if (typeof value !== 'number' || Number.isNaN(value)) return fallback;
+  return Math.max(0, value);
+}
+
 /** Sum a single stat key across all equipped gear. */
 function getEquipmentStatSum(statKey) {
   const state = Store.getState();
@@ -64,7 +74,7 @@ export function getEffectiveMaxHp() {
 
 /** Base damage = effective STR. Enemy defense applied at combat time. */
 export function getBaseDamage() {
-  return getEffectiveStr();
+  return getEffectiveStr() * _combatDebuffs.attackMult;
 }
 
 /** Effective auto-attack damage per hit after all multipliers (prestige, territory, stance). */
@@ -107,7 +117,20 @@ export function getHpRegen() {
   const state = Store.getState();
   const baseRegen = state.playerStats.regen + getEquipmentStatSum('regen');
   const regenMult = TerritoryManager.getBuffMultiplier('hpRegen');
-  return D(baseRegen).times(regenMult);
+  return D(baseRegen).times(regenMult).times(_combatDebuffs.regenMult);
+}
+
+/** Runtime combat-only debuffs (used for encounter mechanics like Corruption). */
+export function setCombatDebuffs(partial = {}) {
+  _combatDebuffs = {
+    attackMult: _clampMultiplier(partial.attackMult, _combatDebuffs.attackMult),
+    regenMult: _clampMultiplier(partial.regenMult, _combatDebuffs.regenMult),
+  };
+}
+
+/** Clear runtime combat debuffs. */
+export function resetCombatDebuffs() {
+  _combatDebuffs = { attackMult: 1, regenMult: 1 };
 }
 
 /** Player attack speed from base + gear. */
@@ -166,6 +189,8 @@ export function getAllStats() {
     goldMultiplier: getGoldMultiplier(),
     xpMultiplier: getXpMultiplier(),
     hpRegen: getHpRegen(),
+    attackDebuffMult: _combatDebuffs.attackMult,
+    regenDebuffMult: _combatDebuffs.regenMult,
     damageReduction: getDamageReduction(),
     dodgeChanceVsDefaultAcc: getDodgeChance(80),
     currentStance: state.currentStance,

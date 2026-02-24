@@ -137,6 +137,21 @@ export const COMBAT_V2 = {
   clickDamageScalar: 0.2,
   maxEncounterSize: 5,
   encounterSpread: 140,         // px between slot centers for multi-enemy layout
+  summonedAddRewardMult: 0,     // summoned adds are non-farmable by default
+  corruption: {
+    maxStacks: 8,
+    perStackRegenReduction: 0.1,
+    perStackAtkReduction: 0.06,
+    dotPerStack: 2,
+    decayMs: 4000,
+    tickMs: 1000,
+  },
+};
+
+export const ABILITIES = {
+  armorBreak: { durationMs: 6000, defReductionPercent: 0.35, cooldownMs: 15000 },
+  interrupt: { cooldownMs: 10000, fallbackDelayMs: 1200 },
+  cleanse: { cooldownMs: 20000 },
 };
 
 export const LOOT_V2 = {

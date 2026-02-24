@@ -2,6 +2,7 @@
 // Launched by GameScene, not started (runs in parallel).
 
 import Phaser from 'phaser';
+import Store from '../systems/Store.js';
 import TopBar from '../ui/TopBar.js';
 import SystemDialogue from '../ui/SystemDialogue.js';
 import SystemLog from '../ui/SystemLog.js';
@@ -11,6 +12,10 @@ import DrinkButton from '../ui/DrinkButton.js';
 import SmashButton from '../ui/SmashButton.js';
 import FlurryButton from '../ui/FlurryButton.js';
 import BulwarkButton from '../ui/BulwarkButton.js';
+import ArmorBreakButton from '../ui/ArmorBreakButton.js';
+import InterruptButton from '../ui/InterruptButton.js';
+import CleanseButton from '../ui/CleanseButton.js';
+import CorruptionIndicator from '../ui/CorruptionIndicator.js';
 import StanceSwitcher from '../ui/StanceSwitcher.js';
 import InventoryPanel from '../ui/InventoryPanel.js';
 import UpgradePanel from '../ui/UpgradePanel.js';
@@ -22,12 +27,15 @@ import DialogueManager from '../systems/DialogueManager.js';
 import FirstCrackDirector from '../systems/FirstCrackDirector.js';
 import CheatManager from '../systems/CheatManager.js';
 import PrestigeManager from '../systems/PrestigeManager.js';
+import { on, EVENTS } from '../events.js';
 import { FEATURES } from '../config/features.js';
 import { LAYOUT, COLORS } from '../config.js';
 
 export default class UIScene extends Phaser.Scene {
   constructor() {
     super('UIScene');
+    this._unsubs = [];
+    this._mapOpen = false;
   }
 
   create() {
@@ -59,7 +67,38 @@ export default class UIScene extends Phaser.Scene {
     this.smashButton = new SmashButton(this);
     this.flurryButton = new FlurryButton(this);
     this.bulwarkButton = new BulwarkButton(this);
+    this.armorBreakButton = new ArmorBreakButton(this);
+    this.interruptButton = new InterruptButton(this);
+    this.cleanseButton = new CleanseButton(this);
     this.stanceSwitcher = new StanceSwitcher(this);
+    this.corruptionIndicator = new CorruptionIndicator(this);
+
+    // Stance action layout: Slot A = legacy skill, Slot B = new trait-counter skill.
+    const slotAX = ga.x + 110;
+    const slotAY = ga.y + ga.h - 10;
+    const slotBX = ga.x + 110;
+    const slotBY = ga.y + ga.h - 46;
+    this.smashButton.setPosition(slotAX, slotAY);
+    this.flurryButton.setPosition(slotAX, slotAY);
+    this.bulwarkButton.setPosition(slotAX, slotAY);
+    this.armorBreakButton.setPosition(slotBX, slotBY);
+    this.interruptButton.setPosition(slotBX, slotBY);
+    this.cleanseButton.setPosition(slotBX, slotBY);
+    this.corruptionIndicator.setPosition(ga.x + 190, ga.y + 30);
+
+    this._actionButtons = [
+      this.smashButton, this.flurryButton, this.bulwarkButton,
+      this.armorBreakButton, this.interruptButton, this.cleanseButton,
+    ];
+    this._stanceActions = {
+      power: { slotA: this.smashButton, slotB: this.armorBreakButton },
+      flurry: { slotA: this.flurryButton, slotB: this.interruptButton },
+      fortress: { slotA: this.bulwarkButton, slotB: this.cleanseButton },
+    };
+
+    this._unsubs.push(on(EVENTS.STANCE_CHANGED, () => this._refreshStanceActions()));
+    this._unsubs.push(on(EVENTS.SAVE_LOADED, () => this._refreshStanceActions()));
+    this._refreshStanceActions();
     this.inventoryPanel = new InventoryPanel(this);
     this.upgradePanel = new UpgradePanel(this);
     this.settingsPanel = new SettingsPanel(this);
@@ -97,7 +136,6 @@ export default class UIScene extends Phaser.Scene {
     }
 
     // MAP button in bottom bar (gated on territory)
-    this._mapOpen = false;
     this._mapBtn = null;
     this._mKey = null;
     if (FEATURES.territoryEnabled) {
@@ -129,6 +167,43 @@ export default class UIScene extends Phaser.Scene {
     }
   }
 
+  _hideAllActionButtons() {
+    for (const btn of this._actionButtons) {
+      btn.hide();
+    }
+  }
+
+  _refreshStanceActions() {
+    this._hideAllActionButtons();
+    if (this._mapOpen) {
+      this.corruptionIndicator.hide();
+      return;
+    }
+
+    const stance = Store.getState().currentStance;
+    const actions = this._stanceActions[stance] || this._stanceActions.power;
+    actions.slotA.show();
+    actions.slotB.show();
+    this.corruptionIndicator.show();
+  }
+
+  _setCombatUiVisibility(visible) {
+    if (visible) {
+      this.zoneNav.show();
+      this.bossChallenge.show();
+      this.drinkButton.show();
+      this.stanceSwitcher.show();
+      this._refreshStanceActions();
+    } else {
+      this.zoneNav.hide();
+      this.bossChallenge.hide();
+      this.drinkButton.hide();
+      this.stanceSwitcher.hide();
+      this._hideAllActionButtons();
+      this.corruptionIndicator.hide();
+    }
+  }
+
   _toggleMap() {
     if (!FEATURES.territoryEnabled) return;
     this.closeAllModals();
@@ -136,28 +211,18 @@ export default class UIScene extends Phaser.Scene {
     const overworldScene = this.scene.get('OverworldScene');
     if (overworldScene.scene.isSleeping()) {
       overworldScene.scene.wake();
-      this.zoneNav.hide();
-      this.bossChallenge.hide();
-      this.drinkButton.hide();
-      this.smashButton.hide();
-      this.flurryButton.hide();
-      this.bulwarkButton.hide();
-      this.stanceSwitcher.hide();
       this._mapOpen = true;
+      this._setCombatUiVisibility(false);
     } else {
       overworldScene.scene.sleep();
-      this.zoneNav.show();
-      this.bossChallenge.show();
-      this.drinkButton.show();
-      this.smashButton.show();
-      this.flurryButton.show();
-      this.bulwarkButton.show();
-      this.stanceSwitcher.show();
       this._mapOpen = false;
+      this._setCombatUiVisibility(true);
     }
   }
 
   _shutdown() {
+    for (const unsub of this._unsubs) unsub();
+    this._unsubs = [];
     if (this.topBar) { this.topBar.destroy(); this.topBar = null; }
     if (this.systemDialogue) { this.systemDialogue.destroy(); this.systemDialogue = null; }
     if (this.systemLog) { this.systemLog.destroy(); this.systemLog = null; }
@@ -167,7 +232,13 @@ export default class UIScene extends Phaser.Scene {
     if (this.smashButton) { this.smashButton.destroy(); this.smashButton = null; }
     if (this.flurryButton) { this.flurryButton.destroy(); this.flurryButton = null; }
     if (this.bulwarkButton) { this.bulwarkButton.destroy(); this.bulwarkButton = null; }
+    if (this.armorBreakButton) { this.armorBreakButton.destroy(); this.armorBreakButton = null; }
+    if (this.interruptButton) { this.interruptButton.destroy(); this.interruptButton = null; }
+    if (this.cleanseButton) { this.cleanseButton.destroy(); this.cleanseButton = null; }
     if (this.stanceSwitcher) { this.stanceSwitcher.destroy(); this.stanceSwitcher = null; }
+    if (this.corruptionIndicator) { this.corruptionIndicator.destroy(); this.corruptionIndicator = null; }
+    this._actionButtons = [];
+    this._stanceActions = null;
     for (const modal of this._modals || []) {
       if (modal) modal.destroy();
     }

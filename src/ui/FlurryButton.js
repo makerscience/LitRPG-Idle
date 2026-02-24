@@ -1,7 +1,6 @@
 // FlurryButton — "FLURRY" button for the Rapid Strikes active ability.
 // Visible when stance is 'flurry'. Calls CombatEngine.activateRapidStrikes().
 
-import Store from '../systems/Store.js';
 import CombatEngine from '../systems/CombatEngine.js';
 import { on, emit, EVENTS } from '../events.js';
 import { LAYOUT } from '../config.js';
@@ -14,6 +13,7 @@ export default class FlurryButton {
     this._unsubs = [];
     this._cooldownEnd = 0;
     this._cooldownTimer = null;
+    this._manualVisible = false;
 
     const ga = LAYOUT.gameArea;
     const btnX = ga.x + 110;
@@ -45,14 +45,9 @@ export default class FlurryButton {
       }
     });
 
-    this._unsubs.push(on(EVENTS.STANCE_CHANGED, () => this._refreshVisibility()));
     this._unsubs.push(on(EVENTS.SAVE_LOADED, () => this._refreshVisibility()));
 
     this._refreshVisibility();
-  }
-
-  _isActiveStance() {
-    return Store.getState().currentStance === 'flurry';
   }
 
   _isOnCooldown() {
@@ -60,7 +55,7 @@ export default class FlurryButton {
   }
 
   _refreshVisibility() {
-    if (this._isActiveStance()) {
+    if (this._manualVisible) {
       this._btn.setVisible(true);
       if (!this._isOnCooldown()) {
         this._btn.setText('FLURRY');
@@ -73,7 +68,6 @@ export default class FlurryButton {
 
   _onActivate() {
     if (this._isOnCooldown()) return;
-    if (!this._isActiveStance()) return;
     if (!CombatEngine.hasTarget()) return;
 
     CombatEngine.activateRapidStrikes();
@@ -115,11 +109,17 @@ export default class FlurryButton {
   }
 
   show() {
+    this._manualVisible = true;
     this._refreshVisibility();
   }
 
   hide() {
+    this._manualVisible = false;
     this._btn.setVisible(false);
+  }
+
+  setPosition(x, y) {
+    this._btn.setPosition(x, y);
   }
 
   destroy() {

@@ -23,6 +23,11 @@ const STAT_KEYS = ['str', 'def', 'hp', 'regen', 'atkSpeed', 'atk', 'agi'];
 // ── 1. Enemy Schema ─────────────────────────────────────────────────
 section('Enemy Validation');
 const enemyIds = new Set();
+const knownEnemyIds = new Set(
+  ENEMIES
+    .map(e => e?.id)
+    .filter(id => typeof id === 'string')
+);
 
 for (const e of ENEMIES) {
   const ctx = `Enemy "${e.id || '???'}"`;
@@ -38,6 +43,43 @@ for (const e of ENEMIES) {
   if (typeof e.defense !== 'number') error(`${ctx}: invalid defense`);
   if (typeof e.armorPen !== 'number' || e.armorPen < 0 || e.armorPen > 1) error(`${ctx}: armorPen must be 0-1`);
   if (e.dot !== null && typeof e.dot !== 'number') error(`${ctx}: dot must be number or null`);
+  if (e.evasion != null && (typeof e.evasion !== 'number' || e.evasion < 0 || e.evasion > 0.95)) {
+    error(`${ctx}: evasion must be a number in range 0-0.95`);
+  }
+  if (e.armor != null) {
+    if (typeof e.armor !== 'object' || Array.isArray(e.armor)) {
+      error(`${ctx}: armor must be an object`);
+    } else if (typeof e.armor.reduction !== 'number' || e.armor.reduction < 0 || e.armor.reduction > 0.95) {
+      error(`${ctx}: armor.reduction must be a number in range 0-0.95`);
+    }
+  }
+  if (e.corruption != null && (!Number.isInteger(e.corruption) || e.corruption < 0)) {
+    error(`${ctx}: corruption must be a non-negative integer`);
+  }
+  if (e.summon != null) {
+    if (typeof e.summon !== 'object' || Array.isArray(e.summon)) {
+      error(`${ctx}: summon must be an object`);
+    } else {
+      if (typeof e.summon.enemyId !== 'string') {
+        error(`${ctx}: summon.enemyId must be a string`);
+      } else if (!knownEnemyIds.has(e.summon.enemyId)) {
+        error(`${ctx}: summon.enemyId "${e.summon.enemyId}" not found in ENEMIES`);
+      }
+      if (!Number.isInteger(e.summon.count) || e.summon.count <= 0) {
+        error(`${ctx}: summon.count must be a positive integer`);
+      }
+      if (!Number.isInteger(e.summon.castTime) || e.summon.castTime <= 0) {
+        error(`${ctx}: summon.castTime must be a positive integer (ms)`);
+      }
+      if (!Number.isInteger(e.summon.maxAdds) || e.summon.maxAdds < 0) {
+        error(`${ctx}: summon.maxAdds must be a non-negative integer`);
+      }
+      if (e.summon.cooldownMs != null
+        && (!Number.isInteger(e.summon.cooldownMs) || e.summon.cooldownMs <= 0)) {
+        error(`${ctx}: summon.cooldownMs must be a positive integer when provided`);
+      }
+    }
+  }
 
   if (!Array.isArray(e.zones) || e.zones.length !== 2) {
     error(`${ctx}: zones must be [min, max]`);
@@ -218,7 +260,7 @@ if (uncoveredZones.length > 0) {
     warn(`Zones ${laterUncovered[0]}-${laterUncovered[laterUncovered.length - 1]} have no enemies (Areas 2-3 not yet authored)`);
   }
 } else {
-  console.log('  All zones 1-30 have enemy coverage.');
+  console.log(`  All zones 1-${TOTAL_ZONES} have enemy coverage.`);
 }
 
 // ── 7. Item Zone Coverage ────────────────────────────────────────────
@@ -244,7 +286,7 @@ if (uncoveredItemZones.length > 0) {
     warn(`Zones ${laterUncoveredItems[0]}-${laterUncoveredItems[laterUncoveredItems.length - 1]} have no droppable items (Areas 2-3 not yet authored)`);
   }
 } else {
-  console.log('  All zones 1-30 have item coverage.');
+  console.log(`  All zones 1-${TOTAL_ZONES} have item coverage.`);
 }
 console.log('  Item zone coverage checked.');
 

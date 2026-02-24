@@ -1,4 +1,4 @@
-// V2 area definitions — 3 areas, 30 total zones.
+// V2 area definitions — 3 areas, 35 total zones.
 // Enemies use zone-range filtering instead of area field matching.
 
 import { ENEMIES } from './enemies.js';
@@ -6,29 +6,29 @@ import { ENEMIES } from './enemies.js';
 const AREAS = {
   1: {
     id: 1,
-    name: 'The Harsh Threshold',
+    name: 'The Whispering Woods',
     zoneCount: 10,
     zoneStart: 1,
     enemies: () => getEnemiesForArea(1),
   },
   2: {
     id: 2,
-    name: 'The Overgrown Frontier',
+    name: 'The Blighted Mire',
     zoneCount: 10,
-    zoneStart: 6,
+    zoneStart: 11,
     enemies: () => getEnemiesForArea(2),
   },
   3: {
     id: 3,
-    name: 'The Broken Road',
+    name: 'The Shattered Ruins',
     zoneCount: 15,
-    zoneStart: 16,
+    zoneStart: 21,
     enemies: () => getEnemiesForArea(3),
   },
 };
 
 /** Total zones across all areas. */
-export const TOTAL_ZONES = 30;
+export const TOTAL_ZONES = 35;
 
 /** Number of areas. */
 export const AREA_COUNT = 3;

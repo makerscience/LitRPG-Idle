@@ -7,14 +7,16 @@ import BossManager from './BossManager.js';
 import Progression from './Progression.js';
 import { D, Decimal } from './BigNum.js';
 import { createScope, emit, EVENTS } from '../events.js';
-import { COMBAT_V2, STANCES, STANCE_IDS, STANCE_SWITCH_PAUSE_MS } from '../config.js';
+import { ABILITIES, COMBAT_V2, STANCES, STANCE_IDS, STANCE_SWITCH_PAUSE_MS } from '../config.js';
 import { getZoneScaling, getZoneBias, getArea } from '../data/areas.js';
 import { getEnemyById } from '../data/enemies.js';
+import { getEnemyBias, getBossBias } from '../data/balance.js';
 import { pickRandomEncounter } from '../data/encounters.js';
 import UpgradeManager from './UpgradeManager.js';
 import TerritoryManager from './TerritoryManager.js';
 import {
   getEffectiveMaxHp, getBaseDamage, getCritChance, getEffectiveDef, getPlayerAutoAttackInterval, getHpRegen, getEnemyHitChance,
+  setCombatDebuffs, resetCombatDebuffs,
 } from './ComputedStats.js';
 
 let scope = null;
@@ -34,6 +36,17 @@ let _idCounter = 0;
 function _generateId(prefix) {
   return `${prefix}_${++_idCounter}`;
 }
+
+const SUMMONED_ADD_REWARD_MULT = COMBAT_V2.summonedAddRewardMult ?? 0;
+const ARMOR_BREAK_DURATION_MS = ABILITIES.armorBreak.durationMs;
+const CORRUPTION_CFG = {
+  maxStacks: COMBAT_V2.corruption?.maxStacks ?? 8,
+  perStackRegenReduction: COMBAT_V2.corruption?.perStackRegenReduction ?? 0.1,
+  perStackAtkReduction: COMBAT_V2.corruption?.perStackAtkReduction ?? 0.06,
+  dotPerStack: COMBAT_V2.corruption?.dotPerStack ?? 2,
+  decayMs: COMBAT_V2.corruption?.decayMs ?? 4000,
+  tickMs: COMBAT_V2.corruption?.tickMs ?? 1000,
+};
 
 const CombatEngine = {
   init() {
@@ -139,6 +152,7 @@ const CombatEngine = {
   destroy() {
     BossManager.destroy();
     CombatEngine._clearEncounterTimers();
+    resetCombatDebuffs();
     CombatEngine._clearShield();
     CombatEngine.cancelRapidStrikes();
     TimeEngine.unregister('combat:autoAttack');
@@ -162,6 +176,26 @@ const CombatEngine = {
    */
   _buildMember(enemyData, slot, opts = {}) {
     const effectiveAtkSpeed = (enemyData.attackSpeed ?? 1.0) * (opts.attackSpeedMult ?? 1.0);
+    const armor = (
+      enemyData.armor
+      && typeof enemyData.armor === 'object'
+      && typeof enemyData.armor.reduction === 'number'
+    )
+      ? { reduction: enemyData.armor.reduction }
+      : null;
+    const summon = (
+      enemyData.summon
+      && typeof enemyData.summon === 'object'
+      && typeof enemyData.summon.enemyId === 'string'
+    )
+      ? {
+          enemyId: enemyData.summon.enemyId,
+          count: enemyData.summon.count ?? 1,
+          castTime: enemyData.summon.castTime ?? 0,
+          maxAdds: enemyData.summon.maxAdds ?? 0,
+          cooldownMs: enemyData.summon.cooldownMs ?? 0,
+        }
+      : null;
     return {
       instanceId: _generateId('mem'),
       slot,
@@ -178,12 +212,21 @@ const CombatEngine = {
       regen: enemyData.regen ?? 0,
       enrage: enemyData.enrage ?? null,
       thorns: enemyData.thorns ?? 0,
+      evasion: enemyData.evasion ?? 0,
+      armor,
+      corruption: enemyData.corruption ?? 0,
+      summon: opts.isAdd ? null : summon,
+      _armorBroken: false,
+      _armorBreakTimerId: null,
       _enraged: false,
+      _summonCasting: false,
+      _summonCastTimerId: null,
       lootTable: enemyData.lootTable,
       goldDrop: String(enemyData.goldDrop),
       xpDrop: String(enemyData.xpDrop),
       isBoss: opts.isBoss || false,
       isAdd: opts.isAdd || false,
+      summonerId: opts.summonerId ?? null,
       baseEnemyId: enemyData.baseEnemyId ?? null,
       alive: true,
     };
@@ -208,7 +251,42 @@ const CombatEngine = {
       rewardMult: template?.rewardMult ?? 1.0,
       lootBonus: template?.lootBonus ?? { dropChanceMult: 1.0, rarityBoost: 0 },
       attackLockCount: 0,
+      corruptionStacks: 0,
     };
+  },
+
+  _toMemberPayload(member) {
+    return {
+      instanceId: member.instanceId,
+      slot: member.slot,
+      enemyId: member.enemyId,
+      name: member.name,
+      maxHp: member.maxHp,
+      isBoss: member.isBoss,
+      armorPen: member.armorPen,
+      dot: member.dot,
+      regen: member.regen,
+      enrage: member.enrage,
+      thorns: member.thorns,
+      evasion: member.evasion,
+      armor: member.armor,
+      corruption: member.corruption,
+      summon: member.summon,
+      attackSpeed: member.attackSpeed,
+      defense: member.defense ?? 0,
+      baseEnemyId: member.baseEnemyId ?? null,
+      isAdd: member.isAdd || false,
+      summonerId: member.summonerId ?? null,
+    };
+  },
+
+  _getFreeEncounterSlot() {
+    if (!encounter) return null;
+    const occupied = new Set(encounter.members.filter(m => m.alive).map(m => m.slot));
+    for (let i = 0; i < COMBAT_V2.maxEncounterSize; i++) {
+      if (!occupied.has(i)) return i;
+    }
+    return null;
   },
 
   /**
@@ -218,6 +296,8 @@ const CombatEngine = {
   _startEncounter(enc) {
     encounter = enc;
     enc.targetId = enc.members[0].instanceId;
+    enc.corruptionStacks = 0;
+    resetCombatDebuffs();
 
     // Per-member attack + DoT timers (staggered so they don't all fire at once)
     for (let i = 0; i < enc.members.length; i++) {
@@ -230,22 +310,7 @@ const CombatEngine = {
       templateId: enc.templateId,
       type: enc.type,
       memberCount: enc.members.length,
-      members: enc.members.map(m => ({
-        instanceId: m.instanceId,
-        slot: m.slot,
-        enemyId: m.enemyId,
-        name: m.name,
-        maxHp: m.maxHp,
-        isBoss: m.isBoss,
-        armorPen: m.armorPen,
-        dot: m.dot,
-        regen: m.regen,
-        enrage: m.enrage,
-        thorns: m.thorns,
-        attackSpeed: m.attackSpeed,
-        defense: m.defense ?? 0,
-        baseEnemyId: m.baseEnemyId ?? null,
-      })),
+      members: enc.members.map(m => CombatEngine._toMemberPayload(m)),
     });
   },
 
@@ -298,6 +363,13 @@ const CombatEngine = {
       }, 1000, true);
       encounter.activeTimerIds.add(regenKey);
     }
+
+    if (member.summon) {
+      const summonInterval = member.summon.cooldownMs || Math.max(1000, member.summon.castTime);
+      const summonKey = `enc:${encounter.id}:summon:${member.instanceId}`;
+      TimeEngine.register(summonKey, () => CombatEngine._tryStartSummonCast(member.instanceId), summonInterval, true);
+      encounter.activeTimerIds.add(summonKey);
+    }
   },
 
   /** Unregister attack + DoT + regen timers for a single member. */
@@ -306,12 +378,28 @@ const CombatEngine = {
     const atkKey = `enc:${encounter.id}:atk:${member.instanceId}`;
     const dotKey = `enc:${encounter.id}:dot:${member.instanceId}`;
     const regenKey = `enc:${encounter.id}:regen:${member.instanceId}`;
+    const summonKey = `enc:${encounter.id}:summon:${member.instanceId}`;
     TimeEngine.unregister(atkKey);
     TimeEngine.unregister(dotKey);
     TimeEngine.unregister(regenKey);
+    TimeEngine.unregister(summonKey);
     encounter.activeTimerIds.delete(atkKey);
     encounter.activeTimerIds.delete(dotKey);
     encounter.activeTimerIds.delete(regenKey);
+    encounter.activeTimerIds.delete(summonKey);
+
+    if (member._summonCastTimerId) {
+      TimeEngine.unregister(member._summonCastTimerId);
+      encounter.activeTimerIds.delete(member._summonCastTimerId);
+      member._summonCastTimerId = null;
+      member._summonCasting = false;
+    }
+
+    if (member._armorBreakTimerId) {
+      TimeEngine.unregister(member._armorBreakTimerId);
+      encounter.activeTimerIds.delete(member._armorBreakTimerId);
+      member._armorBreakTimerId = null;
+    }
   },
 
   /** Unregister all timers owned by the current encounter. */
@@ -329,6 +417,261 @@ const CombatEngine = {
     for (const timerId of encounter.activeTimerIds) {
       TimeEngine.setEnabled(timerId, enabled);
     }
+  },
+
+  _buildScaledEnemyForCurrentZone(enemyId) {
+    const enemyTemplate = getEnemyById(enemyId);
+    if (!enemyTemplate) return null;
+
+    const state = Store.getState();
+    const zone = state.currentZone;
+    const areaData = getArea(state.currentArea);
+    const globalZone = areaData ? areaData.zoneStart + zone - 1 : zone;
+    const atkScale = getZoneScaling(zone, 'atk');
+    const eb = (stat) => getEnemyBias(enemyTemplate.id, stat);
+    return {
+      ...enemyTemplate,
+      hp: D(enemyTemplate.hp).times(getZoneScaling(zone, 'hp') * getZoneBias(globalZone, 'hp') * eb('hp')).floor().toString(),
+      attack: Math.floor(enemyTemplate.attack * atkScale * getZoneBias(globalZone, 'atk') * eb('atk')),
+      defense: Math.floor((enemyTemplate.defense || 0) * getZoneBias(globalZone, 'def') * eb('def')),
+      attackSpeed: (enemyTemplate.attackSpeed ?? 1) * getZoneBias(globalZone, 'speed') * eb('speed'),
+      goldDrop: D(enemyTemplate.goldDrop).times(getZoneScaling(zone, 'gold') * getZoneBias(globalZone, 'gold') * eb('gold')).floor().toString(),
+      xpDrop: D(enemyTemplate.xpDrop).times(getZoneScaling(zone, 'xp') * getZoneBias(globalZone, 'xp') * eb('xp')).floor().toString(),
+      regen: enemyTemplate.regen ? Math.floor(enemyTemplate.regen * atkScale * getZoneBias(globalZone, 'regen') * eb('regen')) : 0,
+      thorns: enemyTemplate.thorns ? Math.floor(enemyTemplate.thorns * atkScale * getZoneBias(globalZone, 'atk') * eb('atk')) : 0,
+    };
+  },
+
+  _addEncounterMember(enemyData, opts = {}) {
+    if (!encounter) return null;
+    const slot = CombatEngine._getFreeEncounterSlot();
+    if (slot == null) return null;
+
+    const member = CombatEngine._buildMember(enemyData, slot, {
+      isAdd: opts.isAdd || false,
+      summonerId: opts.summonerId ?? null,
+      attackSpeedMult: encounter.attackSpeedMult,
+    });
+
+    encounter.members.push(member);
+    encounter.memberById.set(member.instanceId, member);
+    CombatEngine._registerMemberTimers(member, encounter.members.length - 1);
+
+    if (!CombatEngine.hasTarget()) {
+      encounter.targetId = member.instanceId;
+      emit(EVENTS.COMBAT_TARGET_CHANGED, {
+        encounterId: encounter.id,
+        instanceId: member.instanceId,
+        slot: member.slot,
+        enemyId: member.enemyId,
+      });
+    }
+
+    emit(EVENTS.COMBAT_MEMBER_ADDED, {
+      encounterId: encounter.id,
+      memberCount: CombatEngine.getLivingMembers().length,
+      member: CombatEngine._toMemberPayload(member),
+    });
+
+    return member;
+  },
+
+  _tryStartSummonCast(instanceId) {
+    if (!encounter) return;
+    const summoner = encounter.memberById.get(instanceId);
+    if (!summoner?.alive || !summoner.summon) return;
+    if (summoner._summonCasting) return;
+    const activeAdds = encounter.members.filter(m =>
+      m.alive && m.isAdd && m.summonerId === summoner.instanceId).length;
+    if (activeAdds >= summoner.summon.maxAdds) return;
+    if (CombatEngine._getFreeEncounterSlot() == null) return;
+
+    summoner._summonCasting = true;
+    const castKey = `enc:${encounter.id}:summonCast:${summoner.instanceId}`;
+    summoner._summonCastTimerId = castKey;
+    TimeEngine.scheduleOnce(castKey, () => CombatEngine._resolveSummonCast(summoner.instanceId), summoner.summon.castTime);
+    encounter.activeTimerIds.add(castKey);
+
+    emit(EVENTS.COMBAT_ENEMY_CASTING, {
+      encounterId: encounter.id,
+      instanceId: summoner.instanceId,
+      slot: summoner.slot,
+      enemyId: summoner.enemyId,
+      castTime: summoner.summon.castTime,
+    });
+  },
+
+  _resolveSummonCast(instanceId) {
+    if (!encounter) return;
+    const summoner = encounter.memberById.get(instanceId);
+    if (!summoner?.alive || !summoner.summon) return;
+
+    if (summoner._summonCastTimerId) {
+      encounter.activeTimerIds.delete(summoner._summonCastTimerId);
+      summoner._summonCastTimerId = null;
+    }
+    summoner._summonCasting = false;
+
+    const activeAdds = encounter.members.filter(m =>
+      m.alive && m.isAdd && m.summonerId === summoner.instanceId).length;
+    const remainingCap = Math.max(0, summoner.summon.maxAdds - activeAdds);
+    if (remainingCap <= 0) return;
+
+    const toSpawn = Math.min(summoner.summon.count, remainingCap);
+    for (let i = 0; i < toSpawn; i++) {
+      if (CombatEngine._getFreeEncounterSlot() == null) break;
+      const scaledAdd = CombatEngine._buildScaledEnemyForCurrentZone(summoner.summon.enemyId);
+      if (!scaledAdd) break;
+      const newMember = CombatEngine._addEncounterMember(scaledAdd, {
+        isAdd: true,
+        summonerId: summoner.instanceId,
+      });
+      if (!newMember) break;
+    }
+  },
+
+  _cancelSummonCast(member, source = 'interrupt') {
+    if (!encounter || !member?._summonCasting || !member._summonCastTimerId) return false;
+    TimeEngine.unregister(member._summonCastTimerId);
+    encounter.activeTimerIds.delete(member._summonCastTimerId);
+    member._summonCastTimerId = null;
+    member._summonCasting = false;
+    emit(EVENTS.COMBAT_INTERRUPTED, {
+      encounterId: encounter.id,
+      instanceId: member.instanceId,
+      slot: member.slot,
+      enemyId: member.enemyId,
+      source,
+    });
+    return true;
+  },
+
+  interruptTarget() {
+    const target = CombatEngine.getTargetMember();
+    if (!target) return false;
+    return CombatEngine._cancelSummonCast(target, 'player');
+  },
+
+  armorBreakTarget(durationMs = ARMOR_BREAK_DURATION_MS) {
+    if (!encounter) return false;
+    const target = CombatEngine.getTargetMember();
+    if (!target?.alive || !target.armor) return false;
+
+    target._armorBroken = true;
+    emit(EVENTS.COMBAT_ARMOR_BROKEN, {
+      encounterId: encounter.id,
+      instanceId: target.instanceId,
+      slot: target.slot,
+      enemyId: target.enemyId,
+    });
+
+    if (target._armorBreakTimerId) {
+      TimeEngine.unregister(target._armorBreakTimerId);
+      encounter.activeTimerIds.delete(target._armorBreakTimerId);
+    }
+
+    const restoreKey = `enc:${encounter.id}:armorRestore:${target.instanceId}`;
+    target._armorBreakTimerId = restoreKey;
+    TimeEngine.scheduleOnce(restoreKey, () => {
+      if (!encounter) return;
+      const member = encounter.memberById.get(target.instanceId);
+      if (!member?.alive) return;
+      member._armorBroken = false;
+      member._armorBreakTimerId = null;
+      encounter.activeTimerIds.delete(restoreKey);
+      emit(EVENTS.COMBAT_ARMOR_RESTORED, {
+        encounterId: encounter.id,
+        instanceId: member.instanceId,
+        slot: member.slot,
+        enemyId: member.enemyId,
+      });
+    }, durationMs);
+    encounter.activeTimerIds.add(restoreKey);
+    return true;
+  },
+
+  _syncCorruptionState() {
+    if (!encounter) {
+      resetCombatDebuffs();
+      return;
+    }
+
+    const stacks = encounter.corruptionStacks ?? 0;
+    const regenMult = Math.max(0.2, 1 - stacks * CORRUPTION_CFG.perStackRegenReduction);
+    const attackMult = Math.max(0.5, 1 - stacks * CORRUPTION_CFG.perStackAtkReduction);
+    setCombatDebuffs({ attackMult, regenMult });
+
+    const dotKey = `enc:${encounter.id}:corruptionDot`;
+    const decayKey = `enc:${encounter.id}:corruptionDecay`;
+    if (stacks > 0) {
+      if (!encounter.activeTimerIds.has(dotKey)) {
+        TimeEngine.register(dotKey, () => {
+          if (!encounter || (encounter.corruptionStacks ?? 0) <= 0) return;
+          CombatEngine._applyIncomingDamage(encounter.corruptionStacks * CORRUPTION_CFG.dotPerStack, 'corruption');
+        }, CORRUPTION_CFG.tickMs, true);
+        encounter.activeTimerIds.add(dotKey);
+      }
+      if (!encounter.activeTimerIds.has(decayKey)) {
+        TimeEngine.register(decayKey, () => {
+          if (!encounter) return;
+          CombatEngine._setCorruptionStacks(encounter.corruptionStacks - 1, 'decay');
+        }, CORRUPTION_CFG.decayMs, true);
+        encounter.activeTimerIds.add(decayKey);
+      }
+    } else {
+      TimeEngine.unregister(dotKey);
+      TimeEngine.unregister(decayKey);
+      encounter.activeTimerIds.delete(dotKey);
+      encounter.activeTimerIds.delete(decayKey);
+    }
+  },
+
+  _setCorruptionStacks(nextStacks, reason = 'set', sourceMember = null) {
+    if (!encounter) return;
+    const prev = encounter.corruptionStacks ?? 0;
+    const clamped = Math.max(0, Math.min(CORRUPTION_CFG.maxStacks, Math.floor(nextStacks)));
+    if (clamped === prev) return;
+
+    encounter.corruptionStacks = clamped;
+    CombatEngine._syncCorruptionState();
+
+    emit(EVENTS.CORRUPTION_CHANGED, {
+      encounterId: encounter.id,
+      stacks: clamped,
+      maxStacks: CORRUPTION_CFG.maxStacks,
+      reason,
+      sourceInstanceId: sourceMember?.instanceId ?? null,
+      sourceEnemyId: sourceMember?.enemyId ?? null,
+    });
+
+    if (prev > 0 && clamped === 0) {
+      emit(EVENTS.CORRUPTION_CLEANSED, {
+        encounterId: encounter.id,
+        removedStacks: prev,
+        reason,
+      });
+    }
+  },
+
+  _addCorruptionStacks(amount, sourceMember = null) {
+    if (!encounter || amount <= 0) return;
+    CombatEngine._setCorruptionStacks((encounter.corruptionStacks ?? 0) + amount, 'gain', sourceMember);
+  },
+
+  cleanseCorruption() {
+    if (!encounter) return false;
+    if ((encounter.corruptionStacks ?? 0) <= 0) return false;
+    CombatEngine._setCorruptionStacks(0, 'cleanse');
+    return true;
+  },
+
+  _resetCorruption(reason = 'reset') {
+    if (!encounter) {
+      resetCombatDebuffs();
+      return;
+    }
+    CombatEngine._setCorruptionStacks(0, reason);
+    resetCombatDebuffs();
   },
 
   /** Spawn a regular enemy using encounter templates + zone scaling. */
@@ -351,16 +694,17 @@ const CombatEngine = {
       if (!enemyTemplate) return null;
 
       const atkScale = getZoneScaling(zone, 'atk');
+      const eb = (stat) => getEnemyBias(enemyTemplate.id, stat);
       const scaledData = {
         ...enemyTemplate,
-        hp:          D(enemyTemplate.hp).times(getZoneScaling(zone, 'hp') * getZoneBias(globalZone, 'hp')).floor().toString(),
-        attack:      Math.floor(enemyTemplate.attack * atkScale * getZoneBias(globalZone, 'atk')),
-        defense:     Math.floor((enemyTemplate.defense || 0) * getZoneBias(globalZone, 'def')),
-        attackSpeed: (enemyTemplate.attackSpeed ?? 1) * getZoneBias(globalZone, 'speed'),
-        goldDrop:    D(enemyTemplate.goldDrop).times(getZoneScaling(zone, 'gold') * getZoneBias(globalZone, 'gold')).floor().toString(),
-        xpDrop:      D(enemyTemplate.xpDrop).times(getZoneScaling(zone, 'xp') * getZoneBias(globalZone, 'xp')).floor().toString(),
-        regen:       enemyTemplate.regen ? Math.floor(enemyTemplate.regen * atkScale * getZoneBias(globalZone, 'regen')) : 0,
-        thorns:      enemyTemplate.thorns ? Math.floor(enemyTemplate.thorns * atkScale * getZoneBias(globalZone, 'atk')) : 0,
+        hp:          D(enemyTemplate.hp).times(getZoneScaling(zone, 'hp') * getZoneBias(globalZone, 'hp') * eb('hp')).floor().toString(),
+        attack:      Math.floor(enemyTemplate.attack * atkScale * getZoneBias(globalZone, 'atk') * eb('atk')),
+        defense:     Math.floor((enemyTemplate.defense || 0) * getZoneBias(globalZone, 'def') * eb('def')),
+        attackSpeed: (enemyTemplate.attackSpeed ?? 1) * getZoneBias(globalZone, 'speed') * eb('speed'),
+        goldDrop:    D(enemyTemplate.goldDrop).times(getZoneScaling(zone, 'gold') * getZoneBias(globalZone, 'gold') * eb('gold')).floor().toString(),
+        xpDrop:      D(enemyTemplate.xpDrop).times(getZoneScaling(zone, 'xp') * getZoneBias(globalZone, 'xp') * eb('xp')).floor().toString(),
+        regen:       enemyTemplate.regen ? Math.floor(enemyTemplate.regen * atkScale * getZoneBias(globalZone, 'regen') * eb('regen')) : 0,
+        thorns:      enemyTemplate.thorns ? Math.floor(enemyTemplate.thorns * atkScale * getZoneBias(globalZone, 'atk') * eb('atk')) : 0,
       };
 
       return CombatEngine._buildMember(scaledData, slotIndex, {
@@ -385,7 +729,18 @@ const CombatEngine = {
     }
 
     // Build boss member — no zone scaling (boss stats are hand-authored)
-    const bossMember = CombatEngine._buildMember(bossTemplate, 0, { isBoss: true });
+    const bb = (stat) => getBossBias(bossTemplate.id, stat);
+    const scaledBoss = {
+      ...bossTemplate,
+      hp:          D(bossTemplate.hp).times(bb('hp')).floor().toString(),
+      attack:      Math.floor(bossTemplate.attack * bb('atk')),
+      defense:     Math.floor((bossTemplate.defense || 0) * bb('def')),
+      attackSpeed: (bossTemplate.attackSpeed ?? 1) * bb('speed'),
+      goldDrop:    D(bossTemplate.goldDrop).times(bb('gold')).floor().toString(),
+      xpDrop:      D(bossTemplate.xpDrop).times(bb('xp')).floor().toString(),
+      regen:       bossTemplate.regen ? Math.floor(bossTemplate.regen * bb('regen')) : 0,
+    };
+    const bossMember = CombatEngine._buildMember(scaledBoss, 0, { isBoss: true });
 
     const enc = CombatEngine._createEncounterRuntime([bossMember], null, 'boss');
     enc.bossMemberId = bossMember.instanceId;
@@ -396,10 +751,12 @@ const CombatEngine = {
   powerSmashAttack(smashMultiplier) {
     const target = CombatEngine.getTargetMember();
     if (!target) return;
+    if (CombatEngine._playerAttackMissed(target, 'smash')) return;
 
     const state = Store.getState();
     const { damage, isCrit } = CombatEngine.getPlayerDamage(state, true);
-    const smashDamage = damage.times(smashMultiplier).floor();
+    let smashDamage = damage.times(smashMultiplier).floor();
+    smashDamage = CombatEngine._applyTargetArmorReduction(smashDamage, target);
 
     target.hp = Decimal.max(target.hp.minus(smashDamage), 0);
 
@@ -428,6 +785,7 @@ const CombatEngine = {
   playerAttack(isClick = false) {
     const target = CombatEngine.getTargetMember();
     if (!target) return;
+    if (CombatEngine._playerAttackMissed(target, isClick ? 'click' : 'auto')) return;
 
     const state = Store.getState();
     let { damage, isCrit } = CombatEngine.getPlayerDamage(state, isClick);
@@ -435,6 +793,7 @@ const CombatEngine = {
     if (isClick) {
       damage = damage.mul(COMBAT_V2.clickDamageScalar);
     }
+    damage = CombatEngine._applyTargetArmorReduction(damage, target);
 
     target.hp = Decimal.max(target.hp.minus(damage), 0);
 
@@ -458,6 +817,28 @@ const CombatEngine = {
 
     // Thorns: reflect damage to player (triggers even if target died)
     CombatEngine._applyThorns(target);
+  },
+
+  _playerAttackMissed(target, source) {
+    const evadeChance = target?.evasion ?? 0;
+    if (evadeChance <= 0) return false;
+    if (Math.random() >= evadeChance) return false;
+    emit(EVENTS.COMBAT_PLAYER_MISSED, {
+      encounterId: encounter?.id ?? null,
+      instanceId: target.instanceId,
+      slot: target.slot,
+      enemyId: target.enemyId,
+      source,
+    });
+    return true;
+  },
+
+  _applyTargetArmorReduction(rawDamage, target) {
+    if (!target?.armor || target._armorBroken) return rawDamage;
+    const reduction = target.armor.reduction ?? 0;
+    if (reduction <= 0) return rawDamage;
+    const multiplier = Math.max(0, 1 - reduction);
+    return Decimal.max(rawDamage.times(multiplier).floor(), D(1));
   },
 
   getPlayerDamage(state, isClick = false) {
@@ -705,6 +1086,9 @@ const CombatEngine = {
     const armorPen = member.armorPen ?? 0;
     const damage = COMBAT_V2.enemyDamage(member.attack, playerDef, armorPen);
     CombatEngine._applyIncomingDamage(damage, 'attack');
+    if ((member.corruption ?? 0) > 0) {
+      CombatEngine._addCorruptionStacks(member.corruption, member);
+    }
   },
 
   _regenPlayerHp() {
@@ -758,10 +1142,14 @@ const CombatEngine = {
 
     // 1. Mark dead, stop this member's timers
     member.alive = false;
+    CombatEngine._cancelSummonCast(member, 'death');
     CombatEngine._unregisterMemberTimers(member);
 
     // 2. Grant per-member rewards (gold, XP, kill counts) scaled by encounter rewardMult
-    Progression.grantKillRewards(member, encounter.rewardMult);
+    if (!member.isAdd || SUMMONED_ADD_REWARD_MULT > 0) {
+      const rewardScale = member.isAdd ? SUMMONED_ADD_REWARD_MULT : 1;
+      Progression.grantKillRewards(member, encounter.rewardMult * rewardScale);
+    }
 
     // 3. Emit kill event with full encounter context
     emit(EVENTS.COMBAT_ENEMY_KILLED, {
@@ -769,10 +1157,11 @@ const CombatEngine = {
       name: member.name,
       lootTable: member.lootTable,
       isBoss: member.isBoss,
+      isAdd: member.isAdd || false,
       encounterId: encounter.id,
       instanceId: member.instanceId,
       slot: member.slot,
-      lootBonus: encounter.lootBonus,
+      lootBonus: member.isAdd ? { dropChanceMult: 0, rarityBoost: 0 } : encounter.lootBonus,
     });
 
     // 4. Boss killed → immediate encounter end
@@ -813,6 +1202,7 @@ const CombatEngine = {
     // 1. Clear all remaining encounter timers + any active Rapid Strikes
     CombatEngine._clearEncounterTimers();
     CombatEngine.cancelRapidStrikes();
+    CombatEngine._resetCorruption('encounter_end');
 
     // 2. Despawn remaining alive members (boss adds) — no rewards
     for (const m of enc.members) {

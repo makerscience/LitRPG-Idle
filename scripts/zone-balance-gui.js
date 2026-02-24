@@ -1,7 +1,4 @@
 #!/usr/bin/env node
-// Zone Balance GUI — visual editor for ZONE_BALANCE in areas.js.
-// Usage: npm run balance:gui
-// Starts a local HTTP server on port 3001 and opens the browser.
 
 import http from 'http';
 import fs from 'fs';
@@ -12,591 +9,279 @@ import { exec } from 'child_process';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
 const AREAS_PATH = path.join(ROOT, 'src', 'data', 'areas.js');
+const BALANCE_PATH = path.join(ROOT, 'src', 'data', 'balance.js');
 const SIM_PATH = path.join(ROOT, 'scripts', 'balance-sim.js');
+const DUMP_PATH = path.join(__dirname, 'dump-zone-data.mjs');
 const PORT = 3001;
 
-// ── Area metadata (mirrors areas.js structure; first-match zone assignment) ──
 const AREA_MAP = [
-  { id: 1, name: 'The Harsh Threshold',    zones: [1,  10], color: '#4a7c59' },
-  { id: 2, name: 'The Overgrown Frontier', zones: [11, 15], color: '#6b7c4a' },
-  { id: 3, name: 'The Broken Road',        zones: [16, 30], color: '#7c5a4a' },
+  { id: 1, name: 'The Harsh Threshold', zones: [1, 10] },
+  { id: 2, name: 'The Overgrown Frontier', zones: [11, 15] },
+  { id: 3, name: 'The Broken Road', zones: [16, 30] },
 ];
 const TOTAL_ZONES = 30;
-const STATS = ['hp', 'atk', 'def', 'speed', 'regen', 'gold', 'xp'];
 
-// ── Parse ZONE_BALANCE from areas.js text ─────────────────────────────────
 function parseZoneBalance(fileText) {
-  const balance = {};
-  const blockMatch = fileText.match(/export const ZONE_BALANCE = \{([\s\S]*?)\n\};/);
-  if (!blockMatch) return balance;
-  const block = blockMatch[1];
-  const entryRe = /(\d+):\s*\{([^}]*)\}/g;
+  const out = {};
+  const m = fileText.match(/export const ZONE_BALANCE = \{([\s\S]*?)\n\};/);
+  if (!m) return out;
+  const re = /(\d+):\s*\{([^}]*)\}/g;
   let em;
-  while ((em = entryRe.exec(block)) !== null) {
+  while ((em = re.exec(m[1])) !== null) {
     const zone = parseInt(em[1], 10);
-    const inner = em[2];
-    const entry = {};
-    const kvRe = /(\w+):\s*([\d.]+)/g;
+    const stats = {};
+    const kvRe = /(\w+):\s*([+-]?\d+(?:\.\d+)?)/g;
     let kv;
-    while ((kv = kvRe.exec(inner)) !== null) {
-      entry[kv[1]] = parseFloat(kv[2]);
-    }
-    if (Object.keys(entry).length > 0) balance[zone] = entry;
+    while ((kv = kvRe.exec(em[2])) !== null) stats[kv[1]] = parseFloat(kv[2]);
+    if (Object.keys(stats).length) out[zone] = stats;
   }
-  return balance;
+  return out;
 }
 
 function parseZoneScaling(fileText) {
-  const scaling = {};
-  const blockMatch = fileText.match(/export const ZONE_SCALING = \{([\s\S]*?)\};/);
-  if (!blockMatch) return scaling;
-  const kvRe = /(\w+):\s*([\d.]+)/g;
+  const out = {};
+  const m = fileText.match(/export const ZONE_SCALING = \{([\s\S]*?)\};/);
+  if (!m) return out;
+  const kvRe = /(\w+):\s*([+-]?\d+(?:\.\d+)?)/g;
   let kv;
-  while ((kv = kvRe.exec(blockMatch[1])) !== null) {
-    scaling[kv[1]] = parseFloat(kv[2]);
-  }
-  return scaling;
+  while ((kv = kvRe.exec(m[1])) !== null) out[kv[1]] = parseFloat(kv[2]);
+  return out;
 }
 
-// ── Write ZONE_BALANCE back to areas.js ───────────────────────────────────
-function formatBlock(balance) {
-  const entries = Object.keys(balance)
-    .map(Number).sort((a, b) => a - b)
-    .map(zone => {
-      const stats = balance[zone];
-      const pairs = Object.entries(stats)
-        .filter(([, v]) => Math.abs(v - 1) > 0.0001)
-        .map(([k, v]) => k + ': ' + parseFloat(v.toFixed(2))).join(', ');
-      return pairs ? '  ' + zone + ': { ' + pairs + ' },' : null;
-    }).filter(Boolean);
-  if (entries.length === 0) return '{\n}';
-  return '{\n' + entries.join('\n') + '\n}';
+function formatZoneBlock(balance) {
+  const lines = Object.keys(balance).map(Number).sort((a, b) => a - b).map((z) => {
+    const pairs = Object.entries(balance[z]).filter(([, v]) => Math.abs(v - 1) > 0.0001)
+      .map(([k, v]) => `${k}: ${parseFloat(v.toFixed(2))}`).join(', ');
+    return pairs ? `  ${z}: { ${pairs} },` : null;
+  }).filter(Boolean);
+  return lines.length ? `{\n${lines.join('\n')}\n}` : '{\n}';
 }
 
 function saveZoneBalance(balance) {
-  const fileText = fs.readFileSync(AREAS_PATH, 'utf8');
-  const updated = fileText.replace(
+  const text = fs.readFileSync(AREAS_PATH, 'utf8');
+  const updated = text.replace(
     /export const ZONE_BALANCE = \{[\s\S]*?\n\};/,
-    'export const ZONE_BALANCE = ' + formatBlock(balance) + ';'
+    `export const ZONE_BALANCE = ${formatZoneBlock(balance)};`,
   );
   fs.writeFileSync(AREAS_PATH, updated, 'utf8');
 }
 
-// ── HTTP helpers ───────────────────────────────────────────────────────────
+function parseEntityBalance(fileText, mapName) {
+  const out = {};
+  const m = fileText.match(new RegExp(`export const ${mapName} = \\{([\\s\\S]*?)\\n\\};`));
+  if (!m) return out;
+  const re = /['"]([^'"]+)['"]:\s*\{([^}]*)\}/g;
+  let em;
+  while ((em = re.exec(m[1])) !== null) {
+    const stats = {};
+    const kvRe = /(\w+):\s*([+-]?\d+(?:\.\d+)?)/g;
+    let kv;
+    while ((kv = kvRe.exec(em[2])) !== null) stats[kv[1]] = parseFloat(kv[2]);
+    if (Object.keys(stats).length) out[em[1]] = stats;
+  }
+  return out;
+}
+
+function formatEntityBalance(map, mapName) {
+  const lines = Object.keys(map).sort().map((id) => {
+    const pairs = Object.entries(map[id]).filter(([, v]) => Math.abs(v - 1) > 0.0001)
+      .map(([k, v]) => `${k}: ${parseFloat(v.toFixed(2)).toFixed(2)}`).join(', ');
+    return pairs ? `  '${id}': { ${pairs} },` : null;
+  }).filter(Boolean);
+  return `export const ${mapName} = {\n${lines.join('\n')}\n};`;
+}
+
+function scaffoldBalanceFile() {
+  return `// Per-entity stat multipliers applied on top of zone scaling.
+// Sparse map format: { entityId: { stat: multiplier } }
+// Missing entity/stat defaults to 1.0.
+
+export const ENEMY_BALANCE = {
+};
+
+export const BOSS_BALANCE = {
+};
+
+export function getEnemyBias(enemyId, stat) {
+  return ENEMY_BALANCE[enemyId]?.[stat] ?? 1.0;
+}
+
+export function getBossBias(bossId, stat) {
+  return BOSS_BALANCE[bossId]?.[stat] ?? 1.0;
+}
+`;
+}
+
+function saveEntityBalance(enemyBalance, bossBalance) {
+  let text = fs.existsSync(BALANCE_PATH) ? fs.readFileSync(BALANCE_PATH, 'utf8') : scaffoldBalanceFile();
+  const replaceOrAppend = (src, mapName, block) => {
+    const re = new RegExp(`export const ${mapName} = \\{[\\s\\S]*?\\n\\};`);
+    return re.test(src) ? src.replace(re, block) : `${src}\n${block}\n`;
+  };
+  text = replaceOrAppend(text, 'ENEMY_BALANCE', formatEntityBalance(enemyBalance, 'ENEMY_BALANCE'));
+  text = replaceOrAppend(text, 'BOSS_BALANCE', formatEntityBalance(bossBalance, 'BOSS_BALANCE'));
+  fs.writeFileSync(BALANCE_PATH, text, 'utf8');
+}
+
+let entityCache = null;
+function loadEntityData() {
+  if (entityCache) return Promise.resolve(entityCache);
+  return new Promise((resolve, reject) => {
+    exec(`node "${DUMP_PATH}"`, { cwd: ROOT }, (err, stdout, stderr) => {
+      if (err) return reject(new Error(stderr || err.message));
+      try {
+        entityCache = JSON.parse(stdout);
+        resolve(entityCache);
+      } catch (e) {
+        reject(e);
+      }
+    });
+  });
+}
+
 function readBody(req) {
   return new Promise((resolve, reject) => {
     let data = '';
-    req.on('data', chunk => { data += chunk; });
+    req.on('data', (c) => { data += c; });
     req.on('end', () => {
-      try { resolve(JSON.parse(data)); } catch (e) { reject(e); }
+      try { resolve(JSON.parse(data || '{}')); } catch (e) { reject(e); }
     });
     req.on('error', reject);
   });
 }
 
 function sendJson(res, data, status = 200) {
-  const body = JSON.stringify(data);
   res.writeHead(status, {
     'Content-Type': 'application/json',
     'Access-Control-Allow-Origin': '*',
   });
-  res.end(body);
+  res.end(JSON.stringify(data));
 }
 
-// ── API request handler ────────────────────────────────────────────────────
 function handleApi(req, res) {
-  const url = req.url;
-
-  if (req.method === 'GET' && url === '/api/data') {
-    const fileText = fs.readFileSync(AREAS_PATH, 'utf8');
-    const balance = parseZoneBalance(fileText);
-    const scaling = parseZoneScaling(fileText);
-    sendJson(res, { balance, scaling, areas: AREA_MAP });
+  if (req.method === 'GET' && req.url === '/api/data') {
+    const text = fs.readFileSync(AREAS_PATH, 'utf8');
+    sendJson(res, { balance: parseZoneBalance(text), scaling: parseZoneScaling(text), areas: AREA_MAP });
     return;
   }
-
-  if (req.method === 'POST' && url === '/api/save') {
-    readBody(req).then(body => {
-      saveZoneBalance(body.balance || {});
+  if (req.method === 'GET' && req.url === '/api/entity-data') {
+    loadEntityData().then((d) => sendJson(res, d)).catch((e) => sendJson(res, { ok: false, error: e.message }, 500));
+    return;
+  }
+  if (req.method === 'GET' && req.url === '/api/balance-data') {
+    const text = fs.existsSync(BALANCE_PATH) ? fs.readFileSync(BALANCE_PATH, 'utf8') : '';
+    sendJson(res, {
+      enemyBalance: parseEntityBalance(text, 'ENEMY_BALANCE'),
+      bossBalance: parseEntityBalance(text, 'BOSS_BALANCE'),
+    });
+    return;
+  }
+  if (req.method === 'POST' && req.url === '/api/save') {
+    readBody(req).then((b) => {
+      saveZoneBalance(b.balance || {});
       sendJson(res, { ok: true });
-    }).catch(e => sendJson(res, { ok: false, error: e.message }, 400));
+    }).catch((e) => sendJson(res, { ok: false, error: e.message }, 400));
     return;
   }
-
-  if (req.method === 'POST' && url === '/api/sim') {
-    exec('node "' + SIM_PATH + '"', { cwd: ROOT }, (err, stdout, stderr) => {
+  if (req.method === 'POST' && req.url === '/api/save-balance') {
+    readBody(req).then((b) => {
+      saveEntityBalance(b.enemyBalance || {}, b.bossBalance || {});
+      sendJson(res, { ok: true });
+    }).catch((e) => sendJson(res, { ok: false, error: e.message }, 400));
+    return;
+  }
+  if (req.method === 'POST' && req.url === '/api/sim') {
+    exec(`node "${SIM_PATH}"`, { cwd: ROOT }, (err, stdout, stderr) => {
       sendJson(res, { ok: !err, output: stdout || stderr || '' });
     });
     return;
   }
-
   if (req.method === 'OPTIONS') {
-    res.writeHead(204, { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET,POST', 'Access-Control-Allow-Headers': 'Content-Type' });
+    res.writeHead(204, {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    });
     res.end();
     return;
   }
-
   res.writeHead(404);
   res.end('Not found');
 }
 
-// ── Embedded HTML GUI ──────────────────────────────────────────────────────
-// Node.js interpolations are evaluated here; browser-side JS uses no template literals.
 const AREAS_JSON = JSON.stringify(AREA_MAP);
-
-const HTML = `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<title>Zone Balance Editor</title>
+const HTML = `<!doctype html>
+<html><head><meta charset="utf-8"><title>Balance GUI</title>
 <style>
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: monospace; background: #1a1a2e; color: #e0e0e0; font-size: 13px; }
-header {
-  background: #16213e; padding: 10px 16px; display: flex; align-items: center;
-  gap: 10px; flex-wrap: wrap; border-bottom: 2px solid #0f3460;
-  position: sticky; top: 0; z-index: 10;
-}
-header h1 { font-size: 15px; color: #e94560; flex: 1; min-width: 180px; }
-.base-rates { font-size: 11px; color: #aaa; flex-basis: 100%; margin-top: 2px; }
-button {
-  background: #0f3460; color: #e0e0e0; border: 1px solid #e94560;
-  padding: 5px 12px; cursor: pointer; border-radius: 3px;
-  font-family: monospace; font-size: 12px; white-space: nowrap;
-}
-button:hover { background: #e94560; }
-button.success { background: #2d6a4f; border-color: #52b788; }
-/* ── Sparklines ── */
-.sparklines {
-  display: flex; gap: 10px; padding: 8px 16px;
-  background: #0f1a2e; border-bottom: 1px solid #0f3460; flex-wrap: wrap; align-items: flex-end;
-}
-.sparkline-wrap { display: flex; flex-direction: column; align-items: center; gap: 2px; }
-.sparkline-label { font-size: 10px; color: #888; }
-.sparkline-wrap svg { display: block; }
-.sparkline-wrap svg rect { cursor: pointer; }
-.sparkline-wrap svg rect:hover { opacity: 0.65; }
-/* ── Table ── */
-.table-wrap { overflow-x: auto; padding: 0 8px 16px; }
-table { border-collapse: collapse; width: 100%; min-width: 680px; }
-th {
-  background: #16213e; color: #e94560; padding: 5px 8px; text-align: center;
-  position: sticky; top: 52px; z-index: 5; font-size: 12px;
-  border-bottom: 1px solid #0f3460;
-}
-td { padding: 2px 3px; text-align: center; border-bottom: 1px solid #1e1e3a; vertical-align: middle; }
-tr.data-row:hover > td:not(.stat-cell) { background: rgba(255,255,255,0.04); }
-td.zone-num { color: #aaa; font-weight: bold; width: 36px; font-size: 12px; }
-td.area-label { font-size: 11px; color: #888; width: 36px; }
-td.stat-cell { width: 78px; padding: 3px 2px; transition: background 0.12s; }
-/* ── Cell inner layout ── */
-.cell-inner { display: flex; flex-direction: column; align-items: center; gap: 2px; }
-/* ── Range slider ── */
-input[type=range] {
-  -webkit-appearance: none;
-  width: 68px; height: 4px; border-radius: 2px;
-  outline: none; border: none; cursor: pointer; display: block; margin: 0 auto;
-}
-input[type=range]::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  width: 11px; height: 11px; border-radius: 50%;
-  background: #d0d0d0; cursor: pointer; border: 1px solid #888; margin-top: -3.5px;
-}
-input[type=range]::-moz-range-thumb {
-  width: 11px; height: 11px; border-radius: 50%;
-  background: #d0d0d0; cursor: pointer; border: 1px solid #888;
-}
-/* ── Readout span ── */
-.readout {
-  font-size: 10px; color: #bbb; cursor: pointer; line-height: 1.3; white-space: nowrap;
-}
-.readout:hover { color: #fff; text-decoration: underline; }
-/* ── Inline number edit ── */
-.inline-num {
-  width: 52px; padding: 1px 3px; text-align: center;
-  background: #0f0f1a; color: #e0e0e0; border: 1px solid #52b788;
-  border-radius: 2px; font-family: monospace; font-size: 11px;
-}
-/* ── Area rows ── */
-.area-1 td.zone-num { border-left: 3px solid #4a7c59; }
-.area-2 td.zone-num { border-left: 3px solid #6b7c4a; }
-.area-3 td.zone-num { border-left: 3px solid #7c5a4a; }
-tr.area-header td {
-  background: #0f1a2e; color: #7a9cc5; font-size: 11px; padding: 5px 10px;
-  text-align: left; border-top: 2px solid #0f3460; border-bottom: 1px solid #0f3460;
-}
-/* ── Row highlight pulse ── */
-@keyframes rowflash { 0%,100% { background: transparent; } 50% { background: rgba(233,69,96,0.28); } }
-tr.highlight td { animation: rowflash 0.55s ease 2; }
-/* ── Sim panel ── */
-#sim-panel {
-  background: #0a0a1a; border-top: 2px solid #0f3460;
-  padding: 12px 16px; display: none;
-}
-#sim-panel h2 { color: #e94560; margin-bottom: 8px; font-size: 13px; }
-#sim-output {
-  white-space: pre; font-size: 11px; color: #ccc; line-height: 1.5;
-  max-height: 500px; overflow-y: auto;
-}
-</style>
-</head>
-<body>
-<header>
-  <h1>Zone Balance Dials</h1>
-  <button id="btn-save">Save to areas.js</button>
-  <button id="btn-sim">Run Sim</button>
-  <button id="btn-copy">Copy Code</button>
-  <div class="base-rates" id="base-rates">Loading...</div>
-</header>
-<div id="sparklines" class="sparklines"></div>
-<div class="table-wrap">
-  <table id="balance-table">
-    <thead>
-      <tr>
-        <th>Zone</th><th>Area</th>
-        <th>hp</th><th>atk</th><th>def</th><th>speed</th>
-        <th>regen</th><th>gold</th><th>xp</th>
-      </tr>
-    </thead>
-    <tbody id="table-body"></tbody>
-  </table>
-</div>
-<div id="sim-panel">
-  <h2>Sim Output</h2>
-  <pre id="sim-output"></pre>
-</div>
-
+*{box-sizing:border-box}body{margin:0;background:#1a1a2e;color:#ddd;font:12px monospace}
+header{position:sticky;top:0;z-index:5;background:#16213e;border-bottom:2px solid #0f3460;padding:10px 12px;display:flex;gap:8px;flex-wrap:wrap}
+h1{margin:0;font-size:14px;color:#e94560;flex:1}
+button{background:#0f3460;color:#ddd;border:1px solid #e94560;border-radius:3px;padding:5px 10px;font:12px monospace;cursor:pointer}
+button:hover{background:#e94560}.success{background:#2d6a4f!important;border-color:#52b788!important}
+.rates{width:100%;color:#aaa}.tabs{display:flex;gap:4px;padding:8px 12px;background:#111;border-bottom:1px solid #2a2a2a}
+.tab-btn{background:#1e1e1e;color:#888;border:none;padding:6px 14px}.tab-btn.active{background:#2a4a2a;color:#7abf7a}
+.tab-panel{display:none}.tab-panel.active{display:block}
+.sparks{display:flex;gap:8px;padding:8px 12px;background:#0f1a2e;border-bottom:1px solid #0f3460;flex-wrap:wrap}
+.spark{display:flex;flex-direction:column;align-items:center;gap:2px}.spark span{font-size:10px;color:#888}
+.wrap{overflow-x:auto;overflow-y:visible;padding:0 8px 12px}
+table{border-collapse:collapse;width:100%;min-width:760px}
+th{position:static;background:#16213e;color:#e94560;padding:4px 6px;border-bottom:1px solid #0f3460}
+td{padding:2px 3px;border-bottom:1px solid #1e1e3a;text-align:center}
+.stat{width:78px}.name{text-align:left;padding-left:8px;min-width:180px}.meta{font-size:10px;color:#888}
+.areahead td{text-align:left;padding:5px 8px;background:#0f1a2e;color:#7a9cc5;border-top:2px solid #0f3460;border-bottom:1px solid #0f3460}
+.zone{font-weight:bold;color:#aaa}
+#zones thead th:nth-child(1){width:54px;min-width:54px;max-width:54px}
+#zones thead th:nth-child(2){width:64px;min-width:64px;max-width:64px}
+#zones thead th:nth-child(n+3){width:78px;min-width:78px;max-width:78px}
+#zones tbody tr:not(.areahead) td:nth-child(1){width:54px;min-width:54px;max-width:54px;white-space:nowrap}
+#zones tbody tr:not(.areahead) td:nth-child(2){width:64px;min-width:64px;max-width:64px;white-space:nowrap}
+#zones table{table-layout:fixed}
+.cell{display:flex;flex-direction:column;align-items:center;gap:2px}
+input[type=range]{-webkit-appearance:none;width:68px;height:4px;border:none;border-radius:2px;background:#333}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;height:11px;border-radius:50%;background:#d0d0d0;border:1px solid #888}
+input[type=range]::-moz-range-thumb{width:11px;height:11px;border-radius:50%;background:#d0d0d0;border:1px solid #888}
+.read{font-size:10px;color:#bbb;cursor:pointer}.read:hover{color:#fff;text-decoration:underline}
+.in{width:52px;padding:1px 3px;background:#0f0f1a;color:#ddd;border:1px solid #52b788;border-radius:2px;text-align:center;font:11px monospace}
+.mini,.elite,.area{font-size:9px;padding:1px 5px;border-radius:2px}.mini{background:#303030;color:#999}.elite{background:#2e2810;color:#d4a830}.area{background:#2e1010;color:#d46060}
+#sim{display:none;background:#0a0a1a;border-top:2px solid #0f3460;padding:10px 12px}#sim pre{white-space:pre;max-height:500px;overflow:auto}
+</style></head><body>
+<header><h1>Balance Dials</h1><button id="save">Save to areas.js</button><button id="simbtn">Run Sim</button><button id="copy">Copy Code</button><div id="rates" class="rates">Loading...</div></header>
+<div class="tabs"><button class="tab-btn active" data-tab="zones">Zones</button><button class="tab-btn" data-tab="enemies">Enemies</button><button class="tab-btn" data-tab="bosses">Bosses</button></div>
+<div id="zones" class="tab-panel active"><div id="sparks" class="sparks"></div><div class="wrap"><table><thead><tr><th>Zone</th><th>Area</th><th>hp</th><th>atk</th><th>def</th><th>speed</th><th>regen</th><th>gold</th><th>xp</th></tr></thead><tbody id="zbody"></tbody></table></div></div>
+<div id="enemies" class="tab-panel"><div class="wrap"><table><thead><tr><th>Name</th><th>Zones</th><th>hp</th><th>atk</th><th>def</th><th>speed</th><th>regen</th><th>gold</th><th>xp</th></tr></thead><tbody id="ebody"></tbody></table></div></div>
+<div id="bosses" class="tab-panel"><div class="wrap"><table><thead><tr><th>Name</th><th>Zone</th><th>Type</th><th>hp</th><th>atk</th><th>def</th><th>speed</th><th>regen</th><th>gold</th><th>xp</th></tr></thead><tbody id="bbody"></tbody></table></div></div>
+<div id="sim"><h3>Sim Output</h3><pre id="simout"></pre></div>
 <script>
-var STATS = ['hp','atk','def','speed','regen','gold','xp'];
-var AREA_MAP = ${AREAS_JSON};
-var TOTAL_ZONES = ${TOTAL_ZONES};
-var SPARK_W = 120, SPARK_H = 44, SPARK_CENTER = 22, SPARK_MAX_BAR = 18;
+var STATS=['hp','atk','def','speed','regen','gold','xp'],TOTAL_ZONES=${TOTAL_ZONES},AREA_MAP=${AREAS_JSON},SPW=120,SPH=44,SPC=22,SPM=18;
+var balance={},enemyBalance={},bossBalance={},entityData={enemies:[],bosses:[]},active='zones',cellRefs={};
+function areaForZone(z){for(var i=0;i<AREA_MAP.length;i++)if(z>=AREA_MAP[i].zones[0]&&z<=AREA_MAP[i].zones[1])return AREA_MAP[i];return AREA_MAP[0]}
+function gv(z,s){return balance[z]&&balance[z][s]!==undefined?balance[z][s]:1}function sv(z,s,v){if(!balance[z])balance[z]={};balance[z][s]=v}
+function gev(m,id,s){return m[id]&&m[id][s]!==undefined?m[id][s]:1}function sev(m,id,s,v){if(!m[id])m[id]={};m[id][s]=v}
+function bg(td,v){if(Math.abs(v-1)<0.001){td.style.background='';return}var a=Math.min(0.45,Math.abs(v-1)*0.9);td.style.background=v<1?'rgba(231,111,81,'+a.toFixed(3)+')':'rgba(82,183,136,'+a.toFixed(3)+')'}
+function track(sl,v){var pct=Math.max(0,Math.min(100,((v-0.5)/1.5)*100)),fill=v<1?'#e76f51':'#52b788';sl.style.background='linear-gradient(to right,'+fill+' 0%,'+fill+' '+pct.toFixed(1)+'%,#333 '+pct.toFixed(1)+'%,#333 100%)'}
+function mkCell(tr,key,getf,setf,onchg){var td=document.createElement('td');td.className='stat';var inner=document.createElement('div');inner.className='cell';var sl=document.createElement('input');sl.type='range';sl.min='0.5';sl.max='2.0';sl.step='0.05';var sp=document.createElement('span');sp.className='read';function apply(v){sl.value=v;track(sl,v);sp.textContent='x'+v.toFixed(2);bg(td,v)}apply(getf());cellRefs[key]={slider:sl,span:sp,td:td};sl.addEventListener('input',function(){var v=parseFloat(this.value);if(isNaN(v))return;setf(v);apply(v);if(onchg)onchg()});sp.addEventListener('click',function(){var ni=document.createElement('input');ni.type='number';ni.min='0.05';ni.max='5';ni.step='0.05';ni.value=getf().toFixed(2);ni.className='in';inner.replaceChild(ni,sp);ni.focus();ni.select();var done=false;function commit(){if(done)return;done=true;var v=parseFloat(ni.value);if(!isNaN(v)&&v>0)setf(v);if(ni.parentNode)inner.replaceChild(sp,ni);apply(getf());if(onchg)onchg()}ni.addEventListener('blur',commit);ni.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();commit()}if(e.key==='Escape'&&!done){done=true;inner.replaceChild(sp,ni)}})});inner.appendChild(sl);inner.appendChild(sp);td.appendChild(inner);tr.appendChild(td)}
+function refreshCell(k,v){var r=cellRefs[k];if(!r)return;r.slider.value=v;track(r.slider,v);r.span.textContent='x'+v.toFixed(2);bg(r.td,v)}
+function spark(stat){var svg=document.getElementById('sp-'+stat);if(!svg)return;var bw=SPW/TOTAL_ZONES,html='<line x1="0" y1="'+SPC+'" x2="'+SPW+'" y2="'+SPC+'" stroke="#444" stroke-width="1"/>';for(var z=1;z<=TOTAL_ZONES;z++){var v=gv(z,stat);if(Math.abs(v-1)<0.001)continue;var h=Math.max(1,Math.min(SPM,Math.abs(v-1)*SPM*2)),c=v>=1?'#52b788':'#e76f51',x=((z-1)*bw).toFixed(1),y=(v>=1?SPC-h:SPC).toFixed(1);html+='<rect class="sb" data-zone="'+z+'" x="'+x+'" y="'+y+'" width="'+Math.max(1,bw-0.5).toFixed(1)+'" height="'+h.toFixed(1)+'" fill="'+c+'"/>'}svg.innerHTML=html;svg.querySelectorAll('.sb').forEach(function(r){r.addEventListener('click',function(){var z=parseInt(r.dataset.zone,10),tr=document.querySelector('tr[data-zone="'+z+'"]');if(!tr)return;tr.scrollIntoView({behavior:'smooth',block:'center'});tr.classList.remove('hl');void tr.offsetWidth;tr.classList.add('hl');setTimeout(function(){tr.classList.remove('hl')},1300)})})}
+function buildSparks(){var c=document.getElementById('sparks');c.innerHTML='';STATS.forEach(function(s){var w=document.createElement('div');w.className='spark';var l=document.createElement('span');l.textContent=s;var svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.id='sp-'+s;svg.setAttribute('width',SPW);svg.setAttribute('height',SPH);w.appendChild(l);w.appendChild(svg);c.appendChild(w);spark(s)})}
+function resetZone(z){for(var i=0;i<STATS.length;i++){var s=STATS[i];sv(z,s,1);refreshCell(z+'-'+s,1);spark(s)}}
+function resetEnt(p,id,map){for(var i=0;i<STATS.length;i++){var s=STATS[i];sev(map,id,s,1);refreshCell(p+'-'+id+'-'+s,1)}}
+function buildZones(){var tb=document.getElementById('zbody');tb.innerHTML='';var last=null;for(var z=1;z<=TOTAL_ZONES;z++){var a=areaForZone(z);if(a.id!==last){last=a.id;var hr=document.createElement('tr');hr.className='areahead';var hc=document.createElement('td');hc.colSpan=9;hc.textContent='A'+a.id+' - '+a.name+' (zones '+a.zones[0]+'-'+a.zones[1]+')';hr.appendChild(hc);tb.appendChild(hr)}var tr=document.createElement('tr');tr.dataset.zone=z;tr.addEventListener('dblclick',(function(zz){return function(){resetZone(zz)}})(z));tr.addEventListener('contextmenu',(function(zz){return function(e){e.preventDefault();resetZone(zz)}})(z));var zc=document.createElement('td');zc.className='zone';zc.textContent=z;tr.appendChild(zc);var ac=document.createElement('td');ac.className='meta';ac.textContent='A'+a.id;tr.appendChild(ac);STATS.forEach(function(s){mkCell(tr,z+'-'+s,function(){return gv(z,s)},function(v){sv(z,s,v)},function(){spark(s)})});tb.appendChild(tr)}}
+function buildEnemies(){var tb=document.getElementById('ebody');tb.innerHTML='';(entityData.enemies||[]).forEach(function(e){var tr=document.createElement('tr');tr.addEventListener('dblclick',function(){resetEnt('e',e.id,enemyBalance)});tr.addEventListener('contextmenu',function(ev){ev.preventDefault();resetEnt('e',e.id,enemyBalance)});var n=document.createElement('td');n.className='name';n.textContent=e.name;tr.appendChild(n);var z=document.createElement('td');z.className='meta';z.textContent=e.zones[0]+'-'+e.zones[1];tr.appendChild(z);STATS.forEach(function(s){mkCell(tr,'e-'+e.id+'-'+s,function(){return gev(enemyBalance,e.id,s)},function(v){sev(enemyBalance,e.id,s,v)})});tb.appendChild(tr)})}
+function cls(t){if(t==='AREA')return'area';if(t==='ELITE')return'elite';return'mini'}
+function buildBosses(){var tb=document.getElementById('bbody');tb.innerHTML='';(entityData.bosses||[]).forEach(function(b){var tr=document.createElement('tr');tr.addEventListener('dblclick',function(){resetEnt('b',b.id,bossBalance)});tr.addEventListener('contextmenu',function(ev){ev.preventDefault();resetEnt('b',b.id,bossBalance)});var n=document.createElement('td');n.className='name';n.textContent=b.name;tr.appendChild(n);var z=document.createElement('td');z.className='meta';z.textContent=String(b.zone);tr.appendChild(z);var t=document.createElement('td');t.className='meta';var badge=document.createElement('span');badge.className=cls(b.bossType);badge.textContent=b.bossType;t.appendChild(badge);tr.appendChild(t);STATS.forEach(function(s){mkCell(tr,'b-'+b.id+'-'+s,function(){return gev(bossBalance,b.id,s)},function(v){sev(bossBalance,b.id,s,v)})});tb.appendChild(tr)})}
+function cleanZones(){var o={};for(var z=1;z<=TOTAL_ZONES;z++){var e={};for(var i=0;i<STATS.length;i++){var s=STATS[i],v=gv(z,s);if(Math.abs(v-1)>0.0001)e[s]=parseFloat(v.toFixed(2))}if(Object.keys(e).length)o[z]=e}return o}
+function cleanMap(map){var o={};Object.keys(map).forEach(function(id){var e={};STATS.forEach(function(s){var v=map[id]&&map[id][s]!==undefined?map[id][s]:1;if(Math.abs(v-1)>0.0001)e[s]=parseFloat(v.toFixed(2))});if(Object.keys(e).length)o[id]=e});return o}
+function fmtZones(b){var ks=Object.keys(b).map(Number).sort(function(a,b2){return a-b2});if(!ks.length)return'export const ZONE_BALANCE = {};';var ls=ks.map(function(z){var p=Object.keys(b[z]).map(function(k){return k+': '+b[z][k]}).join(', ');return'  '+z+': { '+p+' },'});return'export const ZONE_BALANCE = {\\n'+ls.join('\\n')+'\\n};'}
+function fmtMap(m,name){var ids=Object.keys(m).sort();if(!ids.length)return'export const '+name+' = {};';var ls=ids.map(function(id){var p=Object.keys(m[id]).map(function(k){return k+': '+parseFloat(m[id][k].toFixed(2)).toFixed(2)}).join(', ');return'  \\''+id+'\\': { '+p+' },'});return'export const '+name+' = {\\n'+ls.join('\\n')+'\\n};'}
+function setTab(tab){active=tab;document.querySelectorAll('.tab-btn').forEach(function(b){b.classList.toggle('active',b.dataset.tab===tab)});document.querySelectorAll('.tab-panel').forEach(function(p){p.classList.toggle('active',p.id===tab)});document.getElementById('save').textContent=tab==='zones'?'Save to areas.js':'Save to balance.js'}
+function load(){Promise.all([fetch('/api/data').then(function(r){return r.json()}),fetch('/api/entity-data').then(function(r){return r.json()}),fetch('/api/balance-data').then(function(r){return r.json()})]).then(function(all){var z=all[0],e=all[1],b=all[2];balance={};Object.keys(z.balance||{}).forEach(function(k){balance[parseInt(k,10)]=Object.assign({},z.balance[k])});enemyBalance=Object.assign({},b.enemyBalance||{});bossBalance=Object.assign({},b.bossBalance||{});entityData=e||{enemies:[],bosses:[]};var s=z.scaling||{};document.getElementById('rates').textContent='Base scaling: hp x'+(s.hp?(1+s.hp).toFixed(2):'?')+'/zone | atk x'+(s.atk?(1+s.atk).toFixed(2):'?')+'/zone | gold x'+(s.gold?(1+s.gold).toFixed(2):'?')+'/zone | xp x'+(s.xp?(1+s.xp).toFixed(2):'?')+'/zone';cellRefs={};buildZones();buildSparks();buildEnemies();buildBosses();setTab('zones')}).catch(function(err){document.getElementById('rates').textContent='Error: '+err.message})}
+document.querySelectorAll('.tab-btn').forEach(function(b){b.addEventListener('click',function(){setTab(b.dataset.tab)})});
+document.getElementById('save').addEventListener('click',function(){var btn=this,url=active==='zones'?'/api/save':'/api/save-balance',payload=active==='zones'?{balance:cleanZones()}:{enemyBalance:cleanMap(enemyBalance),bossBalance:cleanMap(bossBalance)};fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}).then(function(r){return r.json()}).then(function(j){if(!j.ok){alert('Save failed: '+(j.error||'unknown'));return}var label=active==='zones'?'Save to areas.js':'Save to balance.js';btn.textContent='Saved!';btn.classList.add('success');setTimeout(function(){btn.textContent=label;btn.classList.remove('success')},2000)}).catch(function(e){alert('Save error: '+e.message)})});
+document.getElementById('simbtn').addEventListener('click',function(){var p=document.getElementById('sim'),o=document.getElementById('simout');p.style.display='block';o.textContent='Running simulation...';fetch('/api/sim',{method:'POST'}).then(function(r){return r.json()}).then(function(j){o.textContent=j.output||'(no output)';p.scrollIntoView({behavior:'smooth',block:'start'})}).catch(function(e){o.textContent='Error: '+e.message})});
+document.getElementById('copy').addEventListener('click',function(){var btn=this,code='';if(active==='zones')code=fmtZones(cleanZones());else if(active==='enemies')code=fmtMap(cleanMap(enemyBalance),'ENEMY_BALANCE');else code=fmtMap(cleanMap(bossBalance),'BOSS_BALANCE');navigator.clipboard.writeText(code).then(function(){btn.textContent='Copied!';setTimeout(function(){btn.textContent='Copy Code'},1500)}).catch(function(e){alert('Copy failed: '+e.message)})});
+load();
+</script></body></html>`;
 
-function getAreaForZone(z) {
-  for (var i = 0; i < AREA_MAP.length; i++) {
-    if (z >= AREA_MAP[i].zones[0] && z <= AREA_MAP[i].zones[1]) return AREA_MAP[i];
-  }
-  return AREA_MAP[0];
-}
-
-var balance = {};
-var cellRefs = {}; // key: zone+'-'+stat -> { slider, span, td }
-
-function getVal(zone, stat) {
-  return (balance[zone] && balance[zone][stat] !== undefined) ? balance[zone][stat] : 1;
-}
-
-function setVal(zone, stat, v) {
-  if (!balance[zone]) balance[zone] = {};
-  balance[zone][stat] = v;
-}
-
-// ── Heat-map cell background ─────────────────────────────────────────────────
-function updateCellBg(td, value) {
-  var a;
-  if (Math.abs(value - 1) < 0.001) {
-    td.style.background = '';
-  } else if (value < 1) {
-    a = Math.min(0.45, (1 - value) * 0.9);
-    td.style.background = 'rgba(231,111,81,' + a.toFixed(3) + ')';
-  } else {
-    a = Math.min(0.45, (value - 1) * 0.9);
-    td.style.background = 'rgba(82,183,136,' + a.toFixed(3) + ')';
-  }
-}
-
-// ── Slider track gradient ────────────────────────────────────────────────────
-function updateSliderTrack(slider, value) {
-  var pct = Math.max(0, Math.min(100, ((value - 0.5) / 1.5) * 100));
-  var fill = value < 1.0 ? '#e76f51' : '#52b788';
-  slider.style.background = 'linear-gradient(to right,' + fill + ' 0%,' + fill + ' ' + pct.toFixed(1) + '%,#333 ' + pct.toFixed(1) + '%,#333 100%)';
-}
-
-// ── Refresh a cell from current balance state ────────────────────────────────
-function refreshCell(zone, stat) {
-  var ref = cellRefs[zone + '-' + stat];
-  if (!ref) return;
-  var v = getVal(zone, stat);
-  ref.slider.value = v;
-  updateSliderTrack(ref.slider, v);
-  ref.span.textContent = '\u00d7' + v.toFixed(2);
-  updateCellBg(ref.td, v);
-}
-
-// ── Reset row ────────────────────────────────────────────────────────────────
-function resetRow(zone) {
-  for (var i = 0; i < STATS.length; i++) {
-    setVal(zone, STATS[i], 1);
-    refreshCell(zone, STATS[i]);
-  }
-  for (var j = 0; j < STATS.length; j++) { redrawSparkline(STATS[j]); }
-}
-
-// ── Sparklines ───────────────────────────────────────────────────────────────
-function redrawSparkline(stat) {
-  var svg = document.getElementById('spark-' + stat);
-  if (!svg) return;
-  var bw = SPARK_W / TOTAL_ZONES;
-  var html = '<line x1="0" y1="' + SPARK_CENTER + '" x2="' + SPARK_W + '" y2="' + SPARK_CENTER + '" stroke="#444" stroke-width="1"/>';
-  for (var z = 1; z <= TOTAL_ZONES; z++) {
-    var v = getVal(z, stat);
-    if (Math.abs(v - 1) < 0.001) continue;
-    var barH = Math.max(1, Math.min(SPARK_MAX_BAR, Math.abs(v - 1) * SPARK_MAX_BAR * 2));
-    var color = v >= 1 ? '#52b788' : '#e76f51';
-    var x = ((z - 1) * bw).toFixed(1);
-    var barY = (v >= 1 ? SPARK_CENTER - barH : SPARK_CENTER).toFixed(1);
-    html += '<rect class="sb" data-zone="' + z + '" x="' + x + '" y="' + barY + '" width="' + Math.max(1, bw - 0.5).toFixed(1) + '" height="' + barH.toFixed(1) + '" fill="' + color + '"/>';
-  }
-  svg.innerHTML = html;
-  var rects = svg.querySelectorAll('.sb');
-  for (var i = 0; i < rects.length; i++) {
-    (function(r) {
-      r.addEventListener('click', function() {
-        var zone = parseInt(r.dataset.zone);
-        var tr = document.querySelector('tr[data-zone="' + zone + '"]');
-        if (tr) {
-          tr.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          tr.classList.remove('highlight');
-          void tr.offsetWidth; // reflow to restart animation
-          tr.classList.add('highlight');
-          setTimeout(function() { tr.classList.remove('highlight'); }, 1300);
-        }
-      });
-    })(rects[i]);
-  }
-}
-
-function buildSparklines() {
-  var container = document.getElementById('sparklines');
-  container.innerHTML = '';
-  STATS.forEach(function(stat) {
-    var wrap = document.createElement('div');
-    wrap.className = 'sparkline-wrap';
-    var label = document.createElement('div');
-    label.className = 'sparkline-label';
-    label.textContent = stat;
-    var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    svg.setAttribute('id', 'spark-' + stat);
-    svg.setAttribute('width', SPARK_W);
-    svg.setAttribute('height', SPARK_H);
-    wrap.appendChild(label);
-    wrap.appendChild(svg);
-    container.appendChild(wrap);
-    redrawSparkline(stat);
-  });
-}
-
-// ── Build table ──────────────────────────────────────────────────────────────
-function buildTable() {
-  cellRefs = {};
-  var tbody = document.getElementById('table-body');
-  tbody.innerHTML = '';
-  var lastAreaId = null;
-
-  for (var z = 1; z <= TOTAL_ZONES; z++) {
-    var area = getAreaForZone(z);
-    var areaClass = 'area-' + area.id;
-
-    if (area.id !== lastAreaId) {
-      lastAreaId = area.id;
-      var hrow = document.createElement('tr');
-      hrow.className = 'area-header';
-      var hcell = document.createElement('td');
-      hcell.colSpan = 9;
-      hcell.textContent = 'A' + area.id + ' \u2014 ' + area.name + '  (zones ' + area.zones[0] + '\u2013' + area.zones[1] + ')';
-      hrow.appendChild(hcell);
-      tbody.appendChild(hrow);
-    }
-
-    var tr = document.createElement('tr');
-    tr.className = 'data-row ' + areaClass;
-    tr.dataset.zone = z;
-
-    (function(zoneNum) {
-      tr.addEventListener('dblclick', function() { resetRow(zoneNum); });
-      tr.addEventListener('contextmenu', function(e) { e.preventDefault(); resetRow(zoneNum); });
-    })(z);
-
-    var tdZone = document.createElement('td');
-    tdZone.className = 'zone-num';
-    tdZone.textContent = z;
-    tr.appendChild(tdZone);
-
-    var tdArea = document.createElement('td');
-    tdArea.className = 'area-label';
-    tdArea.textContent = 'A' + area.id;
-    tr.appendChild(tdArea);
-
-    for (var s = 0; s < STATS.length; s++) {
-      (function(stat, zone) {
-        var td = document.createElement('td');
-        td.className = 'stat-cell';
-
-        var inner = document.createElement('div');
-        inner.className = 'cell-inner';
-
-        var slider = document.createElement('input');
-        slider.type = 'range';
-        slider.min = '0.5';
-        slider.max = '2.0';
-        slider.step = '0.05';
-
-        var span = document.createElement('span');
-        span.className = 'readout';
-
-        function applyVal(v) {
-          slider.value = v;
-          updateSliderTrack(slider, v);
-          span.textContent = '\u00d7' + v.toFixed(2);
-          updateCellBg(td, v);
-        }
-        applyVal(getVal(zone, stat));
-        cellRefs[zone + '-' + stat] = { slider: slider, span: span, td: td };
-
-        slider.addEventListener('input', function() {
-          var v = parseFloat(this.value);
-          if (!isNaN(v)) {
-            setVal(zone, stat, v);
-            span.textContent = '\u00d7' + v.toFixed(2);
-            updateSliderTrack(slider, v);
-            updateCellBg(td, v);
-            redrawSparkline(stat);
-          }
-        });
-
-        span.addEventListener('click', function() {
-          var numInput = document.createElement('input');
-          numInput.type = 'number';
-          numInput.min = '0.05';
-          numInput.max = '5';
-          numInput.step = '0.05';
-          numInput.value = getVal(zone, stat).toFixed(2);
-          numInput.className = 'inline-num';
-          inner.replaceChild(numInput, span);
-          numInput.focus();
-          numInput.select();
-          var done = false;
-          function commit() {
-            if (done) return; done = true;
-            var v = parseFloat(numInput.value);
-            if (!isNaN(v) && v > 0) { setVal(zone, stat, v); }
-            if (numInput.parentNode) { inner.replaceChild(span, numInput); }
-            applyVal(getVal(zone, stat));
-            redrawSparkline(stat);
-          }
-          numInput.addEventListener('blur', commit);
-          numInput.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter') { e.preventDefault(); commit(); }
-            if (e.key === 'Escape') { if (!done) { done = true; inner.replaceChild(span, numInput); } }
-          });
-        });
-
-        inner.appendChild(slider);
-        inner.appendChild(span);
-        td.appendChild(inner);
-        tr.appendChild(td);
-      })(STATS[s], z);
-    }
-
-    tbody.appendChild(tr);
-  }
-}
-
-function getCleanBalance() {
-  var out = {};
-  for (var z = 1; z <= TOTAL_ZONES; z++) {
-    var entry = {};
-    for (var i = 0; i < STATS.length; i++) {
-      var v = getVal(z, STATS[i]);
-      if (Math.abs(v - 1) > 0.0001) entry[STATS[i]] = parseFloat(v.toFixed(2));
-    }
-    if (Object.keys(entry).length > 0) out[z] = entry;
-  }
-  return out;
-}
-
-function formatCodeBlock(bal) {
-  var keys = Object.keys(bal).map(Number).sort(function(a,b){return a-b;});
-  if (keys.length === 0) return 'export const ZONE_BALANCE = {};';
-  var lines = keys.map(function(zone) {
-    var stats = bal[zone];
-    var pairs = Object.keys(stats).map(function(k){ return k + ': ' + stats[k]; }).join(', ');
-    return '  ' + zone + ': { ' + pairs + ' },';
-  });
-  return 'export const ZONE_BALANCE = {\\n' + lines.join('\\n') + '\\n};';
-}
-
-function loadData() {
-  fetch('/api/data').then(function(res) { return res.json(); }).then(function(json) {
-    balance = {};
-    var raw = json.balance || {};
-    Object.keys(raw).forEach(function(zStr) {
-      balance[parseInt(zStr)] = Object.assign({}, raw[zStr]);
-    });
-
-    var s = json.scaling || {};
-    var rateKeys = ['hp','atk','gold','xp'];
-    var rates = rateKeys.map(function(k) {
-      return k + ' x' + (s[k] ? (1 + s[k]).toFixed(2) : '?') + '/zone';
-    }).join('  |  ');
-    document.getElementById('base-rates').textContent = 'Base scaling: ' + rates;
-
-    buildTable();
-    buildSparklines();
-  }).catch(function(e) {
-    document.getElementById('base-rates').textContent = 'Error loading data: ' + e.message;
-  });
-}
-
-document.getElementById('btn-save').addEventListener('click', function() {
-  var btn = this;
-  var bal = getCleanBalance();
-  fetch('/api/save', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ balance: bal }),
-  }).then(function(res) { return res.json(); }).then(function(json) {
-    if (json.ok) {
-      btn.textContent = 'Saved!';
-      btn.classList.add('success');
-      setTimeout(function() {
-        btn.textContent = 'Save to areas.js';
-        btn.classList.remove('success');
-      }, 2000);
-    } else {
-      alert('Save failed: ' + (json.error || 'unknown error'));
-    }
-  }).catch(function(e) { alert('Save error: ' + e.message); });
-});
-
-document.getElementById('btn-sim').addEventListener('click', function() {
-  var panel = document.getElementById('sim-panel');
-  var out = document.getElementById('sim-output');
-  panel.style.display = 'block';
-  out.textContent = 'Running simulation...';
-  fetch('/api/sim', { method: 'POST' }).then(function(res) {
-    return res.json();
-  }).then(function(json) {
-    out.textContent = json.output || '(no output)';
-    panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }).catch(function(e) { out.textContent = 'Error: ' + e.message; });
-});
-
-document.getElementById('btn-copy').addEventListener('click', function() {
-  var btn = this;
-  var code = formatCodeBlock(getCleanBalance());
-  navigator.clipboard.writeText(code).then(function() {
-    btn.textContent = 'Copied!';
-    setTimeout(function() { btn.textContent = 'Copy Code'; }, 1500);
-  }).catch(function(e) { alert('Copy failed: ' + e.message); });
-});
-
-loadData();
-</script>
-</body>
-</html>`;
-
-// ── HTTP server ────────────────────────────────────────────────────────────
 const server = http.createServer((req, res) => {
   if (req.url === '/' || req.url === '/index.html') {
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
@@ -612,20 +297,19 @@ const server = http.createServer((req, res) => {
 });
 
 server.listen(PORT, '127.0.0.1', () => {
-  const url = 'http://localhost:' + PORT;
+  const url = `http://localhost:${PORT}`;
   console.log('');
-  console.log('Zone Balance GUI');
-  console.log('  ' + url);
+  console.log('Balance GUI');
+  console.log(`  ${url}`);
   console.log('  Press Ctrl+C to stop.');
   console.log('');
-  // Auto-open browser (Windows)
-  exec('start ' + url, { shell: true });
+  exec(`start ${url}`, { shell: true });
 });
 
-server.on('error', err => {
+server.on('error', (err) => {
   if (err.code === 'EADDRINUSE') {
-    console.error('Port ' + PORT + ' is already in use. Is another instance running?');
-    console.error('Open http://localhost:' + PORT + ' in your browser manually.');
+    console.error(`Port ${PORT} is already in use. Is another instance running?`);
+    console.error(`Open http://localhost:${PORT} in your browser manually.`);
   } else {
     console.error(err);
   }

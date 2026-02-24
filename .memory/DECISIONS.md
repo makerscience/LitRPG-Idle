@@ -10,6 +10,62 @@ Format:
 
 ---
 
+## 2026-02-24
+- Tags: architecture, economy, failure-mode
+- Decision: Summoned adds are progression-neutral by default. `COMBAT_V2.summonedAddRewardMult` is set to `0`, and add kills emit `lootBonus: { dropChanceMult: 0, rarityBoost: 0 }`.
+- Rationale: Unlimited or repeatable summon chains can become a farm loop for gold/xp/loot if add kills pay normal rewards. Keeping adds as pressure-only mechanics avoids exploit paths while still enabling summon combat behaviors.
+- Alternatives considered: Full rewards for adds (rejected: farm risk), hardcoded per-enemy exceptions (rejected: brittle and harder to reason about), global add kill cap per encounter (rejected: extra state complexity).
+- Consequences / Follow-ups: Add fights increase difficulty without inflating economy progression. If design later wants partial rewards, increase `summonedAddRewardMult` as a single tuning knob and re-run balance verification.
+
+## 2026-02-24
+- Tags: architecture, convention
+- Decision: Runtime summon flow uses an explicit member-add contract (`COMBAT_MEMBER_ADDED`) plus cast lifecycle events (`COMBAT_ENEMY_CASTING`, `COMBAT_INTERRUPTED`), each registered in `EVENTS` and `EVENT_CONTRACTS`.
+- Rationale: Summons happen after encounter start, so GameScene cannot rely only on `COMBAT_ENCOUNTER_STARTED` payloads. A dedicated runtime add event keeps rendering/state updates deterministic and avoids ad-hoc polling or bridge hacks.
+- Alternatives considered: Re-emit full `COMBAT_ENCOUNTER_STARTED` on every add (rejected: noisy and semantically wrong), direct GameScene method calls from CombatEngine (rejected: tight coupling), no contract entries (rejected: dev-mode warning spam and unstable payloads).
+- Consequences / Follow-ups: New summon/cast visuals can subscribe to stable payloads. Any future runtime encounter mutation should follow the same pattern: named event + payload contract.
+
+## 2026-02-24
+- Tags: architecture, ui
+- Decision: UIScene is the single owner of stance action layout/visibility with two fixed slots: Slot A for legacy stance skills (Smash/Flurry/Bulwark), Slot B for new utility skills (Armor Break/Interrupt/Cleanse).
+- Rationale: Independent button classes at shared coordinates were already fragile. Two skills per stance makes per-button visibility logic error-prone and overlap-prone. Centralizing ownership in UIScene keeps stance-to-action mapping explicit and testable.
+- Alternatives considered: Let each button self-manage stance visibility (rejected: duplicated logic and overlap risk), new AbilityManager UI layer (rejected: over-abstracted for six concrete buttons).
+- Consequences / Follow-ups: New stance actions can be added by updating one `_stanceActions` map. Button classes remain focused on behavior/cooldown instead of cross-button layout logic.
+
+## 2026-02-24
+- Tags: tooling, workflow
+- Decision: Added a targeted verification harness (`scripts/verify-combat-mechanics.js`) and npm command (`verify:combat`) as the Phase 7 automated gate for new combat mechanics.
+- Rationale: Manual checks alone miss silent regressions (especially timer/state edge cases). A lightweight Node script can directly assert event payload keys, summon caps, interrupt behavior, corruption clamps, and armor break expiry with fast feedback.
+- Alternatives considered: No automation (rejected: regression-prone), full formal test framework setup first (rejected: higher setup cost than needed for current scope).
+- Consequences / Follow-ups: Current workflow gate is `npm run verify:combat` + `npm run build` + `npm run validate:data`. Add new checks to this harness whenever combat mechanics expand.
+
+## 2026-02-20
+- Tags: architecture, tooling
+- Decision: Per-entity balance dials (ENEMY_BALANCE, BOSS_BALANCE) stored in a new `src/data/balance.js`, not in areas.js or enemies.js/bosses.js. GUI gets three tabs (Zones | Enemies | Bosses). Entity bias stacks with zone dials: `finalStat = base × zoneScale × zoneBias × entityBias`. Boss bias applied to hand-authored stats with no zone scaling.
+- Rationale: Separate file keeps balance data cohesive and doesn't bloat areas.js (zone concern) or enemies.js (canonical template data). Multiplicative stacking is symmetric with ZONE_BALANCE and allows both systems to operate independently. Tabs are the cleanest layout given the page is already full-width with the zone table.
+- Alternatives considered: Display-only columns (user rejected — wanted editable dials). Storing in enemies.js/bosses.js (pollutes canonical template data). Override instead of stack (less flexible — can't combine zone-wide boost with per-enemy tweak). Single row expansion instead of tabs (hard to scan 30 boss rows in collapsed rows).
+- Consequences / Follow-ups: `balance-sim.js` does not yet apply entity biases — will give inaccurate output if ENEMY_BALANCE is populated. Should fold entityBias into sim after implementing the GUI. Boss bias bypasses zone scaling entirely (bosses are hand-authored absolutes).
+
+## 2026-02-20
+- Tags: architecture, convention
+- Decision: When moving named bosses between zones, keep one boss per zone and preserve the final-zone area-boss gate. Rotfang moved to zone 5 and The Hollow moved to zone 1 with bossType swap (Rotfang `AREA`, The Hollow `MINI`) instead of moving Rotfang alone.
+- Rationale: BossManager progression depends on a boss existing at the current zone. Moving Rotfang to zone 5 without backfilling zone 1 would leave zone 1 with no boss and risk progression dead-ends.
+- Alternatives considered: Move only Rotfang to zone 5 (rejected: zone 1 boss gap). Keep boss types unchanged after zone swap (rejected: would put area-boss gate on zone 1 and break intended area flow).
+- Consequences / Follow-ups: Area 1 keeps a coherent zone 1-5 boss ladder, and area unlock flow remains gated by zone 5.
+
+## 2026-02-20
+- Tags: convention, progression
+- Decision: Guaranteed waterskin first-kill drop is anchored to the zone 1 boss milestone, not to Rotfang specifically. `guaranteedFirstKillItem: 'a1_rotfang_waterskin'` moved to The Hollow (current zone 1 boss).
+- Rationale: Waterskin/DRINK is an onboarding sustain mechanic and should unlock at early progression timing regardless of boss-name reorder.
+- Alternatives considered: Leave guaranteed drop on Rotfang after moving Rotfang to zone 5 (rejected: delays core sustain tool too far into Area 1).
+- Consequences / Follow-ups: If Area 1 bosses are reordered again, keep the waterskin guarantee on whichever boss occupies zone 1 unless design intent changes.
+
+## 2026-02-20
+- Tags: tooling, failure-mode
+- Decision: Zone Balance GUI now uses non-sticky table headers/tabs after repeated offset issues from sticky + nested overflow interactions.
+- Rationale: Sticky offsets rendered headers far below table tops in the live tool, hurting usability.
+- Alternatives considered: Hardcoded sticky offsets (failed). Dynamic computed sticky offsets (still unstable in this layout).
+- Consequences / Follow-ups: Header placement is stable now. If sticky headers are needed later, reintroduce with a simpler DOM/CSS structure and cross-browser testing.
+
 ## 2026-02-19
 - Tags: architecture, failure-mode
 - Decision: TimeEngine one-shot timer removal now uses `tickers.indexOf(t)` (object reference lookup) instead of `tickers.splice(i, 1)` (stale index). Additionally, `CombatEngine._onEncounterEnd()` now calls `cancelRapidStrikes()` to clear any surviving ability timers.
