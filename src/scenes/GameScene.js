@@ -583,6 +583,8 @@ export default class GameScene extends Phaser.Scene {
     slot.state.bottomAlignOffsetY = bottomAlignOffsetY;
     slot.state.lungeDist = (template?.lungeDistance || 20) * 2;
     slot.state.attackSpriteOffsetY = template?.attackSpriteOffsetY ?? null;
+    slot.state.attackSpriteOffsetX = template?.attackSpriteOffsetX ?? 0;
+    slot.state.attackSpriteScale = template?.attackSpriteScale ?? 1;
     slot.state.enraged = false;
 
     // Position container (layoutCount can grow as summons are added)
@@ -1440,11 +1442,12 @@ export default class GameScene extends Phaser.Scene {
 
       if (slot.state.currentSprites) {
         slot.sprite.setTexture(slot.state.currentSprites.attack);
-        slot.sprite.setDisplaySize(slot.state.spriteW, slot.state.spriteH);
+        const atkScale = slot.state.attackSpriteScale;
+        slot.sprite.setDisplaySize(slot.state.spriteW * atkScale, slot.state.spriteH * atkScale);
 
         // Reset to local home position before lunge
         this.tweens.killTweensOf(slot.sprite);
-        slot.sprite.x = 0;
+        slot.sprite.x = slot.state.attackSpriteOffsetX;
         const atkOffsetY = slot.state.attackSpriteOffsetY ?? slot.state.spriteOffsetY;
         slot.sprite.y = atkOffsetY + slot.state.bottomAlignOffsetY;
 
@@ -1472,6 +1475,7 @@ export default class GameScene extends Phaser.Scene {
           if (slot.state.currentSprites) {
             slot.sprite.setTexture(slot.state.currentSprites.default);
             slot.sprite.setDisplaySize(slot.state.spriteW, slot.state.spriteH);
+            slot.sprite.x = 0;
             slot.sprite.y = slot.state.spriteOffsetY + slot.state.bottomAlignOffsetY;
           }
           this._unlockWalk();

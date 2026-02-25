@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## 2026-02-25 - Enemy Sprites, Split-on-Death, Flap Animation
+- **Armored Beetle sprites wired:** 4-pose sprite set for `a2_giant_beetle` with 200x200 display size
+- **Greater Slime sprites + split-on-death:** 4-pose sprites at 420x336; on death, fades dead sprite then splits into two Hollow Slimes (1s delay, `pendingSplits` prevents premature encounter end)
+- **Razorwing sprites + flapping:** 2-frame wing oscillation at 300ms using `default`/`default2`; `attackSpriteOffsetY` keeps attack pose grounded while idle/reaction float at -150px; `nameplateOffsetY: -150` keeps nameplate above sprite
+- **Prestige SP reset fix:** `Store.resetSkillPoints()` called during prestige; enhancement levels persist
+- **Spend guard:** `UpgradeManager.purchase()` now checks `spendSkillPoints()` return value
+
 ## 2026-02-25 - Beetle/Boar Progression Swap for Early Armor Teaching
 - **Enemy placement swap:** moved `a2_giant_beetle` into Area 1 with zone range `6-10` (no earlier spawn), and moved `a1_thornback_boar` into Area 2 with zone range `14-15`
 - **Early armor onboarding:** Area 1 beetle is now tuned as an armor-focused intro enemy (`armor.reduction: 0.22`) to coincide with early Power-stance usage timing

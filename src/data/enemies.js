@@ -184,7 +184,9 @@ const ENEMIES = [
     },
     spriteSize: { w: 420, h: 336 },
     spriteOffsetY: -50,
-    attackSpriteOffsetY: 0,
+    attackSpriteOffsetY: -40,
+    attackSpriteOffsetX: -80,
+    attackSpriteScale: 1.3,
     lootTable: AREA_1_LOOT_TABLE,
   },
   {

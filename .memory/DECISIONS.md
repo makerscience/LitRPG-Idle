@@ -10,6 +10,27 @@ Format:
 
 ---
 
+## 2026-02-25
+- Tags: architecture, economy
+- Decision: Upgrades cost skill points (1 SP per level, 1 SP per level-up, 35 total). Gold is spent exclusively on per-slot equipment enhancement (max +10, +5% stats/level, exponential cost).
+- Rationale: Separates two progression currencies — SP for build choices (can't max all 48 upgrade levels with 35 SP), gold for incremental gear power. Creates meaningful tradeoffs.
+- Alternatives considered: Gold for both (original, rejected: no build choices), 2 SP/level (rejected: too generous, no tension), per-item enhancement (rejected: punishes gear swaps).
+- Consequences / Follow-ups: Save schema v2. Prestige resets SP + upgrades but keeps enhancement levels (permanent gold investment). Enhancement costs may need tuning after playtest.
+
+## 2026-02-25
+- Tags: architecture, combat
+- Decision: `splitOnDeath` enemy field spawns child enemies as adds (no rewards) after a 1-second delay. `pendingSplits` counter on encounter prevents premature "cleared" state.
+- Rationale: Split-on-death is visually distinct from summons (instant on death vs. cast-time loop). Delay allows death animation to play. Children as adds prevents farm exploits (consistent with summon reward policy).
+- Alternatives considered: Reuse summon system (rejected: summons have cast times and cooldown loops, split is a one-shot on-death), immediate spawn (rejected: no time for death animation).
+- Consequences / Follow-ups: Any enemy can use `splitOnDeath: { enemyId, count }`. Only non-adds can split (prevents recursive chains). Encounter slot cap still applies.
+
+## 2026-02-25
+- Tags: convention, ui
+- Decision: Enemy sprites support `default2` for frame-oscillation animations (e.g., wing flapping) and `attackSpriteOffsetY` for per-pose vertical offset overrides.
+- Rationale: Some enemies need idle animations (birds flapping) and different vertical positioning for attack vs. idle poses. Both are opt-in fields that fall back to existing behavior when absent.
+- Alternatives considered: Spritesheet-based animation (rejected: overkill for 2-frame oscillation in a mostly-static idle game).
+- Consequences / Follow-ups: Any future enemy can add `default2` for idle animation. `attackSpriteOffsetY` useful for enemies whose attack pose has different visual weight.
+
 ## 2026-02-24
 - Tags: architecture, economy, failure-mode
 - Decision: Summoned adds are progression-neutral by default. `COMBAT_V2.summonedAddRewardMult` is set to `0`, and add kills emit `lootBonus: { dropChanceMult: 0, rarityBoost: 0 }`.

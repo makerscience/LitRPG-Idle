@@ -1,34 +1,39 @@
 # CURRENT_FOCUS
 
 ## One-liner
-- Balance GUI now has 4 tabs (Zones, Enemies, Bosses, Player); player progression biases wired into game logic; next step is manual balance/playtest validation and follow-up tuning.
+- Skill points + equipment enhancement system shipped; enemy sprites wired (Beetle, Greater Slime, Razorwing) with split-on-death and flap animations; next is playtesting and tuning.
 
 ## Active Objectives (max 3)
-1. **Phase 7 manual gate:** Playtest zones 1-10 and run mechanic spot checks (miss, armor break, summon/interrupt, corruption/cleanse), plus boundary checks 10->11 and 20->21
+1. **Playtest & tune:** Run zones 1-10 and validate new SP/enhancement economy, split-on-death flow, and sprite animations in live combat
 2. **Post-implementation tuning:** Adjust evasion/armor/corruption/summon numbers and ABILITIES cooldowns from playtest data
-3. **Data completeness cleanup:** Remove the validator warning by adding droppable item coverage for zones 31-35
+3. **Data completeness cleanup:** Add droppable item coverage for zones 31-35
 
 ## Next Actions
-- [ ] Run focused Area 1 playthrough (zones 1-10) and note TTK/survival spikes by zone
-- [ ] Run mechanic checklist in live combat and confirm feedback readability (`MISS!`, casting, interrupted, corruption stack UI)
-- [ ] Tune `COMBAT_V2.corruption` and `ABILITIES` constants from observed pacing
+- [ ] Playtest zones 1-10: validate SP gain per level, skill purchase UX, enhancement purchase flow
+- [ ] Verify Greater Slime split-on-death visually (dead fade → child split → Hollow Slime spawn)
+- [ ] Verify Razorwing flapping animation and sprite offset in combat
+- [ ] Tune enhancement gold costs from observed gold income pacing
 - [ ] Add/retune item drop coverage for zones 31-35 and rerun `npm run validate:data`
-- [ ] Capture any manual-test regressions as targeted checks in `scripts/verify-combat-mechanics.js`
 
 ## Open Loops / Blockers
 - `npm run validate:data` passes with one warning: zones 31-35 have no droppable items
 - `npm run build` passes with a pre-existing large bundle warning (Phaser chunk >500kB)
 - Prestige, territory, and cheats remain behind feature gates during current balancing pass
-- Enemy/boss sprite coverage for some late content is still incomplete
+- Enemy/boss sprite coverage for Area 2-3 content is still incomplete
 
 ## How to Resume in 30 Seconds
 - **Open:** `.memory/CURRENT_FOCUS.md`
-- **Last change:** Added Player tab to Balance GUI; wired XP/stat-growth biases into game logic; fixed pre-existing `var` closure bug in zone slider save.
+- **Last change:** Skill points replace gold upgrades; equipment enhancement is new gold sink; 3 enemy sprites wired with custom animations.
 - **Key implementation files:**
-  - `src/data/balance.js` (PLAYER_BALANCE + getXpBias/getStatGrowthBias)
-  - `src/config.js` (xpForLevel applies xpBias)
-  - `src/systems/Store.js` (applyLevelUp applies statGrowthBias)
-  - `scripts/zone-balance-gui.js` (Player tab, /api/player-data, /api/save-player, var closure fix, Cache-Control headers)
+  - `src/systems/Store.js` (skillPoints state, enhancementLevels, resetSkillPoints)
+  - `src/systems/EnhancementManager.js` (per-slot enhancement logic, costs, bonuses)
+  - `src/systems/UpgradeManager.js` (SP currency handling)
+  - `src/systems/SaveManager.js` (v2 migration)
+  - `src/systems/CombatEngine.js` (splitOnDeath, pendingSplits counter)
+  - `src/scenes/GameScene.js` (split animation, flap timer, attackSpriteOffsetY)
+  - `src/data/enemies.js` (sprites, splitOnDeath, default2, attackSpriteOffsetY, nameplateOffsetY)
+  - `src/ui/UpgradePanel.js` (Skills panel with SP display)
+  - `src/ui/InventoryPanel.js` (enhancement badges + enhance button)
 - **Verification commands:** `npm run verify:combat`, `npm run build`, `npm run validate:data`
 
 ## Key Context
@@ -37,21 +42,22 @@
 - Architecture: `ARCHITECTURE.md`
 - GDD plan: `Plans/Redesign Plan.md`
 - Enemy roster plan: `Plans/Enemy_Roster_Redesign_Plan.md`
+- Skill/enhancement plan: `Plans/Skill_Points_and_Enhancement_Plan.md`
 - Memory files: `.memory/CURRENT_FOCUS.md`, `.memory/DECISIONS.md`, `.memory/LESSONS_LEARNED.md`
 - Changelog: `CHANGELOG.md`
 - Feature gates: `src/config/features.js`
-- Save namespace: `litrpg_idle_vslice_save` (schema v1)
+- Save namespace: `litrpg_idle_vslice_save` (schema v2)
 
 ---
 
 ## Last Session Summary (max ~8 bullets)
-- Added `PLAYER_BALANCE` to `src/data/balance.js` with `xpBias` and `statGrowthBias` sparse maps + accessor functions
-- Wired `getXpBias(level)` into `PROGRESSION_V2.xpForLevel()` in `src/config.js`
-- Wired `getStatGrowthBias(stat)` into `Store.applyLevelUp()` in `src/systems/Store.js`
-- Added Player tab to Balance GUI: 5 stat-growth sliders + 35-row XP table with bias/effective/cumulative/growth%
-- Added `/api/player-data` and `/api/save-player` endpoints + parse/format helpers in GUI server
-- Fixed pre-existing `var` closure bug in `buildZones()` — zone slider changes were writing to `balance[31]` instead of correct zone, causing saves to silently lose all zone edits
-- Added `Cache-Control: no-store` header to all `sendJson()` responses to prevent browser caching of API data
+- Replaced gold-cost upgrades with skill points (1 SP per level, 35 total, flat 1 SP per upgrade level)
+- Added per-slot equipment enhancement system (gold sink, +5%/level, max +10, 7 enhanceable slots)
+- Save schema bumped to v2 with migration; prestige resets SP but keeps enhancement levels
+- Wired Armored Beetle sprites (`a2_giant_beetle`)
+- Wired Greater Slime sprites + split-on-death mechanic (1s delay, dead-fade → child-split animation, `pendingSplits` prevents premature encounter end)
+- Wired Razorwing sprites with flapping animation (`default`/`default2` oscillation at 300ms)
+- Added `attackSpriteOffsetY` for per-pose Y offset and `nameplateOffsetY` for Razorwing
 - `npm run build` passes
 
 ## Pinned References
