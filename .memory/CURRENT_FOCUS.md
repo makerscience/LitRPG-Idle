@@ -1,7 +1,7 @@
 # CURRENT_FOCUS
 
 ## One-liner
-- Skill points + equipment enhancement system shipped; enemy sprites wired (Beetle, Greater Slime, Razorwing) with split-on-death and flap animations; next is playtesting and tuning.
+- Road Bandit sprites wired; armor crack overlay on armor break; image assets reorganized; hit reaction cooldown added. Next: playtesting and tuning.
 
 ## Active Objectives (max 3)
 1. **Playtest & tune:** Run zones 1-10 and validate new SP/enhancement economy, split-on-death flow, and sprite animations in live combat
@@ -9,10 +9,11 @@
 3. **Data completeness cleanup:** Add droppable item coverage for zones 31-35
 
 ## Next Actions
-- [ ] Playtest zones 1-10: validate SP gain per level, skill purchase UX, enhancement purchase flow
+- [ ] Playtest zones 1-10: validate SP gain, skill purchase UX, enhancement flow, armor crack overlay
 - [ ] Verify Greater Slime split-on-death visually (dead fade → child split → Hollow Slime spawn)
 - [ ] Verify Razorwing flapping animation and sprite offset in combat
 - [ ] Tune enhancement gold costs from observed gold income pacing
+- [ ] Wire remaining Area 2-3 enemy sprites as art becomes available
 - [ ] Add/retune item drop coverage for zones 31-35 and rerun `npm run validate:data`
 
 ## Open Loops / Blockers
@@ -23,17 +24,13 @@
 
 ## How to Resume in 30 Seconds
 - **Open:** `.memory/CURRENT_FOCUS.md`
-- **Last change:** Skill points replace gold upgrades; equipment enhancement is new gold sink; 3 enemy sprites wired with custom animations.
+- **Last change:** Road Bandit sprites wired; armor crack overlay on armor break; image folder reorganization; hit reaction cooldown.
 - **Key implementation files:**
-  - `src/systems/Store.js` (skillPoints state, enhancementLevels, resetSkillPoints)
-  - `src/systems/EnhancementManager.js` (per-slot enhancement logic, costs, bonuses)
-  - `src/systems/UpgradeManager.js` (SP currency handling)
-  - `src/systems/SaveManager.js` (v2 migration)
-  - `src/systems/CombatEngine.js` (splitOnDeath, pendingSplits counter)
-  - `src/scenes/GameScene.js` (split animation, flap timer, attackSpriteOffsetY)
-  - `src/data/enemies.js` (sprites, splitOnDeath, default2, attackSpriteOffsetY, nameplateOffsetY)
-  - `src/ui/UpgradePanel.js` (Skills panel with SP display)
-  - `src/ui/InventoryPanel.js` (enhancement badges + enhance button)
+  - `src/scenes/BootScene.js` (sprite loading + downscale entries)
+  - `src/scenes/GameScene.js` (armor crack overlay, hit reaction cooldown, spriteSpreadBonus sync)
+  - `src/data/enemies.js` (sprites, spriteSize, spriteSpreadBonus per enemy)
+  - `src/systems/CombatEngine.js` (armorBreakTarget, ARMOR_BROKEN/RESTORED events)
+  - `src/ui/ArmorBreakButton.js` (armor break skill button)
 - **Verification commands:** `npm run verify:combat`, `npm run build`, `npm run validate:data`
 
 ## Key Context
@@ -51,13 +48,12 @@
 ---
 
 ## Last Session Summary (max ~8 bullets)
-- Replaced gold-cost upgrades with skill points (1 SP per level, 35 total, flat 1 SP per upgrade level)
-- Added per-slot equipment enhancement system (gold sink, +5%/level, max +10, 7 enhanceable slots)
-- Save schema bumped to v2 with migration; prestige resets SP but keeps enhancement levels
-- Wired Armored Beetle sprites (`a2_giant_beetle`)
-- Wired Greater Slime sprites + split-on-death mechanic (1s delay, dead-fade → child-split animation, `pendingSplits` prevents premature encounter end)
-- Wired Razorwing sprites with flapping animation (`default`/`default2` oscillation at 300ms)
-- Added `attackSpriteOffsetY` for per-pose Y offset and `nameplateOffsetY` for Razorwing
+- Wired Road Bandit 4-pose sprites (256x256, offsetY -50, spriteSpreadBonus 50)
+- Added `spriteSpreadBonus` per-enemy field for wider spacing in multi-enemy encounters
+- Added 1s cooldown on enemy hit reaction pose to prevent flickering during fast attacks
+- Reorganized image assets: backgrounds/ferns/ground → `Images/Backgrounds/area1/`, player sprites → `Images/Player Images/armor001/`
+- Added cracked armor visual overlay on armor break (0.6 alpha, 50% sprite size, syncs position with sprite each frame)
+- Overlay triggers on `COMBAT_ARMOR_BROKEN`, fades out on `COMBAT_ARMOR_RESTORED`, removed on death
 - `npm run build` passes
 
 ## Pinned References

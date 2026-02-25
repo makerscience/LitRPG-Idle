@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 2026-02-25 - Road Bandit Sprites, Armor Crack Overlay, Asset Reorganization
+- **Road Bandit sprites wired:** 4-pose sprite set at 256x256 with `spriteSpreadBonus: 50` for wider multi-enemy spacing
+- **Armor crack overlay:** cracked armor visual layers over armored enemies during armor break; syncs with sprite movement, fades on restore, removed on death
+- **Hit reaction cooldown:** 1s cooldown between enemy reaction poses to prevent flickering during fast attacks
+- **Image asset reorganization:** backgrounds/ferns/ground moved to `Images/Backgrounds/area1/`; player sprites moved to `Images/Player Images/armor001/`
+
 ## 2026-02-25 - Enemy Sprites, Split-on-Death, Flap Animation
 - **Armored Beetle sprites wired:** 4-pose sprite set for `a2_giant_beetle` with 200x200 display size
 - **Greater Slime sprites + split-on-death:** 4-pose sprites at 420x336; on death, fades dead sprite then splits into two Hollow Slimes (1s delay, `pendingSplits` prevents premature encounter end)

@@ -198,6 +198,8 @@ export default class GameScene extends Phaser.Scene {
     this._unsubs.push(on(EVENTS.COMBAT_ENEMY_REGEN, (data) => this._onEnemyRegen(data)));
     this._unsubs.push(on(EVENTS.COMBAT_ENEMY_ENRAGED, (data) => this._onEnemyEnraged(data)));
     this._unsubs.push(on(EVENTS.COMBAT_THORNS_DAMAGE, (data) => this._onThornsDamage(data)));
+    this._unsubs.push(on(EVENTS.COMBAT_ARMOR_BROKEN, (data) => this._onArmorBroken(data)));
+    this._unsubs.push(on(EVENTS.COMBAT_ARMOR_RESTORED, (data) => this._onArmorRestored(data)));
 
     // Encounter lifecycle events
     this._unsubs.push(on(EVENTS.COMBAT_ENCOUNTER_STARTED, (data) => this._onEncounterStarted(data)));
@@ -303,11 +305,14 @@ export default class GameScene extends Phaser.Scene {
       }
     }
 
-    // Update enemy attack charge bars
+    // Update enemy attack charge bars + sync armor crack overlay
     for (const slot of this._enemySlots) {
       if (slot.state.atkTimerKey && slot.chargeBarFill.visible) {
         const progress = TimeEngine.getProgress(slot.state.atkTimerKey);
         slot.chargeBarFill.setDisplaySize(Math.max(0, progress * 100), 4);
+      }
+      if (slot.state.armorCrackOverlay) {
+        slot.state.armorCrackOverlay.setPosition(slot.sprite.x, slot.sprite.y);
       }
     }
 
@@ -993,6 +998,48 @@ export default class GameScene extends Phaser.Scene {
     });
   }
 
+  _onArmorBroken(data) {
+    const slot = this._getSlotByInstanceId(data.instanceId);
+    if (!slot) return;
+
+    // Remove existing overlay if re-applied
+    if (slot.state.armorCrackOverlay) {
+      slot.state.armorCrackOverlay.destroy();
+      slot.state.armorCrackOverlay = null;
+    }
+
+    const overlay = this.add.image(
+      slot.sprite.x,
+      slot.sprite.y,
+      'crackedarmor001'
+    );
+    overlay.setDisplaySize(slot.state.spriteW * 0.5, slot.state.spriteH * 0.5);
+    overlay.setAlpha(0.6);
+    overlay.setDepth(slot.sprite.depth + 1);
+    slot.container.add(overlay);
+    slot.state.armorCrackOverlay = overlay;
+    slot.state.extraObjects.push(overlay);
+  }
+
+  _onArmorRestored(data) {
+    const slot = this._getSlotByInstanceId(data.instanceId);
+    if (!slot) return;
+    if (!slot.state.armorCrackOverlay) return;
+
+    const overlay = slot.state.armorCrackOverlay;
+    this.tweens.add({
+      targets: overlay,
+      alpha: 0,
+      duration: 300,
+      ease: 'Linear',
+      onComplete: () => {
+        overlay.destroy();
+        slot.state.extraObjects = slot.state.extraObjects.filter(o => o !== overlay);
+      },
+    });
+    slot.state.armorCrackOverlay = null;
+  }
+
   _onThornsDamage(data) {
     // Purple damage number on the player (thorns reflects damage back)
     const x = this._playerX + (Math.random() - 0.5) * 40;
@@ -1028,6 +1075,13 @@ export default class GameScene extends Phaser.Scene {
 
     const slot = this._getSlotByInstanceId(data.instanceId);
       if (!slot) return;
+
+      // Remove armor crack overlay immediately on death
+      if (slot.state.armorCrackOverlay) {
+        slot.state.armorCrackOverlay.destroy();
+        slot.state.extraObjects = slot.state.extraObjects.filter(o => o !== slot.state.armorCrackOverlay);
+        slot.state.armorCrackOverlay = null;
+      }
 
       // Kill tweens + clear timers
       this.tweens.killTweensOf(slot.sprite);
