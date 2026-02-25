@@ -55,6 +55,10 @@ export default class BootScene extends Phaser.Scene {
     this.load.image('armoredbeetle001_reaction', 'Images/Enemies/area1/armoredbeetle001_reaction.png');
     this.load.image('armoredbeetle001_attack',   'Images/Enemies/area1/armoredbeetle001_attack.png');
     this.load.image('armoredbeetle001_dead',     'Images/Enemies/area1/armoredbeetle001_dead.png');
+    this.load.image('roadbandit001_default',  'Images/Enemies/area1/roadbandit001_default.png');
+    this.load.image('roadbandit001_reaction', 'Images/Enemies/area1/roadbandit001_reaction.png');
+    this.load.image('roadbandit001_attack',   'Images/Enemies/area1/roadbandit001_attack.png');
+    this.load.image('roadbandit001_dead',     'Images/Enemies/area1/roadbandit001_dead.png');
     this.load.image('player001_default',        'Images/Player001_default.png');
     this.load.image('player001_strongpunch',    'Images/Player001_strongpunch.png');
     this.load.image('player001_jumpkick',       'Images/Player001_jumpkick.png');
@@ -181,6 +185,7 @@ export default class BootScene extends Phaser.Scene {
       { keys: ['razorwing001_default1', 'razorwing001_default2', 'razorwing001_reaction', 'razorwing001_dead'], w: 400, h: 400 },
       { keys: ['greaterslime001_default', 'greaterslime001_reaction', 'greaterslime001_attack', 'greaterslime001_dead'], w: 840, h: 672 },
       { keys: ['armoredbeetle001_default', 'armoredbeetle001_reaction', 'armoredbeetle001_attack', 'armoredbeetle001_dead'], w: 400, h: 400 },
+      { keys: ['roadbandit001_default', 'roadbandit001_reaction', 'roadbandit001_attack', 'roadbandit001_dead'], w: 512, h: 512 },
       { keys: ['blightedstalker_default', 'blightedstalker_reaction', 'blightedstalker_attack', 'blightedstalker_dead', 'blightedstalker_dead2'], w: 396, h: 478 },
       { keys: ['blightedstalker_head'], w: 160, h: 160 },
     ];

@@ -511,7 +511,15 @@ export default class GameScene extends Phaser.Scene {
   // ── Encounter slot positioning ──────────────────────────────────
 
   _getSlotPositions(count) {
-    const spread = COMBAT_V2.encounterSpread;
+    let bonus = 0;
+    if (count > 1) {
+      for (const slot of this._enemySlots) {
+        if (slot.state.instanceId && slot.state.spriteSpreadBonus > bonus) {
+          bonus = slot.state.spriteSpreadBonus;
+        }
+      }
+    }
+    const spread = COMBAT_V2.encounterSpread + bonus;
     const startX = this._enemyX - ((count - 1) * spread) / 2;
     const positions = [];
     for (let i = 0; i < count; i++) {
@@ -585,6 +593,7 @@ export default class GameScene extends Phaser.Scene {
     slot.state.attackSpriteOffsetY = template?.attackSpriteOffsetY ?? null;
     slot.state.attackSpriteOffsetX = template?.attackSpriteOffsetX ?? 0;
     slot.state.attackSpriteScale = template?.attackSpriteScale ?? 1;
+    slot.state.spriteSpreadBonus = template?.spriteSpreadBonus ?? 0;
     slot.state.enraged = false;
 
     // Position container (layoutCount can grow as summons are added)
@@ -832,7 +841,11 @@ export default class GameScene extends Phaser.Scene {
       }
 
       if (slot.state.currentSprites) {
-        // Sprite hit reaction
+        // Sprite hit reaction — cooldown so it doesn't flicker on rapid hits
+        const now = this.time.now;
+        if (now - (slot.state.lastReactTime || 0) < 1000) return;
+        slot.state.lastReactTime = now;
+
         if (slot.state.reactDelayTimer) slot.state.reactDelayTimer.remove();
         slot.state.reactDelayTimer = this.time.delayedCall(sReactDelay, () => {
           slot.sprite.setTexture(slot.state.currentSprites.reaction);

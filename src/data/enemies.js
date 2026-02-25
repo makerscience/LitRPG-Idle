@@ -201,9 +201,15 @@ const ENEMIES = [
     zones: [8, 10],
     goldDrop: 14,
     xpDrop: 14,
-    sprites: null,
-    spriteSize: null,
-    spriteOffsetY: 0,
+    sprites: {
+      default: 'roadbandit001_default',
+      reaction: 'roadbandit001_reaction',
+      attack: 'roadbandit001_attack',
+      dead: 'roadbandit001_dead',
+    },
+    spriteSize: { w: 256, h: 256 },
+    spriteOffsetY: -50,
+    spriteSpreadBonus: 50,
     lootTable: AREA_1_LOOT_TABLE,
   },
   {
