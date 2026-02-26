@@ -1,37 +1,36 @@
 # CURRENT_FOCUS
 
 ## One-liner
-- Road Bandit sprites wired; armor crack overlay on armor break; image assets reorganized; hit reaction cooldown added. Next: playtesting and tuning.
+- Area 2 parallax backgrounds fully wired (sky, ground, 3 tree layers, 2 fog layers, clutter, path); Goblin Scout, Bog Zombie, Thornback Boar sprites wired; area-based player/enemy tinting added.
 
 ## Active Objectives (max 3)
-1. **Playtest & tune:** Run zones 1-10 and validate new SP/enhancement economy, split-on-death flow, and sprite animations in live combat
-2. **Post-implementation tuning:** Adjust evasion/armor/corruption/summon numbers and ABILITIES cooldowns from playtest data
+1. **Area 2 visual polish:** Continue wiring remaining Area 2 enemy sprites (fungi, goblin warrior, blighted stalker area2 variants) and tune parallax layers
+2. **Playtest & tune:** Run zones 1-20 and validate SP/enhancement economy, sprite animations, area transitions
 3. **Data completeness cleanup:** Add droppable item coverage for zones 31-35
 
 ## Next Actions
-- [ ] Playtest zones 1-10: validate SP gain, skill purchase UX, enhancement flow, armor crack overlay
-- [ ] Verify Greater Slime split-on-death visually (dead fade → child split → Hollow Slime spawn)
-- [ ] Verify Razorwing flapping animation and sprite offset in combat
+- [ ] Wire remaining Area 2 enemy sprites (a2_fungi, a2_goblin_warrior, a2_blighted_stalker with area2 art)
+- [ ] Playtest zones 11-15: validate area 2 parallax, enemy sprites, tinting, death sequences
 - [ ] Tune enhancement gold costs from observed gold income pacing
-- [ ] Wire remaining Area 2-3 enemy sprites as art becomes available
 - [ ] Add/retune item drop coverage for zones 31-35 and rerun `npm run validate:data`
+- [ ] Wire Area 3 backgrounds when art becomes available
 
 ## Open Loops / Blockers
 - `npm run validate:data` passes with one warning: zones 31-35 have no droppable items
 - `npm run build` passes with a pre-existing large bundle warning (Phaser chunk >500kB)
 - Prestige, territory, and cheats remain behind feature gates during current balancing pass
-- Enemy/boss sprite coverage for Area 2-3 content is still incomplete
+- Enemy/boss sprite coverage for Area 2-3 content is still incomplete (fungi, goblin warrior, stalker area2)
 
 ## How to Resume in 30 Seconds
 - **Open:** `.memory/CURRENT_FOCUS.md`
-- **Last change:** Road Bandit sprites wired; armor crack overlay on armor break; image folder reorganization; hit reaction cooldown.
+- **Last change:** Area 2 full parallax system + 3 enemy sprites wired + area tinting
 - **Key implementation files:**
-  - `src/scenes/BootScene.js` (sprite loading + downscale entries)
-  - `src/scenes/GameScene.js` (armor crack overlay, hit reaction cooldown, spriteSpreadBonus sync)
-  - `src/data/enemies.js` (sprites, spriteSize, spriteSpreadBonus per enemy)
-  - `src/systems/CombatEngine.js` (armorBreakTarget, ARMOR_BROKEN/RESTORED events)
-  - `src/ui/ArmorBreakButton.js` (armor break skill button)
-- **Verification commands:** `npm run verify:combat`, `npm run build`, `npm run validate:data`
+  - `src/config/theme.js` (ZONE_THEMES area 2: sky, ground, path, treeRowOverrides with 9 layers, playerTint/enemyTint)
+  - `src/scenes/BootScene.js` (sprite loading + downscale entries for area2 backgrounds + enemies)
+  - `src/scenes/GameScene.js` (sky scroll, flat scroll, depthSort, groundKey, pathContainer, area tint blending)
+  - `src/data/enemies.js` (goblin scout, bog zombie, thornback boar sprites + offsets)
+- **Area 2 theme config:** `treeRowOverrides` array with 9 entries (3 tree rows, 2 fog rows, 2 clutter rows, 1 extra fog)
+- **Verification commands:** `npm run build`, `npm run validate:data`
 
 ## Key Context
 - Tech stack: Phaser 3, Vite 7, break_infinity.js, localStorage saves
@@ -48,13 +47,14 @@
 ---
 
 ## Last Session Summary (max ~8 bullets)
-- Wired Road Bandit 4-pose sprites (256x256, offsetY -50, spriteSpreadBonus 50)
-- Added `spriteSpreadBonus` per-enemy field for wider spacing in multi-enemy encounters
-- Added 1s cooldown on enemy hit reaction pose to prevent flickering during fast attacks
-- Reorganized image assets: backgrounds/ferns/ground → `Images/Backgrounds/area1/`, player sprites → `Images/Player Images/armor001/`
-- Added cracked armor visual overlay on armor break (0.6 alpha, 50% sprite size, syncs position with sprite each frame)
-- Overlay triggers on `COMBAT_ARMOR_BROKEN`, fades out on `COMBAT_ARMOR_RESTORED`, removed on death
-- `npm run build` passes
+- Wired Area 2 parallax: sky (slow scroll), ground (foregroundpath overlay), 3 tree layers (rear/mid/front with flat horizontal scroll, depth sorting, size-to-Y correlation)
+- Added 3 fog layers between tree rows (configurable alpha, speed, spawn range)
+- Added 2 clutter layers (clutter001-003 sprites) near middle and front tree rows
+- Wired Goblin Scout (4-pose, 160x192), Bog Zombie (4-pose + decapitation death, 220x264), Thornback Boar (area2 sprites, 280x153)
+- Added per-area player tint (blended with stance tint) and separate enemy tint via `playerTint`/`enemyTint` in theme config
+- Extended `treeRowOverrides` system: per-row `keys`, `skip`, `tint`, `alpha`, `depthSort`, `flatScroll` support
+- Canvas-downscale pipeline extended with `_sm` variants for tiny rear-layer sprites and separate targets per size tier
+- Fixed enemy tint not applying on first spawn (only applied on slot reuse before)
 
 ## Pinned References
 - Governance rules: `CLAUDE.md`

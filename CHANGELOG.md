@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## 2026-02-26 - Area 2 Parallax Backgrounds, Enemy Sprites, Area Tinting
+- **Area 2 parallax system:** sky (slow scroll), swamp foreground, foreground path overlay, 3 tree layers (flat horizontal scroll, depth sorting, size-to-Y correlation), 3 fog layers, 2 clutter layers — all configurable via `treeRowOverrides` in theme config
+- **Area 2 enemy sprites wired:** Goblin Scout (4-pose), Bog Zombie (4-pose + decapitation death sequence), Thornback Boar (area2 art variants)
+- **Per-area tinting:** player and enemies darken in Area 2 via `playerTint`/`enemyTint` in theme config, blended with stance/combat effect tints
+- **Parallax extensions:** `flatScroll`, per-row `keys`/`skip`/`tint`/`alpha`/`depthSort` overrides, configurable sky/ground/path layers, canvas-downscale `_sm` variants for tiny sprites
+- **Bug fix:** enemy area tint now applies on first spawn (previously only on slot reuse)
+
 ## 2026-02-25 - Road Bandit Sprites, Armor Crack Overlay, Asset Reorganization
 - **Road Bandit sprites wired:** 4-pose sprite set at 256x256 with `spriteSpreadBonus: 50` for wider multi-enemy spacing
 - **Armor crack overlay:** cracked armor visual layers over armored enemies during armor break; syncs with sprite movement, fades on restore, removed on death

@@ -10,6 +10,22 @@ Format:
 
 ---
 
+## 2026-02-26
+- Tags: architecture, convention
+- Decision: Area 2 parallax uses `treeRowOverrides` array in `ZONE_THEMES` with `flatScroll: true` — all sprite layers (trees, fog, clutter) are unified under the tree row system with per-row overrides for `keys`, `skip`, `tint`, `alpha`, `depthSort`, `scaleRange`, `yRange`, `depth`, `count`, `speedMult`.
+- Rationale: Reuses existing tree row infrastructure instead of creating separate fog/clutter systems. Per-row `keys` override allows mixing different sprite types in a single parallax system. `flatScroll` disables diagonal movement and growth scaling for non-forest areas.
+- Alternatives considered: Separate fog/clutter systems (rejected: unnecessary code duplication), fern system for fog (rejected: too tightly coupled to area 1 layout).
+- Consequences / Follow-ups: Extra overrides beyond TREE_ROWS.length are treated as standalone rows. Area 1 is unaffected (no overrides). Future areas can define their own layer configs via the same pattern.
+
+## 2026-02-26
+- Tags: convention, visual
+- Decision: Per-area tinting for player (`playerTint`) and enemies (`enemyTint`) in theme config, blended multiplicatively with effect tints (stance, enrage, hit flash).
+- Rationale: Area 2 swamp should feel darker. Multiplicative blend preserves combat feedback (red flash, enrage glow) while maintaining area mood. Separate enemy tint allows lighter darkening on enemies for readability.
+- Alternatives considered: Global post-processing shader (rejected: Phaser 3 complexity), per-sprite manual tint (rejected: doesn't survive tint resets from combat effects).
+- Consequences / Follow-ups: `_applyStanceTint` and `_applyEnemyTint` must be called instead of raw `clearTint()` after any combat effect. All `clearTint` calls on player/enemies replaced.
+
+---
+
 ## 2026-02-25
 - Tags: architecture, economy
 - Decision: Upgrades cost skill points (1 SP per level, 1 SP per level-up, 35 total). Gold is spent exclusively on per-slot equipment enhancement (max +10, +5% stats/level, exponential cost).

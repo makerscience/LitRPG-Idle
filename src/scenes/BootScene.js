@@ -23,6 +23,41 @@ export default class BootScene extends Phaser.Scene {
     this.load.image('fg_tree002',   'Images/Backgrounds/area1/foreground001_tree002.png');
     this.load.image('fg_tree003',   'Images/Backgrounds/area1/foreground001_tree003.png');
     this.load.image('fg_tree004',   'Images/Backgrounds/area1/foreground001_tree004.png');
+
+    // Area 2 backgrounds
+    this.load.image('swamp_rear',      'Images/Backgrounds/area2/swampsky.png');
+    this.load.image('swamp_mid',       'Images/Backgrounds/area2/Swampmidlayer.png');
+    this.load.image('swamp_front',     'Images/Backgrounds/area2/swampforeground.png');
+    this.load.image('swamptree001',    'Images/Backgrounds/area2/swamptree001.png');
+    this.load.image('swamptree002',    'Images/Backgrounds/area2/swamptree002.png');
+    this.load.image('swamptree003',    'Images/Backgrounds/area2/swamptree003.png');
+    this.load.image('swamptree001_sm', 'Images/Backgrounds/area2/swamptree001.png');
+    this.load.image('swamptree002_sm', 'Images/Backgrounds/area2/swamptree002.png');
+    this.load.image('swamptree003_sm', 'Images/Backgrounds/area2/swamptree003.png');
+    this.load.image('fog001',          'Images/Backgrounds/area2/fog001.png');
+    this.load.image('fog002',          'Images/Backgrounds/area2/fog002.png');
+    this.load.image('fog003',          'Images/Backgrounds/area2/fog003.png');
+    this.load.image('clutter001',      'Images/Backgrounds/area2/clutter001.png');
+    this.load.image('clutter002',      'Images/Backgrounds/area2/clutter002.png');
+    this.load.image('clutter003',      'Images/Backgrounds/area2/clutter003.png');
+    this.load.image('fallentree001',   'Images/Backgrounds/area2/fallentree001.png');
+    this.load.image('swamp_path',      'Images/Backgrounds/area2/foregroundpath.png');
+
+    // Area 2 enemy sprites
+    this.load.image('goblin001_default',   'Images/Enemies/area2/goblin001_default.png');
+    this.load.image('goblin001_reaction',  'Images/Enemies/area2/goblin001_reaction.png');
+    this.load.image('goblin001_attack',    'Images/Enemies/area2/goblin001_attack.png');
+    this.load.image('goblin001_dead',      'Images/Enemies/area2/goblin001_dead.png');
+    this.load.image('bogzombie_default',   'Images/Enemies/area2/bogzombie_default.png');
+    this.load.image('bogzombie_reaction',  'Images/Enemies/area2/bogzombie_reaction.png');
+    this.load.image('bogzombie_attack',    'Images/Enemies/area2/bogzombie_attack.png');
+    this.load.image('bogzombie_dead',      'Images/Enemies/area2/bogzombie_dead.png');
+    this.load.image('bogzombie_dead2',     'Images/Enemies/area2/bogzombie_dead2.png');
+    this.load.image('bogzombie_head',      'Images/Enemies/area2/bogzombie_head.png');
+    this.load.image('thornbackboar2_default',  'Images/Enemies/area2/thornbackboar_default.png');
+    this.load.image('thornbackboar2_reaction', 'Images/Enemies/area2/thornbackboar_reaction.png');
+    this.load.image('thornbackboar2_attack',   'Images/Enemies/area2/thornbackboar_attack.png');
+    this.load.image('thornbackboar2_dead',     'Images/Enemies/area2/thornbackboar_dead.png');
     this.load.image('forestrat001_default',  'Images/Enemies/area1/forestrat001_default.png');
     this.load.image('forestrat001_reaction', 'Images/Enemies/area1/forestrat001_reaction.png');
     this.load.image('forestrat001_attack',   'Images/Enemies/area1/forestrat001_attack.png');
@@ -192,6 +227,22 @@ export default class BootScene extends Phaser.Scene {
       { keys: ['crackedarmor001'], w: 512, h: 512 },
     ];
     for (const { keys, w, h } of enemyGroups) {
+      for (const key of keys) {
+        this._downscaleTexture(key, w, h);
+      }
+    }
+
+    // Background parallax sprites — downscale to ~2× max display size
+    const bgSprites = [
+      { keys: ['swamptree001', 'swamptree002', 'swamptree003', 'fallentree001'], w: 400, h: 600 },
+      { keys: ['swamptree001_sm', 'swamptree002_sm', 'swamptree003_sm'], w: 90, h: 136 },
+      { keys: ['clutter001', 'clutter002', 'clutter003'], w: 200, h: 200 },
+      { keys: ['goblin001_default', 'goblin001_reaction', 'goblin001_attack', 'goblin001_dead'], w: 320, h: 320 },
+      { keys: ['bogzombie_default', 'bogzombie_reaction', 'bogzombie_attack', 'bogzombie_dead', 'bogzombie_dead2'], w: 400, h: 480 },
+      { keys: ['bogzombie_head'], w: 160, h: 160 },
+      { keys: ['thornbackboar2_default', 'thornbackboar2_reaction', 'thornbackboar2_attack', 'thornbackboar2_dead'], w: 560, h: 306 },
+    ];
+    for (const { keys, w, h } of bgSprites) {
       for (const key of keys) {
         this._downscaleTexture(key, w, h);
       }

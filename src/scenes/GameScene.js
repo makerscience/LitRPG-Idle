@@ -227,6 +227,7 @@ export default class GameScene extends Phaser.Scene {
     this._unsubs.push(on(EVENTS.WORLD_AREA_CHANGED, (data) => {
       this._destroyParallax();
       this._createParallax(data.area);
+      this._applyStanceTint(Store.getState().currentStance);
     }));
 
     // Stance tint on player sprite
@@ -326,6 +327,19 @@ export default class GameScene extends Phaser.Scene {
 
       if (layer.getData('isStatic')) {
         continue;
+      } else if (layer.getData('isSkyLayer')) {
+        // Slow dual-image horizontal scroll for sky
+        const children = layer.getAll();
+        const imgW = layer.getData('imgW');
+        const speed = PARALLAX.baseSpeedPxPerSec * 0.5 * dt;
+        for (const child of children) {
+          child.x -= speed;
+        }
+        if (children[0] && children[0].x + imgW <= ga.x) {
+          for (const child of children) {
+            child.x += imgW;
+          }
+        }
       } else if (layer.getData('isImageLayer')) {
         // Dual-image horizontal scroll (delta-based)
         const children = layer.getAll();
@@ -382,19 +396,34 @@ export default class GameScene extends Phaser.Scene {
       }
     }
 
+    // Scroll path overlay (same speed as ground)
+    if (this._pathContainer && this._pathContainer.active) {
+      const pathSpeed = PARALLAX.baseSpeedPxPerSec * 3 * dt;
+      const children = this._pathContainer.getAll();
+      const imgW = this._pathContainer.getData('imgW');
+      for (const child of children) {
+        child.x -= pathSpeed;
+      }
+      if (children[0] && children[0].x + imgW <= ga.x) {
+        for (const child of children) {
+          child.x += imgW;
+        }
+      }
+    }
+
     // Scroll tree layers (diagonal: upper-right â†' lower-left)
     if (this._treeLayers.length > 0) {
       const frontSpeed = PARALLAX.baseSpeedPxPerSec * 3;
       const diagRatio = PARALLAX.treeDiagRatio;
-      for (const { row, trees } of this._treeLayers) {
+      for (const { row, trees, flatScroll } of this._treeLayers) {
         const xSpeed = frontSpeed * row.speedMult * dt;
-        const ySpeed = xSpeed * diagRatio * (row.diagMult ?? 1);
+        const ySpeed = flatScroll ? 0 : xSpeed * diagRatio * (row.diagMult ?? 1);
         for (const tree of trees) {
           tree.img.x -= xSpeed;
           tree.img.y += ySpeed;
 
           // Perspective growth: scale continuously from spawn to despawn (no clamping)
-          if (row.growRange) {
+          if (row.growRange && !flatScroll) {
             const spawnX = ga.x + ga.w * 1.5;
             const despawnX = ga.x - tree.displayW * 0.5;
             const progress = Math.max(0, (spawnX - tree.img.x) / (spawnX - despawnX));
@@ -406,7 +435,7 @@ export default class GameScene extends Phaser.Scene {
           const topY = tree.img.y - tree.displayH;
           if (tree.img.x + tree.displayW * 0.5 < ga.x || topY > ga.y + ga.h + 50) {
             tree.img.x = ga.x + ga.w + tree.displayW * 0.5 + Math.random() * 30;
-            tree.img.y = ga.y + ga.h * row.yRange[0] + Math.random() * 30;
+            tree.img.y = flatScroll ? tree.img.y : ga.y + ga.h * row.yRange[0] + Math.random() * 30;
           }
         }
       }
@@ -467,19 +496,32 @@ export default class GameScene extends Phaser.Scene {
 
   _applyStanceTint(stanceId) {
     if (!this.playerRect) return;
+    const area = Store.getState().currentArea;
+    const areaTheme = ZONE_THEMES[area];
+    const areaTint = areaTheme && areaTheme.playerTint != null ? areaTheme.playerTint : 0xffffff;
+    let stanceTint = 0xffffff;
     switch (stanceId) {
       case 'flurry':
-        this.playerRect.setTint(0xaaccff);
+        stanceTint = 0xaaccff;
         this._stanceIcon.setText('⚡').setColor('#facc15');
         break;
       case 'fortress':
-        this.playerRect.setTint(0xccccdd);
+        stanceTint = 0xccccdd;
         this._stanceIcon.setText('⬢').setColor('#60a5fa');
         break;
       default:
-        this.playerRect.clearTint();
         this._stanceIcon.setText('▲').setColor('#ef4444');
         break;
+    }
+    // Blend stance and area tints by multiplying per-channel
+    const r = ((stanceTint >> 16) & 0xff) * ((areaTint >> 16) & 0xff) / 255;
+    const g = ((stanceTint >> 8) & 0xff) * ((areaTint >> 8) & 0xff) / 255;
+    const b = (stanceTint & 0xff) * (areaTint & 0xff) / 255;
+    const blended = (Math.round(r) << 16) | (Math.round(g) << 8) | Math.round(b);
+    if (blended === 0xffffff) {
+      this.playerRect.clearTint();
+    } else {
+      this.playerRect.setTint(blended);
     }
     // Swap walk frames per stance
     this._walkFrames = stanceId === 'fortress' ? this._fortressWalkFrames : this._defaultWalkFrames;
@@ -497,6 +539,25 @@ export default class GameScene extends Phaser.Scene {
       this._chargeBarFill.setDisplaySize(0, 6);
       this._powerCharging = false;
     }
+  }
+
+  _getAreaEnemyTint() {
+    const area = Store.getState().currentArea;
+    const theme = ZONE_THEMES[area];
+    if (!theme) return null;
+    if (theme.enemyTint != null) return theme.enemyTint;
+    return theme.playerTint != null ? theme.playerTint : null;
+  }
+
+  _applyEnemyTint(sprite, effectTint) {
+    const areaTint = this._getAreaEnemyTint();
+    const baseTint = effectTint || 0xffffff;
+    if (areaTint == null && !effectTint) { sprite.clearTint(); return; }
+    const at = areaTint || 0xffffff;
+    const r = ((baseTint >> 16) & 0xff) * ((at >> 16) & 0xff) / 255;
+    const g = ((baseTint >> 8) & 0xff) * ((at >> 8) & 0xff) / 255;
+    const b = (baseTint & 0xff) * (at & 0xff) / 255;
+    sprite.setTint((Math.round(r) << 16) | (Math.round(g) << 8) | Math.round(b));
   }
 
   // ── Walk timer lock counting ────────────────────────────────────
@@ -570,7 +631,7 @@ export default class GameScene extends Phaser.Scene {
       if (slot.state.flapTimer) { slot.state.flapTimer.remove(); slot.state.flapTimer = null; }
       for (const obj of slot.state.extraObjects) obj.destroy();
       slot.state.extraObjects = [];
-      slot.sprite.clearTint();
+      this._applyEnemyTint(slot.sprite);
       slot.rect.setFillStyle(0xef4444);
     }
 
@@ -624,6 +685,7 @@ export default class GameScene extends Phaser.Scene {
       slot.sprite.setDisplaySize(size.w, size.h);
       slot.sprite.setPosition(0, spriteOffsetY + bottomAlignOffsetY);
       slot.sprite.setVisible(true).setAlpha(1);
+      this._applyEnemyTint(slot.sprite);
       slot.sprite.setInteractive({ useHandCursor: true });
       slot.rect.setVisible(false);
       slot.rect.disableInteractive();
@@ -855,10 +917,9 @@ export default class GameScene extends Phaser.Scene {
         slot.state.reactDelayTimer = this.time.delayedCall(sReactDelay, () => {
           slot.sprite.setTexture(slot.state.currentSprites.reaction);
           slot.sprite.setDisplaySize(slot.state.spriteW, slot.state.spriteH);
-          slot.sprite.setTint(0xffffff);
+          this._applyEnemyTint(slot.sprite, 0xffffff);
           this.time.delayedCall(80, () => {
-            if (slot.state.enraged) slot.sprite.setTint(0xff6666);
-            else slot.sprite.clearTint();
+            this._applyEnemyTint(slot.sprite, slot.state.enraged ? 0xff6666 : null);
           });
 
           // Reset to local home position before knockback
@@ -963,7 +1024,7 @@ export default class GameScene extends Phaser.Scene {
     // Persistent red tint on sprite/rect
     slot.state.enraged = true;
     if (slot.state.currentSprites) {
-      slot.sprite.setTint(0xff6666);
+      this._applyEnemyTint(slot.sprite, 0xff6666);
     } else {
       slot.rect.setFillStyle(0xff4444);
     }
@@ -1118,15 +1179,18 @@ export default class GameScene extends Phaser.Scene {
             scaleY: { from: bsY * 0.85, to: bsY * 1.2 },
             duration: 140, yoyo: true, repeat: 2, ease: 'Sine.easeInOut',
           });
-        } else if (slot.state.enemyId === 'a1_blighted_stalker') {
-          // Stalker decapitation — head is scene-level (absolute coords)
-          slot.sprite.setTexture('blightedstalker_dead2');
+        } else if (slot.state.enemyId === 'a1_blighted_stalker' || slot.state.enemyId === 'a2_zombie') {
+          // Decapitation — head is scene-level (absolute coords)
+          const isZombie = slot.state.enemyId === 'a2_zombie';
+          const dead2Key = isZombie ? 'bogzombie_dead2' : 'blightedstalker_dead2';
+          const headKey = isZombie ? 'bogzombie_head' : 'blightedstalker_head';
+          slot.sprite.setTexture(dead2Key);
           slot.sprite.setDisplaySize(slot.state.spriteW, slot.state.spriteH);
 
           const headSize = 80;
           const headX = slot.baseX + slot.sprite.x;
           const headY = slot.baseY + slot.sprite.y - slot.sprite.displayHeight / 2 - headSize * 0.25;
-          const head = this.add.image(headX, headY, 'blightedstalker_head')
+          const head = this.add.image(headX, headY, headKey)
             .setDisplaySize(headSize, headSize)
             .setDepth(slot.sprite.depth + 1);
           slot.state.extraObjects.push(head);
@@ -1623,7 +1687,7 @@ export default class GameScene extends Phaser.Scene {
           yoyo: true,
         });
         this.time.delayedCall(120, () => {
-          if (this.playerRect) this.playerRect.clearTint();
+          if (this.playerRect) this._applyStanceTint(Store.getState().currentStance);
         });
       });
       if (this._playerPoseTimer) this._playerPoseTimer.remove();
@@ -1723,7 +1787,7 @@ export default class GameScene extends Phaser.Scene {
     this.time.delayedCall(COMBAT_V2.playerDeathRespawnDelay, () => {
       // Restore player sprite
       this.tweens.killTweensOf(this.playerRect);
-      this.playerRect.clearTint();
+      this._applyStanceTint(Store.getState().currentStance);
       this.playerRect.setAlpha(1);
       this.playerRect.x = this._playerX;
       this.playerRect.setTexture(this._walkFrames[0]);
@@ -1788,14 +1852,20 @@ export default class GameScene extends Phaser.Scene {
         const key = theme.images[layerIdx];
         const layerH = skyH;
 
-        // Rear layer (sky): static full-screen image, no scrolling
+        // Rear layer (sky): slow-scrolling dual-image
         if (layerIdx === 0) {
           const container = this.add.container(0, 0);
           container.setDepth(-3);
-          container.setData('isStatic', true);
-          const img = this.add.image(ga.x, ga.y, key).setOrigin(0, 0);
-          img.setDisplaySize(ga.w, layerH);
-          container.add(img);
+          container.setData('isSkyLayer', true);
+          const skyY = ga.y - (theme.skyOffsetY ?? 0);
+          const skyScale = theme.skyHeightScale ?? 1;
+          const skyDisplayH = (ga.h + (theme.skyOffsetY ?? 0)) * skyScale;
+          const img1 = this.add.image(ga.x, skyY, key).setOrigin(0, 0);
+          img1.setDisplaySize(ga.w, skyDisplayH);
+          const img2 = this.add.image(ga.x + ga.w, skyY, key).setOrigin(0, 0);
+          img2.setDisplaySize(ga.w, skyDisplayH);
+          container.setData('imgW', ga.w);
+          container.add([img1, img2]);
           this._parallaxLayers.push(container);
           continue;
         }
@@ -1805,11 +1875,12 @@ export default class GameScene extends Phaser.Scene {
           const container = this.add.container(0, 0);
           container.setDepth(-2);
           container.setData('isImageLayer', true);
-          const midLayerY = midLayerBottomTargetY - layerH;
+          const midH = layerH * (theme.midLayerScale ?? 1);
+          const midLayerY = (theme.midLayerBottomY ?? midLayerBottomTargetY) - midH;
           const img1 = this.add.image(ga.x, midLayerY, key).setOrigin(0, 0);
-          img1.setDisplaySize(ga.w, layerH);
+          img1.setDisplaySize(ga.w, midH);
           const img2 = this.add.image(ga.x + ga.w, midLayerY, key).setOrigin(0, 0);
-          img2.setDisplaySize(ga.w, layerH);
+          img2.setDisplaySize(ga.w, midH);
           container.setData('imgW', ga.w);
           container.add([img1, img2]);
           this._parallaxLayers.push(container);
@@ -1818,8 +1889,9 @@ export default class GameScene extends Phaser.Scene {
       }
 
       // Tree rows (replaces front strip layer)
+      this._parallaxFlat = !!theme.flatScroll;
       if (theme.trees) {
-        this._createTreeRows(theme.trees, ga);
+        this._createTreeRows(theme.trees, ga, theme);
       }
       if (theme.ferns) {
         this._createFernRows(theme.ferns, ga);
@@ -1847,10 +1919,12 @@ export default class GameScene extends Phaser.Scene {
 
     // Foreground band: fixed top edge, down to bottom of battle window
     const groundY = Math.max(ga.y, Math.min(battleBottomY - 1, foregroundTopTargetY));
-    const groundH = Math.max(1, battleBottomY - groundY);
-    const gImg1 = this.add.image(ga.x, groundY, 'foreground002').setOrigin(0, 0);
+    const groundH = Math.max(1, battleBottomY - groundY) * (theme.groundHeightScale ?? 1);
+    const groundActualY = battleBottomY - groundH;
+    const groundKey = theme.ground || 'foreground002';
+    const gImg1 = this.add.image(ga.x, groundActualY, groundKey).setOrigin(0, 0);
     gImg1.setDisplaySize(ga.w, groundH);
-    const gImg2 = this.add.image(ga.x + ga.w, groundY, 'foreground002').setOrigin(0, 0);
+    const gImg2 = this.add.image(ga.x + ga.w, groundActualY, groundKey).setOrigin(0, 0);
     gImg2.setDisplaySize(ga.w, groundH);
     this._groundContainer = this.add.container(0, 0);
     this._groundContainer.setDepth(-2.5);
@@ -1859,7 +1933,7 @@ export default class GameScene extends Phaser.Scene {
 
     // Bare ground overlay — sits above foreground002 but behind trees/ferns
     // Top aligns with mid fern row start (Y=445), bottom at game area bottom
-    if (theme.images && this.textures.exists('fg_bare')) {
+    if (theme.images && !theme.ground && this.textures.exists('fg_bare')) {
       const bareY = 445;
       const bareH = battleBottomY - bareY;
       const bImg1 = this.add.image(ga.x, bareY, 'fg_bare').setOrigin(0, 0);
@@ -1871,12 +1945,31 @@ export default class GameScene extends Phaser.Scene {
       this._bareGroundContainer.setData('imgW', ga.w);
       this._bareGroundContainer.add([bImg1, bImg2]);
     }
+
+    // Path overlay — on top of foreground, compressed to bottom of screen
+    if (theme.path && this.textures.exists(theme.path)) {
+      const pathH = theme.pathHeight ?? 100;
+      const pathY = battleBottomY - pathH;
+      const pImg1 = this.add.image(ga.x, pathY, theme.path).setOrigin(0, 0);
+      pImg1.setDisplaySize(ga.w, pathH);
+      const pImg2 = this.add.image(ga.x + ga.w, pathY, theme.path).setOrigin(0, 0);
+      pImg2.setDisplaySize(ga.w, pathH);
+      this._pathContainer = this.add.container(0, 0);
+      this._pathContainer.setDepth(-2.4);
+      this._pathContainer.setData('imgW', ga.w);
+      this._pathContainer.add([pImg1, pImg2]);
+    }
   }
 
-  _createTreeRows(treeKeys, ga) {
+  _createTreeRows(treeKeys, ga, theme = {}) {
     const diagRatio = PARALLAX.treeDiagRatio;
+    const overrides = theme.treeRowOverrides || [];
 
-    for (const row of TREE_ROWS) {
+    const rowCount = Math.max(TREE_ROWS.length, overrides.length);
+    for (let ri = 0; ri < rowCount; ri++) {
+      const base = TREE_ROWS[ri] || {};
+      const row = { ...base, ...overrides[ri] };
+      if (row.skip) continue;
       const container = this.add.container(0, 0);
       container.setDepth(row.depth);
 
@@ -1892,7 +1985,8 @@ export default class GameScene extends Phaser.Scene {
       const trees = [];
       const yStart = ga.y + ga.h * row.yRange[0];   // top of Y band (spawn Y at right edge)
       const diagDrop = ga.w * diagRatio;              // total Y drop across full width
-      const rowKeys = Array.isArray(row.keys) && row.keys.length > 0 ? row.keys : treeKeys;
+      const overrideKeys = overrides[ri] && Array.isArray(overrides[ri].keys) ? overrides[ri].keys : null;
+      const rowKeys = overrideKeys || (treeKeys.length > 0 ? treeKeys : (Array.isArray(row.keys) && row.keys.length > 0 ? row.keys : []));
 
       for (let i = 0; i < row.count; i++) {
         const key = rowKeys[Math.floor(Math.random() * rowKeys.length)];
@@ -1904,16 +1998,27 @@ export default class GameScene extends Phaser.Scene {
         const spawnWidth = ga.w * 1.5;
         const progress = i / row.count + (Math.random() * 0.3) / row.count;
         const x = ga.x + spawnWidth * (1 - progress);
-        const y = yStart + diagDrop * progress;
+        const yBand = ga.h * (row.yRange[1] - row.yRange[0]);
+        const scaleSpan = row.scaleRange[1] - row.scaleRange[0];
+        const scaleT = scaleSpan > 0 ? (scale - row.scaleRange[0]) / scaleSpan : Math.random();
+        const y = this._parallaxFlat
+          ? yStart + scaleT * yBand
+          : yStart + diagDrop * progress;
 
         const img = this.add.image(x, y, key).setOrigin(0.5, 1);
         img.setDisplaySize(displayW, displayH);
+        if (row.alpha != null) img.setAlpha(row.alpha);
+        if (row.tint != null) img.setTint(row.tint);
+        if (this._parallaxFlat && row.depthSort) img.setDepth(y);
 
         container.add(img);
-        trees.push({ img, displayW, displayH });
+        trees.push({ img, displayW, displayH, depthSort: !!row.depthSort });
       }
 
-      this._treeLayers.push({ container, row, trees });
+      if (row.depthSort) {
+        container.sort('y');
+      }
+      this._treeLayers.push({ container, row, trees, flatScroll: this._parallaxFlat });
     }
   }
 
@@ -2022,6 +2127,10 @@ export default class GameScene extends Phaser.Scene {
     if (this._bareGroundContainer) {
       this._bareGroundContainer.destroy(true);
       this._bareGroundContainer = null;
+    }
+    if (this._pathContainer) {
+      this._pathContainer.destroy(true);
+      this._pathContainer = null;
     }
   }
 
