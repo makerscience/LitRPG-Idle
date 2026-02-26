@@ -72,8 +72,8 @@ export const ZONE_THEMES = {
 
 export const PARALLAX = {
   baseSpeedPxPerSec: 9,
-  treeDiagRatio: 0.1,
-  fernDiagRatio: 0.04,
+  treeDiagRatio: 0,
+  fernDiagRatio: 0,
 };
 
 export const TREE_ROWS = [
@@ -81,42 +81,42 @@ export const TREE_ROWS = [
     count: 24,
     speedMult: 0.48,
     scaleRange: [0.15, 0.22],
-    yRange: [0.45, 0.50],
+    yRange: [0.486, 0.507],
     depth: -0.45,
-    alpha: 0.5,
+    alpha: 1.0,
     diagMult: 0.65,
-    growRange: [0.8, 1.5],
+    depthSort: true,
     keys: ['fg_tree003', 'fg_tree004'],
   },
   {
     count: 16,
     speedMult: 0.7,
     scaleRange: [0.22, 0.32],
-    yRange: [0.53, 0.58],
+    yRange: [0.556, 0.576],
     depth: -0.35,
-    alpha: 0.7,
+    alpha: 1.0,
     diagMult: 0.65,
-    growRange: [0.8, 1.5],
+    depthSort: true,
     keys: ['fg_tree003', 'fg_tree004'],
   },
   {
     count: 12,
     speedMult: 1.0,
-    scaleRange: [0.35, 0.45],
-    yRange: [0.61, 0.66],
+    scaleRange: [0.40, 0.52],
+    yRange: [0.721, 0.771],
     depth: -0.15,
-    alpha: 0.9,
+    alpha: 1.0,
     diagMult: 1.2,
-    growRange: [0.8, 1.5],
+    depthSort: true,
     keys: ['fg_tree003', 'fg_tree004'],
   },
 ];
 
 export const FERN_ROWS = [
-  { speedMult: 0.54, scaleRange: [0.084, 0.112], depth: -0.4, alpha: 0.85, xSpacingMult: 0.6, growRange: [0.9, 1.1] },
-  { speedMult: 0.85, scaleRange: [0.096, 0.128], depth: -0.25, alpha: 0.9, xSpacingMult: 0.3, growRange: [0.9, 1.1] },
-  { speedMult: 1.0, scaleRange: [0.135, 0.18], depth: -0.14, alpha: 0.85, xSpacingMult: 0.58, growRange: [0.9, 1.1] },
-  { speedMult: 1.0, scaleRange: [0.18, 0.24], depth: -0.12, alpha: 0.9, xSpacingMult: 0.28, growRange: [0.9, 1.1] },
+  { speedMult: 0.54, scaleRange: [0.084, 0.112], depth: -0.4, alpha: 0.85, xSpacingMult: 0.6, depthSort: true },
+  { speedMult: 0.85, scaleRange: [0.096, 0.128], depth: -0.25, alpha: 0.9, xSpacingMult: 0.3, depthSort: true },
+  { speedMult: 1.0, scaleRange: [0.135, 0.18], depth: -0.14, alpha: 0.85, xSpacingMult: 0.58, depthSort: true },
+  { speedMult: 1.0, scaleRange: [0.18, 0.24], depth: -0.12, alpha: 0.9, xSpacingMult: 0.28, depthSort: true },
 ];
 
 export const UI = {

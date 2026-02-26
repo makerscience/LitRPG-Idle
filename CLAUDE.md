@@ -31,6 +31,7 @@ Project changelog lives in:
 - Capture "open loops" immediately (questions, blockers, TODOs, pending choices)
 - Don't wait until session end to note important context
 - **Stop condition:** If requirements are ambiguous, stop and write one clarifying question OR list assumptions explicitly before proceeding.
+- **NEVER use `git checkout --` or `git restore` to roll back changes.** These destroy uncommitted work irreversibly. To undo your own edits, manually revert each specific change using the Edit tool. Always assume files have pre-existing uncommitted work that must be preserved.
 
 ## What Counts as a Decision Worth Logging?
 **Log it if:**

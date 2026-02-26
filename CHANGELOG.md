@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## 2026-02-26 - Area 1 Parallax Tuning
+- **Tree transparency removed:** all 3 tree rows set to full opacity (alpha 1.0)
+- **Diagonal drift disabled:** `treeDiagRatio` and `fernDiagRatio` set to 0; `growRange` removed from all tree/fern rows (no size change during scroll)
+- **Tree/fern repositioning:** rear rows tightened, mid row consolidated to Y 400–415, front row moved down 80px and scaled up 15%
+- **Depth sorting enabled:** `depthSort: true` on all tree and fern rows for proper overlap
+- **Mid layer background shifted down 10px** for better alignment with tree canopy
+
 ## 2026-02-26 - Area 2 Parallax Backgrounds, Enemy Sprites, Area Tinting
 - **Area 2 parallax system:** sky (slow scroll), swamp foreground, foreground path overlay, 3 tree layers (flat horizontal scroll, depth sorting, size-to-Y correlation), 3 fog layers, 2 clutter layers — all configurable via `treeRowOverrides` in theme config
 - **Area 2 enemy sprites wired:** Goblin Scout (4-pose), Bog Zombie (4-pose + decapitation death sequence), Thornback Boar (area2 art variants)

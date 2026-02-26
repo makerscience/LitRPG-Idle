@@ -6,6 +6,16 @@ Honest retrospective on the LitRPG Idle project. Two major phases of work are co
 
 ---
 
+## Critical: Never Use Destructive Git Commands to Roll Back
+
+**Incident:** User asked to roll back coding changes from the current session. Used `git checkout -- file1 file2` which nuked ~1 hour of pre-existing uncommitted work on those files. Unstaged changes are unrecoverable via git.
+
+**Rule:** NEVER use `git checkout --`, `git restore`, or any destructive git command to undo changes. Always use the Edit tool to manually revert specific changes. Files almost always have uncommitted work from prior sessions that must be preserved.
+
+**Recovery options when this happens:** Editor undo history (Ctrl+Z in VS Code) is the only realistic recovery path. `git fsck --lost-found` only recovers staged/committed objects, not unstaged edits.
+
+---
+
 ## Part 1: Codebase Redesign (Phases 1-9)
 
 ### What Worked Better Than Expected

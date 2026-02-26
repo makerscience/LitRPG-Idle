@@ -10,10 +10,9 @@
 
 ## Next Actions
 - [ ] Wire remaining Area 2 enemy sprites (a2_fungi, a2_goblin_warrior, a2_blighted_stalker with area2 art)
-- [ ] Playtest zones 11-15: validate area 2 parallax, enemy sprites, tinting, death sequences
+- [ ] Playtest zones 1-15: validate parallax tuning, area transitions, depth sorting
 - [ ] Tune enhancement gold costs from observed gold income pacing
 - [ ] Add/retune item drop coverage for zones 31-35 and rerun `npm run validate:data`
-- [ ] Wire Area 3 backgrounds when art becomes available
 
 ## Open Loops / Blockers
 - `npm run validate:data` passes with one warning: zones 31-35 have no droppable items
@@ -47,14 +46,12 @@
 ---
 
 ## Last Session Summary (max ~8 bullets)
-- Wired Area 2 parallax: sky (slow scroll), ground (foregroundpath overlay), 3 tree layers (rear/mid/front with flat horizontal scroll, depth sorting, size-to-Y correlation)
-- Added 3 fog layers between tree rows (configurable alpha, speed, spawn range)
-- Added 2 clutter layers (clutter001-003 sprites) near middle and front tree rows
-- Wired Goblin Scout (4-pose, 160x192), Bog Zombie (4-pose + decapitation death, 220x264), Thornback Boar (area2 sprites, 280x153)
-- Added per-area player tint (blended with stance tint) and separate enemy tint via `playerTint`/`enemyTint` in theme config
-- Extended `treeRowOverrides` system: per-row `keys`, `skip`, `tint`, `alpha`, `depthSort`, `flatScroll` support
-- Canvas-downscale pipeline extended with `_sm` variants for tiny rear-layer sprites and separate targets per size tier
-- Fixed enemy tint not applying on first spawn (only applied on slot reuse before)
+- Tuned Area 1 parallax: removed tree transparency (all rows alpha 1.0), disabled diagonal drift (diagRatio → 0), removed growRange from all tree/fern rows
+- Repositioned tree rows: rear tightened to Y 350–365, mid to Y 400–415, front moved down 80px total to Y 519–555 and scaled up 15%
+- Moved rear fern row down 10px (375→385), mid layer background down 10px (380→390)
+- Enabled depthSort on all 3 tree rows and all 4 fern rows for Area 1
+- Sub-pixel accumulator attempted and reverted — shimmer preferred over stutter at low speeds
+- Added critical rule to CLAUDE.md/LESSONS_LEARNED: never use destructive git commands to roll back
 
 ## Pinned References
 - Governance rules: `CLAUDE.md`

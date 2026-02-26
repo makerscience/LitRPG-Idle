@@ -1844,7 +1844,7 @@ export default class GameScene extends Phaser.Scene {
     const ga = LAYOUT.gameArea;
     const skyH = Math.floor(ga.h * 0.83);
     const battleBottomY = ga.y + ga.h;
-    const midLayerBottomTargetY = 380;
+    const midLayerBottomTargetY = 390;
     const foregroundTopTargetY = 270;
 
     if (theme.images) {
@@ -2044,8 +2044,8 @@ export default class GameScene extends Phaser.Scene {
       container.setData('mask', mask);
       container.setData('isFernLayer', true);
 
-      const yMin = rowIdx === 0 ? 375 : rowIdx === 1 ? 415 : rowIdx === 2 ? 445 : rowIdx === 3 ? 540 : bandTop + rowIdx * sliceH;
-      const yMax = rowIdx === 0 ? 380 : rowIdx === 1 ? 450 : rowIdx === 2 ? 490 : rowIdx === 3 ? 560 : bandTop + (rowIdx + 1) * sliceH + sliceH * 0.35;
+      const yMin = rowIdx === 0 ? 385 : rowIdx === 1 ? 415 : rowIdx === 2 ? 445 : rowIdx === 3 ? 540 : bandTop + rowIdx * sliceH;
+      const yMax = rowIdx === 0 ? 390 : rowIdx === 1 ? 450 : rowIdx === 2 ? 490 : rowIdx === 3 ? 560 : bandTop + (rowIdx + 1) * sliceH + sliceH * 0.35;
       const sampleScale = (row.scaleRange[0] + row.scaleRange[1]) * 0.5;
       const sampleTex = this.textures.get(fernKeys[0]).getSourceImage();
       const sampleW = sampleTex.width * sampleScale;
