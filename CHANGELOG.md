@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 2026-02-26 - Fog Tuning, Sky Compression, Player Tint
+- **Area 1 sky compressed:** `skyHeightScale: 0.333` squishes sky to top 1/3 of screen
+- **Area 2 fog overhaul:** all 3 fog layers doubled in count (total ~96 sprites), repositioned, opacity raised to 0.7 on front/mid layers; fog002/fog003 sprites sized 10% larger in front layer
+- **Area 2 front trees:** scale increased 10%
+- **Area 2 player tint lightened:** `0x666666` → `0x888888` for better visibility
+
 ## 2026-02-26 - Area 1 Parallax Tuning
 - **Tree transparency removed:** all 3 tree rows set to full opacity (alpha 1.0)
 - **Diagonal drift disabled:** `treeDiagRatio` and `fernDiagRatio` set to 0; `growRange` removed from all tree/fern rows (no size change during scroll)

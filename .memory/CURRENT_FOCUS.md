@@ -1,7 +1,7 @@
 # CURRENT_FOCUS
 
 ## One-liner
-- Area 2 parallax backgrounds fully wired (sky, ground, 3 tree layers, 2 fog layers, clutter, path); Goblin Scout, Bog Zombie, Thornback Boar sprites wired; area-based player/enemy tinting added.
+- Area 2 fog layers heavily tuned (3 fog layers with doubled counts, repositioned, opacity/scale adjustments); Area 1 sky compressed to top 1/3; player tint lightened.
 
 ## Active Objectives (max 3)
 1. **Area 2 visual polish:** Continue wiring remaining Area 2 enemy sprites (fungi, goblin warrior, blighted stalker area2 variants) and tune parallax layers
@@ -22,13 +22,13 @@
 
 ## How to Resume in 30 Seconds
 - **Open:** `.memory/CURRENT_FOCUS.md`
-- **Last change:** Area 2 full parallax system + 3 enemy sprites wired + area tinting
+- **Last change:** Area 2 fog tuning (doubled counts, repositioned, opacity 0.7), Area 1 sky compressed, player tint lightened
 - **Key implementation files:**
   - `src/config/theme.js` (ZONE_THEMES area 2: sky, ground, path, treeRowOverrides with 9 layers, playerTint/enemyTint)
   - `src/scenes/BootScene.js` (sprite loading + downscale entries for area2 backgrounds + enemies)
   - `src/scenes/GameScene.js` (sky scroll, flat scroll, depthSort, groundKey, pathContainer, area tint blending)
   - `src/data/enemies.js` (goblin scout, bog zombie, thornback boar sprites + offsets)
-- **Area 2 theme config:** `treeRowOverrides` array with 9 entries (3 tree rows, 2 fog rows, 2 clutter rows, 1 extra fog)
+- **Area 2 theme config:** `treeRowOverrides` array with 12 entries (3 tree rows, 3 fog layers split into 6 rows for per-key scaling, 2 clutter rows)
 - **Verification commands:** `npm run build`, `npm run validate:data`
 
 ## Key Context
@@ -46,12 +46,13 @@
 ---
 
 ## Last Session Summary (max ~8 bullets)
-- Tuned Area 1 parallax: removed tree transparency (all rows alpha 1.0), disabled diagonal drift (diagRatio → 0), removed growRange from all tree/fern rows
-- Repositioned tree rows: rear tightened to Y 350–365, mid to Y 400–415, front moved down 80px total to Y 519–555 and scaled up 15%
-- Moved rear fern row down 10px (375→385), mid layer background down 10px (380→390)
-- Enabled depthSort on all 3 tree rows and all 4 fern rows for Area 1
-- Sub-pixel accumulator attempted and reverted — shimmer preferred over stutter at low speeds
-- Added critical rule to CLAUDE.md/LESSONS_LEARNED: never use destructive git commands to roll back
+- Compressed Area 1 sky background to top 1/3 of screen (`skyHeightScale: 0.333`)
+- Area 2 front fog: doubled to 32 sprites, moved down 20px, opacity 0.7, speed +20%, split fog001/fog002+fog003 rows for independent sizing
+- Area 2 middle fog: doubled to 24 sprites, tightened scale to [0.12, 0.14], opacity 0.7, split into fog001/fog002+fog003 rows
+- Area 2 rear fog: doubled to 40 sprites, moved down 10px
+- Area 2 front trees: scale increased 10%
+- Lightened Area 2 player tint from 0x666666 to 0x888888
+- Restored Area 2 sky to original `skyHeightScale: 0.5775` (was accidentally changed to 0.333 with Area 1)
 
 ## Pinned References
 - Governance rules: `CLAUDE.md`
