@@ -1,4 +1,3 @@
-import Phaser from 'phaser';
 import { on, EVENTS } from '../events.js';
 import { WORLD } from '../config.js';
 
@@ -8,7 +7,6 @@ export default class OnboardingPopup {
     this._isOpen = false;
     this._objects = [];
     this._pausedGameScene = false;
-    this._closeKey = null;
     this._unsubs = [
       on(EVENTS.UI_ONBOARDING_REQUESTED, (payload) => this.open(payload)),
     ];
@@ -34,7 +32,8 @@ export default class OnboardingPopup {
     const backdrop = this.scene.add.rectangle(cx, cy, WORLD.width, WORLD.height, 0x000000, 0.72)
       .setDepth(400)
       .setInteractive();
-    backdrop.on('pointerdown', () => this._close());
+    // Backdrop is intentionally non-dismissable; close only via CONTINUE button.
+    backdrop.on('pointerdown', () => {});
 
     const panelW = 700;
     const panelH = 430;
@@ -57,13 +56,13 @@ export default class OnboardingPopup {
       wordWrap: { width: 600 },
     }).setDepth(402);
 
-    const hint = this.scene.add.text(cx, cy + 160, 'Press ENTER or click BEGIN', {
+    const hint = this.scene.add.text(cx, cy + (panelH / 2) + 12, 'Click CONTINUE to proceed', {
       fontFamily: 'monospace',
       fontSize: '14px',
       color: '#9ca3af',
     }).setOrigin(0.5).setDepth(402);
 
-    const beginBtn = this.scene.add.text(cx, cy + 115, 'BEGIN', {
+    const beginBtn = this.scene.add.text(cx, cy + (panelH / 2) + 44, 'CONTINUE', {
       fontFamily: 'monospace',
       fontSize: '22px',
       color: '#f0fdf4',
@@ -74,9 +73,6 @@ export default class OnboardingPopup {
     beginBtn.on('pointerdown', () => this._close());
     beginBtn.on('pointerover', () => beginBtn.setStyle({ backgroundColor: '#15803d' }));
     beginBtn.on('pointerout', () => beginBtn.setStyle({ backgroundColor: '#166534' }));
-
-    this._closeKey = this.scene.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ENTER);
-    this._closeKey.once('down', () => this._close());
 
     this._objects.push(backdrop, panel, title, body, hint, beginBtn);
   }
@@ -89,11 +85,6 @@ export default class OnboardingPopup {
       obj.destroy();
     }
     this._objects = [];
-
-    if (this._closeKey) {
-      this._closeKey.destroy();
-      this._closeKey = null;
-    }
 
     if (this._pausedGameScene) {
       this.scene.scene.resume('GameScene');

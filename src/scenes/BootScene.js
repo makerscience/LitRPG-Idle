@@ -123,9 +123,10 @@ export default class BootScene extends Phaser.Scene {
     this.load.image('start_ground', 'Images/Backgrounds/Start screen/foreground002.png');
 
     // Stance icons
-    this.load.image('icon_tempest',  'Images/TempestIcon.png');
+    this.load.image('icon_tempest',  'Images/TempestIcon2.png');
     this.load.image('icon_ruin',     'Images/RuinIcon.png');
     this.load.image('icon_fortress', 'Images/FortressIcon.png');
+    this.load.image('icon_flurry_button', 'Images/FlurryIcon2.png');
     this.load.image('player001_default',        'Images/Player Images/armor001/Player001_default.png');
     this.load.image('player001_strongpunch',    'Images/Player Images/armor001/Player001_strongpunch.png');
     this.load.image('player001_jumpkick',       'Images/Player Images/armor001/Player001_jumpkick.png');
@@ -283,6 +284,7 @@ export default class BootScene extends Phaser.Scene {
       { keys: ['goblinwarrior001_default', 'goblinwarrior001_reaction', 'goblinwarrior001_attack', 'goblinwarrior001_dead'], w: 320, h: 384 },
       { keys: ['crackedarmor001'], w: 512, h: 512 },
       { keys: ['icon_tempest', 'icon_ruin', 'icon_fortress'], w: 128, h: 128 },
+      { keys: ['icon_flurry_button'], w: 64, h: 64 },
     ];
     for (const { keys, w, h } of enemyGroups) {
       for (const key of keys) {

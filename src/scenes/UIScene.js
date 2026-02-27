@@ -84,8 +84,12 @@ export default class UIScene extends Phaser.Scene {
     const slotAY = ga.y + ga.h - 10;
     const slotBX = ga.x + Math.round(ga.w * (110 / 960));
     const slotBY = ga.y + ga.h - 46;
+    // Flurry icon uses a custom icon container anchor, so place it explicitly:
+    // near left screen edge and around the player's vertical midpoint.
+    const flurryX = ga.x + 2;
+    const flurryY = ga.y + ga.h - 205;
     this.smashButton.setPosition(slotAX, slotAY);
-    this.flurryButton.setPosition(slotAX, slotAY);
+    this.flurryButton.setPosition(flurryX, flurryY);
     this.bulwarkButton.setPosition(slotAX, slotAY);
     this.armorBreakButton.setPosition(slotBX, slotBY);
     this.interruptButton.setPosition(slotBX, slotBY);

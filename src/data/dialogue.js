@@ -4,9 +4,9 @@
 // ── First launch ──────────────────────────────────────────────────
 
 export const FIRST_LAUNCH = [
-  'Welcome to the Harsh Threshold. Try not to die immediately.',
-  'Loop primer: kill enemies, level up, equip upgrades, push deeper zones.',
-  'Stances decide tempo. Ruin bursts, Tempest shreds, Fortress endures. Swap for the fight in front of you.',
+  'Welcome to the game. Please try not to die immediately.',
+  "Primer: Kill enemies, level up, upgrade skills, equip loot or sell it. I'm not your dad. Do what you want. Just keep pushing to higher and higher zones to see what you're made of. Maybe something cool will happen.",
+  'Stances decide the pace of combat. Click the big circle in the upper left to change your stance. Ruin stance provides burst damage, Tempest shreds enemies, and Fortress holds the line. Swap between them as needed.',
 ];
 
 // ── One-shot triggers (flag-gated) ─────────────────────────────────

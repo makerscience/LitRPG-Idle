@@ -1,5 +1,15 @@
 # CHANGELOG
 
+## 2026-02-27 - Combat/UI Polish Pass
+- **Flurry icon rework:** Replaced text `FLURRY` button with icon button using bottom-up cooldown tint fill; moved to explicit left-side combat anchor near player midpoint
+- **Tempest icon update:** Swapped Tempest stance icon to `TempestIcon2` and removed icon fill tinting so artwork renders naturally
+- **Skill visual priority:** Added skill visual lock windows so Smash/Flurry visuals are not interrupted by normal reaction/charge visuals
+- **Charge bar gating:** Enemy attack charge bar now appears only for explicit charge-cast attacks (not merely slow attackers)
+- **Boss pacing and flow:** Boss kill thresholds now use capped table (10..50 across 15 zones); defeating Area 2 boss shows completion popup and area boss progression now advances area/zone cleanly
+- **Onboarding UX:** Welcome popup now uses user-authored copy and is dismissible only via `CONTINUE` button below the panel (no click-anywhere or Enter-dismiss)
+- **Top bar cleanup:** Removed `MANA` and `FRAGMENTS` labels from HUD; prestige label re-anchored accordingly
+- **Tooltip correctness:** Equipment comparison now factors slot enhancement multipliers into displayed stat deltas
+
 ## 2026-02-27 - Entity Shadows (feature-gated)
 - **Shadow system:** Dark ellipse shadows under player and all enemies
 - **Per-enemy tuning:** `shadowOffsetY` field on each enemy for fine-tuning shadow position

@@ -76,8 +76,16 @@ export function getZoneBias(globalZone, stat) {
 }
 
 /** Kill threshold to trigger "Challenge Boss" button. */
-export function getBossKillThreshold(zoneNum) {
-  return 10 + (zoneNum - 1) * 5;
+const BOSS_KILL_THRESHOLDS = [
+  10, 15, 15, 20, 20,
+  25, 25, 30, 35, 35,
+  40, 40, 45, 45, 50,
+];
+
+export function getBossKillThreshold(zoneNum, zoneCount = BOSS_KILL_THRESHOLDS.length) {
+  const cappedCount = Math.max(1, Math.min(zoneCount, BOSS_KILL_THRESHOLDS.length));
+  const cappedZone = Math.max(1, Math.min(zoneNum, cappedCount));
+  return BOSS_KILL_THRESHOLDS[cappedZone - 1];
 }
 
 /** Gold/XP drop multiplier for bosses: base × hpMult × 1.5 */

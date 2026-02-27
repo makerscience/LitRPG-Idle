@@ -837,6 +837,17 @@ export default class InventoryPanel extends ModalPanel {
     const DEPTH = 200;
     const TT_W = 280;
     const PAD = 8;
+    const EPS = 1e-6;
+    const formatStat = (value) => {
+      const rounded = Math.round(value * 100) / 100;
+      if (Math.abs(rounded) < EPS) return '0';
+      if (Number.isInteger(rounded)) return `${rounded}`;
+      return rounded.toFixed(2).replace(/\.?0+$/, '');
+    };
+    const applyMultiplier = (statBonuses, mult) => Object.fromEntries(
+      Object.entries(statBonuses).map(([k, v]) => [k, v * mult])
+    );
+    const slotEnhMult = slotDef ? EnhancementManager.getBonusMultiplier(slotDef.id) : 1;
 
     // Look up equipped item for comparison
     let equippedScaled = null;
@@ -869,19 +880,21 @@ export default class InventoryPanel extends ModalPanel {
     });
 
     // Row 2: Stats with inline comparison diffs
-    const stats = scaled.statBonuses;
+    const stats = applyMultiplier(scaled.statBonuses, slotEnhMult);
     const isWpn = scaled.slot === 'weapon';
-    const compStats = equippedScaled ? equippedScaled.statBonuses : null;
+    const compStats = equippedScaled
+      ? applyMultiplier(equippedScaled.statBonuses, slotEnhMult)
+      : null;
     const maxStatW = TT_W - PAD * 2;
     let sx = PAD;
     let sy = PAD + 16;
 
     for (const [key, val] of Object.entries(stats)) {
-      if (val === 0) continue;
+      if (Math.abs(val) < EPS) continue;
       if (isWpn && key === 'str' && stats.atk === stats.str) continue;
 
       const label = STAT_LABELS[key] || key.toUpperCase();
-      const mainT = _tt(sx, sy, `+${val} ${label}`, {
+      const mainT = _tt(sx, sy, `+${formatStat(val)} ${label}`, {
         fontSize: '11px', color: '#cccccc',
       });
       sx += mainT.width + 3;
@@ -889,11 +902,11 @@ export default class InventoryPanel extends ModalPanel {
       if (compStats) {
         const eqVal = compStats[key] || 0;
         const diff = val - eqVal;
-        if (diff > 0) {
-          const d = _tt(sx, sy, `+${diff}`, { fontSize: '11px', color: '#22c55e' });
+        if (diff > EPS) {
+          const d = _tt(sx, sy, `+${formatStat(diff)}`, { fontSize: '11px', color: '#22c55e' });
           sx += d.width + 6;
-        } else if (diff < 0) {
-          const d = _tt(sx, sy, `${diff}`, { fontSize: '11px', color: '#ef4444' });
+        } else if (diff < -EPS) {
+          const d = _tt(sx, sy, `${formatStat(diff)}`, { fontSize: '11px', color: '#ef4444' });
           sx += d.width + 6;
         } else {
           sx += 6;

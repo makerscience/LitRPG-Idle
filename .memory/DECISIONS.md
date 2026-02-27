@@ -11,6 +11,41 @@ Format:
 ---
 
 ## 2026-02-27
+- Tags: ui, onboarding
+- Decision: First-run onboarding is now a hard modal that only closes via an explicit `CONTINUE` button; backdrop clicks and Enter key are non-dismiss actions.
+- Rationale: Players were accidentally dismissing onboarding immediately by clicking anywhere, which made core stance/combat instructions easy to miss.
+- Alternatives considered: Keep click-anywhere dismissal (rejected: accidental skip), keep Enter shortcut (rejected: same accidental-dismiss problem).
+- Consequences / Follow-ups: Tutorial copy must stay concise because it blocks progression until acknowledged.
+
+## 2026-02-27
+- Tags: architecture, combat, visual
+- Decision: Player skill visuals (Smash/Flurry) have priority lock windows in `GameScene`; normal hit reactions/charge visuals cannot interrupt them unless future explicit interrupt mechanics are added.
+- Rationale: Active skills should look deliberate and readable. Prior behavior allowed unrelated damage reactions to cut off skill animations mid-sequence.
+- Alternatives considered: Let all visuals compete by event order (rejected: inconsistent/fragile), lock all visuals globally (rejected: would suppress too much feedback).
+- Consequences / Follow-ups: `CombatEngine.playerAttack()` now carries a `source` so `GameScene` can distinguish skill-driven hits from normal attacks.
+
+## 2026-02-27
+- Tags: progression, balance
+- Decision: Boss challenge kill requirements switched from linear growth to a capped per-zone table for 15-zone areas: `[10,15,15,20,20,25,25,30,35,35,40,40,45,45,50]`.
+- Rationale: Linear `10 + (zone-1)*5` climbed too high late-area and made progression pacing drag.
+- Alternatives considered: Lower linear slope only (rejected: still drifts high in long areas), fixed threshold for all zones (rejected: removes pacing curve).
+- Consequences / Follow-ups: `getBossKillThreshold(zone, zoneCount)` now clamps to area zone count and table bounds.
+
+## 2026-02-27
+- Tags: ui, readability
+- Decision: Tempest primary action (`Flurry`) is an icon-based button with an in-icon bottom-up cooldown tint fill, anchored independently from other stance slot buttons.
+- Rationale: Text button was visually noisy and mismatched the new icon-forward stance UI; icon fill communicates cooldown without extra text clutter.
+- Alternatives considered: Text timer label on button (rejected: clutter), external cooldown ring (rejected by UX direction).
+- Consequences / Follow-ups: Flurry position is now explicit in `UIScene` and may be tuned independently of slot A/B anchors.
+
+## 2026-02-27
+- Tags: ui, economy
+- Decision: Equipment tooltip stat comparisons now apply the current slot enhancement multiplier when comparing candidate vs equipped items.
+- Rationale: Raw unenhanced comparisons were misleading because actual equipped power includes enhancement scaling.
+- Alternatives considered: Show raw base stats only (rejected: inaccurate decision support), separate enhancement line item without adjusted deltas (rejected: still confusing).
+- Consequences / Follow-ups: Tooltip numbers can now be fractional; formatting normalizes precision for readability.
+
+## 2026-02-27
 - Tags: architecture
 - Decision: Game title is "Exile's Ascension". StartScene sits between BootScene and GameScene as the main menu.
 - Rationale: Game needed a proper start screen. Title captures the dark fantasy + progression identity better than "LitRPG Idle".

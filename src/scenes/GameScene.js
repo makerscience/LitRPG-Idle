@@ -45,6 +45,7 @@ export default class GameScene extends Phaser.Scene {
     this._playerAttacking = false; // true while attack pose is held (blocks hit reaction)
     this._hitReacting = false;     // true while hit reaction pose is held (blocks attacks)
     this._powerCharging = false;  // true when showing charge-up sprite at 50%
+    this._skillVisualLockUntil = 0; // skill visuals override other player pose changes while active
 
     // Player HP bar + name above player head
     this._hpBarY = this._combatY - 375 / 2 - 16;
@@ -242,6 +243,13 @@ export default class GameScene extends Phaser.Scene {
       this.shieldBarBg.setVisible(true);
       this.shieldBarFill.setDisplaySize(100, 8).setVisible(true);
     }));
+    this._unsubs.push(on(EVENTS.POWER_SMASH_USED, () => {
+      this._activateSkillVisualLock(700);
+    }));
+    this._unsubs.push(on(EVENTS.RAPID_STRIKES_USED, (data) => {
+      const hitCount = Math.max(1, Math.floor(data?.hitCount || 5));
+      this._activateSkillVisualLock(hitCount * 200 + 350);
+    }));
 
     // Visual juice subscriptions
     this._unsubs.push(on(EVENTS.PROG_LEVEL_UP, () => this._onLevelUp()));
@@ -336,12 +344,12 @@ export default class GameScene extends Phaser.Scene {
       this._chargeBarFill.setDisplaySize(Math.max(0, progress * 100), 6);
 
       // Switch to charge-up sprite at 50% if not mid-attack
-      if (!this._playerAttacking && !this._hitReacting && progress >= 0.75 && !this._powerCharging) {
+      if (!this._isSkillVisualLocked() && !this._playerAttacking && !this._hitReacting && progress >= 0.75 && !this._powerCharging) {
         this._powerCharging = true;
         this._walkTimer.paused = true;
         this.playerRect.setTexture(this._armorSet.powerCharge);
         this.playerRect.setDisplaySize(300, 375);
-      } else if (progress < 0.75 && this._powerCharging) {
+      } else if (!this._isSkillVisualLocked() && progress < 0.75 && this._powerCharging) {
         this._powerCharging = false;
         if (!this._playerAttacking && this._attackLockCount === 0 && !this._hitReacting) {
           this._walkTimer.elapsed = 0;
@@ -354,9 +362,6 @@ export default class GameScene extends Phaser.Scene {
     for (const slot of this._enemySlots) {
       if (slot.state.castTimerKey && slot.state.castKind === 'charge' && slot.chargeBarFill.visible) {
         const progress = TimeEngine.getProgress(slot.state.castTimerKey);
-        slot.chargeBarFill.setDisplaySize(Math.max(0, progress * 100), 4);
-      } else if (slot.state.atkTimerKey && slot.state.showAutoChargeBar && slot.chargeBarFill.visible) {
-        const progress = TimeEngine.getProgress(slot.state.atkTimerKey);
         slot.chargeBarFill.setDisplaySize(Math.max(0, progress * 100), 4);
       }
       if (slot.state.armorCrackOverlay) {
@@ -682,9 +687,32 @@ export default class GameScene extends Phaser.Scene {
     this._walkTimer.paused = true;
   }
 
+  _isSkillVisualLocked() {
+    return this.time.now < this._skillVisualLockUntil;
+  }
+
+  _activateSkillVisualLock(durationMs) {
+    const lockMs = Math.max(0, Number(durationMs) || 0);
+    if (lockMs <= 0) return;
+    this._skillVisualLockUntil = Math.max(this._skillVisualLockUntil, this.time.now + lockMs);
+
+    // Skill visuals have priority over reaction/charge visuals.
+    this._hitReacting = false;
+    this._playerAttacking = false;
+    this._powerCharging = false;
+    if (this._playerPoseTimer) {
+      this._playerPoseTimer.remove();
+      this._playerPoseTimer = null;
+      this._unlockWalk();
+    }
+    this._walkTimer.paused = true;
+    this.tweens.killTweensOf(this.playerRect);
+    this.playerRect.x = this._playerX;
+  }
+
   _unlockWalk() {
     this._attackLockCount = Math.max(0, this._attackLockCount - 1);
-    if (this._attackLockCount === 0 && !this._playerAttacking && !this._powerCharging && !this._hitReacting) {
+    if (this._attackLockCount === 0 && !this._playerAttacking && !this._powerCharging && !this._hitReacting && !this._isSkillVisualLocked()) {
       this._walkTimer.elapsed = 0;
       this._walkTimer.paused = false;
     }
@@ -883,17 +911,11 @@ export default class GameScene extends Phaser.Scene {
     slot.state.castTimerKey = null;
     slot.state.castKind = null;
     slot.state.chargeArmor = template?.chargeArmor ?? 0;
+    slot.state.showAutoChargeBar = false;
 
-    const atkSpeed = memberData.attackSpeed ?? 1.0;
-    slot.state.showAutoChargeBar = atkSpeed <= 0.8 && template?.chargeBar !== false;
-    if (slot.state.showAutoChargeBar) {
-      const chargeY = -(halfH) - 32 + npOff;
-      slot.chargeBarBg.setY(chargeY).setVisible(true).setAlpha(1);
-      slot.chargeBarFill.setY(chargeY).setDisplaySize(0, 4).setVisible(true).setAlpha(1).setFillStyle(0xef4444);
-    } else {
-      slot.chargeBarBg.setVisible(false);
-      slot.chargeBarFill.setDisplaySize(0, 4).setVisible(false).setFillStyle(0xef4444);
-    }
+    const chargeY = -(halfH) - 32 + npOff;
+    slot.chargeBarBg.setY(chargeY).setVisible(false).setAlpha(1);
+    slot.chargeBarFill.setY(chargeY).setDisplaySize(0, 4).setVisible(false).setAlpha(1).setFillStyle(0xef4444);
 
     slot.container.setVisible(true).setAlpha(1);
   }
@@ -997,6 +1019,8 @@ export default class GameScene extends Phaser.Scene {
       const sIsPowerSmash = data.isPowerSmash || false;
       const sIsClick = data.isClick || false;
       const sSkipAttackAnim = data.skipAttackAnim || false;
+      const sSource = data.source || null;
+      const sIsSkillVisualDamage = sIsPowerSmash || sSource === 'rapid_strikes';
 
       // Click attacks (non-Power Smash): damage number only
       if (sIsClick && !sIsPowerSmash) {
@@ -1011,73 +1035,78 @@ export default class GameScene extends Phaser.Scene {
 
       // Sprite priority: hitReaction > attack > walk
       // Hit reaction overrides everything
-      if (this._hitReacting) return;
+      if (this._hitReacting && !sIsSkillVisualDamage) return;
+
+      // While a skill visual is active, only skill-driven hits may update the player pose.
+      const suppressPlayerPose = this._isSkillVisualLocked() && !sIsSkillVisualDamage;
 
       const isPowerStanceAttack = Store.getState().currentStance === 'ruin';
       const isPowerStance = Store.getState().currentStance === 'ruin';
       const isTempest = Store.getState().currentStance === 'tempest';
 
-      // In tempest stance, don't let a new attack override a still-showing attack pose
-      if (isTempest && this._playerPoseTimer && this._playerAttacking) {
-        // Still do the lunge, just don't swap the texture
+      if (!suppressPlayerPose) {
+        // In tempest stance, don't let a new attack override a still-showing attack pose
+        if (isTempest && this._playerPoseTimer && this._playerAttacking) {
+          // Still do the lunge, just don't swap the texture
+          this.tweens.killTweensOf(this.playerRect);
+          this.playerRect.x = this._playerX;
+          this.tweens.add({
+            targets: this.playerRect,
+            x: this._playerX + 20,
+            duration: 80,
+            ease: 'Quad.easeOut',
+            yoyo: true,
+          });
+          return;
+        }
+
+        let sAttackKey;
+        if (sIsPowerSmash || isPowerStanceAttack) {
+          sAttackKey = this._armorSet.strongPunch;
+        } else {
+          const pool = this._playerAttackSprites.length > 1
+            ? this._playerAttackSprites.filter(k => k !== this._lastAttackSprite)
+            : this._playerAttackSprites;
+          sAttackKey = pool[Math.floor(Math.random() * pool.length)];
+        }
+        this._lastAttackSprite = sAttackKey;
+        this._lockWalk();
+        this.playerRect.setTexture(sAttackKey);
+        const sAtkScale = (this._armorSet.scaleOverrides && this._armorSet.scaleOverrides[sAttackKey])
+          || (sAttackKey === 'player001_roundhousekick' ? 0.95 : 1);
+        this.playerRect.setDisplaySize(300 * sAtkScale, 375 * sAtkScale);
+        const sAtkYOff = (this._armorSet.yOffsets && this._armorSet.yOffsets[sAttackKey]) || 0;
+        this.playerRect.y = this._combatY + sAtkYOff;
+        const sLungeDist = sIsPowerSmash ? 40 : 20;
+        const sLungeDur = sIsPowerSmash ? 100 : 80;
         this.tweens.killTweensOf(this.playerRect);
         this.playerRect.x = this._playerX;
         this.tweens.add({
           targets: this.playerRect,
-          x: this._playerX + 20,
-          duration: 80,
+          x: this._playerX + sLungeDist,
+          duration: sLungeDur,
           ease: 'Quad.easeOut',
           yoyo: true,
         });
-        return;
-      }
+        if (sIsPowerSmash) this.cameras.main.shake(150, 0.006);
 
-      let sAttackKey;
-      if (sIsPowerSmash || isPowerStanceAttack) {
-        sAttackKey = this._armorSet.strongPunch;
-      } else {
-        const pool = this._playerAttackSprites.length > 1
-          ? this._playerAttackSprites.filter(k => k !== this._lastAttackSprite)
-          : this._playerAttackSprites;
-        sAttackKey = pool[Math.floor(Math.random() * pool.length)];
-      }
-      this._lastAttackSprite = sAttackKey;
-      this._lockWalk();
-      this.playerRect.setTexture(sAttackKey);
-      const sAtkScale = (this._armorSet.scaleOverrides && this._armorSet.scaleOverrides[sAttackKey])
-        || (sAttackKey === 'player001_roundhousekick' ? 0.95 : 1);
-      this.playerRect.setDisplaySize(300 * sAtkScale, 375 * sAtkScale);
-      const sAtkYOff = (this._armorSet.yOffsets && this._armorSet.yOffsets[sAttackKey]) || 0;
-      this.playerRect.y = this._combatY + sAtkYOff;
-      const sLungeDist = sIsPowerSmash ? 40 : 20;
-      const sLungeDur = sIsPowerSmash ? 100 : 80;
-      this.tweens.killTweensOf(this.playerRect);
-      this.playerRect.x = this._playerX;
-      this.tweens.add({
-        targets: this.playerRect,
-        x: this._playerX + sLungeDist,
-        duration: sLungeDur,
-        ease: 'Quad.easeOut',
-        yoyo: true,
-      });
-      if (sIsPowerSmash) this.cameras.main.shake(150, 0.006);
-
-      // If replacing an existing timer, balance the lock count it would have released
-      if (this._playerPoseTimer) {
-        this._playerPoseTimer.remove();
-        this._unlockWalk();
-      }
-      const poseDuration = isPowerStance ? 500 : 300;
-      this._playerAttacking = true;
-      this._powerCharging = false;
-      this._playerPoseTimer = this.time.delayedCall(poseDuration, () => {
-        this._playerAttacking = false;
-        this._attackLockCount = 0;
-        if (!this._hitReacting) {
-          this._walkTimer.elapsed = 0;
-          this._walkTimer.paused = false;
+        // If replacing an existing timer, balance the lock count it would have released
+        if (this._playerPoseTimer) {
+          this._playerPoseTimer.remove();
+          this._unlockWalk();
         }
-      });
+        const poseDuration = isPowerStance ? 500 : 300;
+        this._playerAttacking = true;
+        this._powerCharging = false;
+        this._playerPoseTimer = this.time.delayedCall(poseDuration, () => {
+          this._playerAttacking = false;
+          this._attackLockCount = 0;
+          if (!this._hitReacting && !this._isSkillVisualLocked()) {
+            this._walkTimer.elapsed = 0;
+            this._walkTimer.paused = false;
+          }
+        });
+      }
 
       const sKnockbackDist = sIsPowerSmash ? 24 : isPowerStance ? 24 : 12;
       const sReactDelay = 60;
@@ -1884,11 +1913,6 @@ export default class GameScene extends Phaser.Scene {
     slot.state.castTimerKey = null;
     slot.state.castKind = null;
     slot.chargeBarFill.setFillStyle(0xef4444);
-    if (slot.state.showAutoChargeBar) {
-      slot.chargeBarBg.setVisible(true).setAlpha(1);
-      slot.chargeBarFill.setDisplaySize(0, 4).setVisible(true).setAlpha(1);
-      return;
-    }
     slot.chargeBarFill.setDisplaySize(0, 4).setVisible(false);
     slot.chargeBarBg.setVisible(false);
   }
@@ -1950,6 +1974,8 @@ export default class GameScene extends Phaser.Scene {
 
     // Red damage number above player
     this._spawnPlayerDamageNumber(data.amount);
+
+    if (this._isSkillVisualLocked()) return;
 
     // Skip hit reaction visuals in fortress stance, while charging, or while holding attack pose
     const stance = Store.getState().currentStance;

@@ -51,8 +51,9 @@ const BossManager = {
     const state = Store.getState();
     const area = state.currentArea;
     const zone = state.currentZone;
+    const areaData = getArea(area);
     const progress = state.areaProgress[area];
-    if (!progress) return;
+    if (!progress || !areaData) return;
 
     // No named boss for this zone
     if (!BossManager._getBossData()) return;
@@ -61,7 +62,7 @@ const BossManager = {
     if (progress.bossesDefeated.includes(zone)) return;
 
     const kills = progress.zoneClearKills[zone] || 0;
-    const threshold = getBossKillThreshold(zone);
+    const threshold = getBossKillThreshold(zone, areaData.zoneCount);
 
     if (kills >= threshold) {
       emit(EVENTS.BOSS_CHALLENGE_READY, { area, zone, kills, threshold });
@@ -73,13 +74,14 @@ const BossManager = {
     const state = Store.getState();
     const area = state.currentArea;
     const zone = state.currentZone;
+    const areaData = getArea(area);
     const progress = state.areaProgress[area];
-    if (!progress) return false;
+    if (!progress || !areaData) return false;
     if (!BossManager._getBossData()) return false;
     if (progress.bossesDefeated.includes(zone)) return false;
 
     const kills = progress.zoneClearKills[zone] || 0;
-    const threshold = getBossKillThreshold(zone);
+    const threshold = getBossKillThreshold(zone, areaData.zoneCount);
     return kills >= threshold;
   },
 
@@ -167,6 +169,7 @@ const BossManager = {
       if (AREAS[nextArea]) {
         Store.setFurthestArea(nextArea);
         Store.advanceAreaZone(nextArea, 1);
+        Store.setAreaZone(nextArea, 1);
       }
     }
 
@@ -207,11 +210,12 @@ const BossManager = {
     const state = Store.getState();
     const area = state.currentArea;
     const zone = state.currentZone;
+    const areaData = getArea(area);
     const progress = state.areaProgress[area];
-    if (!progress) return { kills: 0, threshold: 10, ratio: 0, defeated: false };
+    if (!progress || !areaData) return { kills: 0, threshold: 10, ratio: 0, defeated: false };
 
     const kills = progress.zoneClearKills[zone] || 0;
-    const threshold = getBossKillThreshold(zone);
+    const threshold = getBossKillThreshold(zone, areaData.zoneCount);
     const defeated = progress.bossesDefeated.includes(zone);
 
     return {

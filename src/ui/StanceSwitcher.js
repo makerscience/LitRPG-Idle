@@ -8,9 +8,9 @@ import { on, EVENTS } from '../events.js';
 import { LAYOUT, STANCE_IDS } from '../config.js';
 
 const STANCE_COLORS = {
-  tempest:  { bg: 0x20344c, icon: 0xf8fafc },
-  ruin:     { bg: 0x442528, icon: 0xf8fafc },
-  fortress: { bg: 0x2f343a, icon: 0xf8fafc },
+  tempest:  { bg: 0x20344c },
+  ruin:     { bg: 0x442528 },
+  fortress: { bg: 0x2f343a },
 };
 
 const STANCE_ICONS = {
@@ -85,7 +85,7 @@ export default class StanceSwitcher {
     this._circle.setFillStyle(colors.bg);
     this._iconShadow.setTexture(iconKey);
     this._icon.setTexture(iconKey);
-    this._icon.setTintFill(colors.icon);
+    this._icon.clearTint();
 
     // Brief pulse on switch
     this.scene.tweens.killTweensOf(this._circle);

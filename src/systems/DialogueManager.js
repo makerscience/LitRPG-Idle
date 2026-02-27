@@ -14,7 +14,7 @@ import {
   BIG_DAMAGE, AMBIENT_SNARK, INVENTORY_FULL,
   FIRST_TERRITORY_CLAIM, TERRITORY_CLAIM_COMMENTARY,
   BOSS_CHALLENGE, BOSS_DEFEATED as BOSS_DEFEATED_LINES,
-  ELITE_BOSS_DEFEATED, AREA_BOSS_DEFEATED, FINAL_BOSS_DEFEATED,
+  ELITE_BOSS_DEFEATED, AREA_BOSS_DEFEATED,
   OFFLINE_RETURN,
   UNLOCK_ARMOR_BREAK, UNLOCK_CLEANSE, UNLOCK_INTERRUPT,
   FIRST_STANCE_SWITCH, FIRST_THORNS_HIT, FIRST_EVASION_DODGE, FIRST_REGEN_HEAL,
@@ -54,6 +54,7 @@ const UNLOCK_SEQUENCE_BY_SKILL = {
     context: 'Skill unlocked: INTERRUPT',
   },
 };
+const GAME_COMPLETE_AREA = 2;
 
 function isOnCooldown(key, durationMs) {
   const last = cooldowns[key] || 0;
@@ -316,8 +317,12 @@ const DialogueManager = {
 
     // Area boss defeated.
     scope.on(EVENTS.AREA_BOSS_DEFEATED, (data) => {
-      if (data.area === 3) {
-        say(pick(FINAL_BOSS_DEFEATED), 'impressed', 'GAME COMPLETE');
+      if (data.area === GAME_COMPLETE_AREA) {
+        say('Congratulations! You finished the game!', 'impressed', 'GAME COMPLETE');
+        emit(EVENTS.UI_ONBOARDING_REQUESTED, {
+          title: 'SYSTEM',
+          lines: ['Congratulations! You finished the game!'],
+        });
       } else {
         say(pick(AREA_BOSS_DEFEATED), 'neutral', `${data.name} cleared!`);
       }

@@ -1040,10 +1040,11 @@ const CombatEngine = {
     encounter.activeTimerIds.add(restoreKey);
   },
 
-  playerAttack(isClick = false) {
+  playerAttack(isClick = false, source = null) {
     const target = CombatEngine.getTargetMember();
     if (!target) return;
-    if (CombatEngine._playerAttackMissed(target, isClick ? 'click' : 'auto')) return;
+    const attackSource = source || (isClick ? 'click' : 'auto');
+    if (CombatEngine._playerAttackMissed(target, attackSource)) return;
 
     const state = Store.getState();
     let { damage, isCrit } = CombatEngine.getPlayerDamage(state, isClick);
@@ -1060,6 +1061,7 @@ const CombatEngine = {
       amount: damage,
       isCrit,
       isClick,
+      source: attackSource,
       remainingHp: target.hp,
       maxHp: target.maxHp,
       encounterId: encounter?.id ?? null,
@@ -1313,7 +1315,7 @@ const CombatEngine = {
         // Whiff silently if no living target (spawn-delay gap)
         const target = CombatEngine.getTargetMember();
         if (!target) return;
-        CombatEngine.playerAttack(false);
+        CombatEngine.playerAttack(false, 'rapid_strikes');
         if (UpgradeManager.hasUpgrade('flurry_t2')) {
           CombatEngine._applyRapidStrikesDot(target);
         }
