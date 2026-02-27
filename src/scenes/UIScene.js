@@ -24,6 +24,7 @@ import SettingsPanel from '../ui/SettingsPanel.js';
 import StatsPanel from '../ui/StatsPanel.js';
 import CheatDeck from '../ui/CheatDeck.js';
 import DialogueManager from '../systems/DialogueManager.js';
+import SkillUnlockDirector from '../systems/SkillUnlockDirector.js';
 import FirstCrackDirector from '../systems/FirstCrackDirector.js';
 import CheatManager from '../systems/CheatManager.js';
 import PrestigeManager from '../systems/PrestigeManager.js';
@@ -91,13 +92,22 @@ export default class UIScene extends Phaser.Scene {
       this.armorBreakButton, this.interruptButton, this.cleanseButton,
     ];
     this._stanceActions = {
-      power: { slotA: this.smashButton, slotB: this.armorBreakButton },
-      flurry: { slotA: this.flurryButton, slotB: this.interruptButton },
+      ruin: { slotA: this.smashButton, slotB: this.armorBreakButton },
+      tempest: { slotA: this.flurryButton, slotB: this.interruptButton },
       fortress: { slotA: this.bulwarkButton, slotB: this.cleanseButton },
+    };
+    this._slotBUnlockFlags = {
+      ruin: 'unlockedArmorBreak',
+      tempest: 'unlockedInterrupt',
+      fortress: 'unlockedCleanse',
     };
 
     this._unsubs.push(on(EVENTS.STANCE_CHANGED, () => this._refreshStanceActions()));
     this._unsubs.push(on(EVENTS.SAVE_LOADED, () => this._refreshStanceActions()));
+    this._unsubs.push(on(EVENTS.SKILL_UNLOCKED, ({ skillId }) => {
+      this._refreshStanceActions();
+      this._pulseUnlockedSkill(skillId);
+    }));
     this._refreshStanceActions();
     this.inventoryPanel = new InventoryPanel(this);
     this.upgradePanel = new UpgradePanel(this);
@@ -125,6 +135,7 @@ export default class UIScene extends Phaser.Scene {
 
     // Initialize dialogue triggers
     DialogueManager.init();
+    SkillUnlockDirector.init();
 
     // Gated system managers
     if (FEATURES.cheatsEnabled) {
@@ -151,6 +162,14 @@ export default class UIScene extends Phaser.Scene {
 
       this._mKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.M);
       this._mKey.on('down', () => this._toggleMap());
+    }
+
+    // SPRITE PREVIEW button (gated on feature flag)
+    this._previewOpen = false;
+    this._pKey = null;
+    if (FEATURES.spritePreviewEnabled) {
+      this._pKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.P);
+      this._pKey.on('down', () => this._toggleSpritePreview());
     }
 
     this.events.on('shutdown', () => this._shutdown());
@@ -181,10 +200,22 @@ export default class UIScene extends Phaser.Scene {
     }
 
     const stance = Store.getState().currentStance;
-    const actions = this._stanceActions[stance] || this._stanceActions.power;
+    const actions = this._stanceActions[stance] || this._stanceActions.ruin;
     actions.slotA.show();
-    actions.slotB.show();
+    const unlockFlag = this._slotBUnlockFlags[stance];
+    if (unlockFlag && Store.getState().flags[unlockFlag]) {
+      actions.slotB.show();
+    }
     this.corruptionIndicator.show();
+  }
+
+  _pulseUnlockedSkill(skillId) {
+    const buttonBySkill = {
+      armorBreak: this.armorBreakButton,
+      interrupt: this.interruptButton,
+      cleanse: this.cleanseButton,
+    };
+    buttonBySkill[skillId]?.pulseUnlock?.();
   }
 
   _setCombatUiVisibility(visible) {
@@ -220,6 +251,22 @@ export default class UIScene extends Phaser.Scene {
     }
   }
 
+  _toggleSpritePreview() {
+    if (!FEATURES.spritePreviewEnabled) return;
+    this.closeAllModals();
+
+    const previewScene = this.scene.get('SpritePreviewScene');
+    if (previewScene.scene.isSleeping()) {
+      previewScene.scene.wake();
+      this._previewOpen = true;
+      this._setCombatUiVisibility(false);
+    } else {
+      previewScene.scene.sleep();
+      this._previewOpen = false;
+      this._setCombatUiVisibility(true);
+    }
+  }
+
   _shutdown() {
     for (const unsub of this._unsubs) unsub();
     this._unsubs = [];
@@ -250,6 +297,7 @@ export default class UIScene extends Phaser.Scene {
     this._modals = [];
     if (this.cheatDeck) { this.cheatDeck.destroy(); this.cheatDeck = null; }
     DialogueManager.destroy();
+    SkillUnlockDirector.destroy();
     if (FEATURES.cheatsEnabled) {
       FirstCrackDirector.destroy();
       CheatManager.destroy();

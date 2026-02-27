@@ -21,6 +21,13 @@ const UpgradeManager = {
     const level = this.getLevel(upgradeId);
     if (level >= upgrade.maxLevel) return false;
 
+    if (upgrade.requires && this.getLevel(upgrade.requires) < 1) return false;
+
+    if (upgrade.requiresFlag) {
+      const state = Store.getState();
+      if (!state.flags[upgrade.requiresFlag]) return false;
+    }
+
     const cost = D(upgrade.costFormula(level));
     const state = Store.getState();
 
@@ -107,6 +114,17 @@ const UpgradeManager = {
     const baseInterval = Math.floor(1000 / COMBAT_V2.playerBaseAtkSpeed);
     const interval = baseInterval * (1 - speedBonus - territoryBonus);
     return Math.max(200, interval);
+  },
+
+  hasUpgrade(upgradeId) {
+    return this.getLevel(upgradeId) >= 1;
+  },
+
+  isVisible(upgradeId) {
+    const upgrade = getUpgrade(upgradeId);
+    if (!upgrade) return false;
+    if (!upgrade.requiresFlag) return true;
+    return !!Store.getState().flags[upgrade.requiresFlag];
   },
 };
 

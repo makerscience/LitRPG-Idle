@@ -80,6 +80,21 @@ for (const e of ENEMIES) {
       }
     }
   }
+  if (e.chargeAttack != null) {
+    if (typeof e.chargeAttack !== 'object' || Array.isArray(e.chargeAttack)) {
+      error(`${ctx}: chargeAttack must be an object`);
+    } else {
+      if (typeof e.chargeAttack.damageMult !== 'number' || e.chargeAttack.damageMult <= 1) {
+        error(`${ctx}: chargeAttack.damageMult must be a number > 1`);
+      }
+      if (!Number.isInteger(e.chargeAttack.castTimeMs) || e.chargeAttack.castTimeMs <= 0) {
+        error(`${ctx}: chargeAttack.castTimeMs must be a positive integer (ms)`);
+      }
+      if (!Number.isInteger(e.chargeAttack.cooldownMs) || e.chargeAttack.cooldownMs <= 0) {
+        error(`${ctx}: chargeAttack.cooldownMs must be a positive integer (ms)`);
+      }
+    }
+  }
 
   if (!Array.isArray(e.zones) || e.zones.length !== 2) {
     error(`${ctx}: zones must be [min, max]`);

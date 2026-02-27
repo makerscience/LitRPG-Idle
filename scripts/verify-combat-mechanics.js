@@ -39,6 +39,7 @@ function mkEnemyData(overrides = {}) {
     armor: null,
     corruption: 0,
     summon: null,
+    chargeAttack: null,
     lootTable: [],
     goldDrop: 0,
     xpDrop: 0,
@@ -123,7 +124,7 @@ function testArmorBreakExpiry() {
 
     const applied = CombatEngine.armorBreakTarget(250);
     assert.equal(applied, true, 'armor break was not applied');
-    assert.equal(target._armorBroken, true, 'target should be armor-broken immediately');
+    assert.ok(target._armorShredPercent > 0, 'target should be armor-shredded immediately');
     assert.equal(brokenCap.payloads.length, 1, 'expected COMBAT_ARMOR_BROKEN');
     assertHasKeys(
       brokenCap.payloads[0],
@@ -133,7 +134,7 @@ function testArmorBreakExpiry() {
 
     TimeEngine.update(260);
 
-    assert.equal(target._armorBroken, false, 'armor break should expire');
+    assert.equal(target._armorShredPercent, 0, 'armor shred should expire');
     assert.equal(restoredCap.payloads.length, 1, 'expected COMBAT_ARMOR_RESTORED');
     assertHasKeys(
       restoredCap.payloads[0],
@@ -170,9 +171,10 @@ function testSummonSlotCap() {
     assert.equal(castingCap.payloads.length, 1, 'summon casting should start');
     assertHasKeys(
       castingCap.payloads[0],
-      ['encounterId', 'instanceId', 'slot', 'enemyId', 'castTime'],
+      ['encounterId', 'instanceId', 'slot', 'enemyId', 'castTime', 'castKind'],
       'COMBAT_ENEMY_CASTING',
     );
+    assert.equal(castingCap.payloads[0].castKind, 'summon', 'expected summon cast kind');
 
     TimeEngine.update(250);
 
@@ -244,9 +246,10 @@ function testInterruptStopsSummon() {
     assert.equal(interruptedCap.payloads.length, 1, 'expected COMBAT_INTERRUPTED event');
     assertHasKeys(
       interruptedCap.payloads[0],
-      ['encounterId', 'instanceId', 'slot', 'enemyId', 'source'],
+      ['encounterId', 'instanceId', 'slot', 'enemyId', 'source', 'kind'],
       'COMBAT_INTERRUPTED',
     );
+    assert.equal(interruptedCap.payloads[0].kind, 'summon', 'expected summon interrupt kind');
 
     TimeEngine.update(450);
     const adds = CombatEngine.getLivingMembers().filter(m => m.isAdd);
@@ -296,6 +299,74 @@ function testCorruptionClampAndCleanse() {
   }
 }
 
+function testChargeCastStartAndResolve() {
+  const castingCap = captureEvent(EVENTS.COMBAT_ENEMY_CASTING);
+  const resolvedCap = captureEvent(EVENTS.COMBAT_ENEMY_CHARGE_RESOLVED);
+  try {
+    const charger = mkMember(0, {
+      id: 'charge_target',
+      attack: 10,
+      chargeAttack: { damageMult: 3.0, castTimeMs: 200, cooldownMs: 1000 },
+    });
+    startEncounter([charger]);
+    const hpBefore = Store.getState().playerHp;
+
+    CombatEngine._tryStartChargeCast(charger.instanceId);
+    assert.equal(castingCap.payloads.length, 1, 'expected charge casting event');
+    assertHasKeys(
+      castingCap.payloads[0],
+      ['encounterId', 'instanceId', 'slot', 'enemyId', 'castTime', 'castKind'],
+      'COMBAT_ENEMY_CASTING',
+    );
+    assert.equal(castingCap.payloads[0].castKind, 'charge', 'expected charge cast kind');
+
+    TimeEngine.update(250);
+
+    assert.equal(resolvedCap.payloads.length, 1, 'expected charge resolved event');
+    assertHasKeys(
+      resolvedCap.payloads[0],
+      ['encounterId', 'instanceId', 'slot', 'enemyId', 'damage'],
+      'COMBAT_ENEMY_CHARGE_RESOLVED',
+    );
+    assert.ok(Store.getState().playerHp.lt(hpBefore), 'charge cast should damage player HP');
+  } finally {
+    castingCap.unsub();
+    resolvedCap.unsub();
+  }
+}
+
+function testInterruptStopsChargeCast() {
+  const interruptedCap = captureEvent(EVENTS.COMBAT_INTERRUPTED);
+  const resolvedCap = captureEvent(EVENTS.COMBAT_ENEMY_CHARGE_RESOLVED);
+  try {
+    const charger = mkMember(0, {
+      id: 'charge_interrupt_target',
+      attack: 10,
+      chargeAttack: { damageMult: 3.0, castTimeMs: 300, cooldownMs: 1000 },
+    });
+    startEncounter([charger]);
+    CombatEngine.setTarget(charger.instanceId);
+
+    CombatEngine._tryStartChargeCast(charger.instanceId);
+    const interrupted = CombatEngine.interruptTarget();
+    assert.equal(interrupted, true, 'interruptTarget should return true during charge cast');
+
+    assert.equal(interruptedCap.payloads.length, 1, 'expected COMBAT_INTERRUPTED event for charge');
+    assertHasKeys(
+      interruptedCap.payloads[0],
+      ['encounterId', 'instanceId', 'slot', 'enemyId', 'source', 'kind'],
+      'COMBAT_INTERRUPTED',
+    );
+    assert.equal(interruptedCap.payloads[0].kind, 'charge', 'expected charge interrupt kind');
+
+    TimeEngine.update(350);
+    assert.equal(resolvedCap.payloads.length, 0, 'charge resolve should not fire after interrupt');
+  } finally {
+    interruptedCap.unsub();
+    resolvedCap.unsub();
+  }
+}
+
 function main() {
   const tests = [
     ['player miss event payload', testPlayerMissEvent],
@@ -303,6 +374,8 @@ function main() {
     ['summon slot cap + member added event', testSummonSlotCap],
     ['summon maxAdds cap', testSummonMaxAddsCap],
     ['interrupt cancels summon cast', testInterruptStopsSummon],
+    ['charge cast start + resolve event', testChargeCastStartAndResolve],
+    ['interrupt cancels charge cast', testInterruptStopsChargeCast],
     ['corruption clamp + cleanse + stat restore', testCorruptionClampAndCleanse],
   ];
 

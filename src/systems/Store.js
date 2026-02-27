@@ -67,10 +67,13 @@ function createInitialState() {
       firstPrestige: false, firstSell: false, firstLaunch: false,
       kills100: false, kills500: false, kills1000: false, kills5000: false,
       firstTerritoryClaim: false,
+      unlockedArmorBreak: false, unlockedInterrupt: false, unlockedCleanse: false,
+      shownUnlockArmorBreak: false, shownUnlockInterrupt: false, shownUnlockCleanse: false,
+      firstStanceSwitch: false, firstThornsHit: false, firstEvasionDodge: false, firstRegenHeal: false,
       // Area entrance flags
       reachedArea2: false, reachedArea3: false, reachedArea4: false, reachedArea5: false,
     },
-    currentStance: 'power',
+    currentStance: 'ruin',
     settings: { autoAttack: false, musicVolume: 0.5 },
     lootPity: { head: 0, chest: 0, main_hand: 0, legs: 0, boots: 0, gloves: 0, amulet: 0 },
     killsPerEnemy: {},
@@ -148,8 +151,15 @@ function hydrateState(saved) {
   if (saved.unlockedCheats) fresh.unlockedCheats = [...saved.unlockedCheats];
   if (saved.activeCheats) fresh.activeCheats = { ...saved.activeCheats };
   if (saved.titles) fresh.titles = [...saved.titles];
-  if (saved.currentStance && STANCE_IDS.includes(saved.currentStance)) {
-    fresh.currentStance = saved.currentStance;
+  if (saved.currentStance) {
+    const mappedStance = saved.currentStance === 'power'
+      ? 'ruin'
+      : saved.currentStance === 'flurry'
+        ? 'tempest'
+        : saved.currentStance;
+    if (STANCE_IDS.includes(mappedStance)) {
+      fresh.currentStance = mappedStance;
+    }
   }
   if (saved.flags) fresh.flags = { ...fresh.flags, ...saved.flags };
   if (saved.settings) fresh.settings = { ...fresh.settings, ...saved.settings };
@@ -401,6 +411,7 @@ const Store = {
 
   unequipItem(slot) {
     state.equipped[slot] = null;
+    emit(EVENTS.INV_ITEM_EQUIPPED, { slot, itemId: null });
     emit(EVENTS.STATE_CHANGED, { changedKeys: ['equipped'] });
   },
 

@@ -89,7 +89,7 @@ export const CHEATS = {
 };
 
 export const SAVE = {
-  schemaVersion: 2,
+  schemaVersion: 3,
   autosaveInterval: 30_000,   // ms
   minOfflineTime: 60_000,                // 60s — skip if quicker reload
   maxOfflineTime: 12 * 60 * 60 * 1000,  // 12 hours in ms
@@ -181,12 +181,12 @@ export const LOOT_V2 = {
 // ── Stances ──────────────────────────────────────────────────────────
 
 export const STANCES = {
-  flurry:   { id: 'flurry',   label: 'Flurry',   atkSpeedMult: 1.8, damageMult: 0.6, damageReduction: 0.0 },
-  power:    { id: 'power',    label: 'Power',    atkSpeedMult: 0.5, damageMult: 2.0, damageReduction: 0.0 },
+  tempest:  { id: 'tempest',  label: 'Tempest',  atkSpeedMult: 1.8, damageMult: 0.6, damageReduction: 0.0 },
+  ruin:     { id: 'ruin',     label: 'Ruin',     atkSpeedMult: 0.5, damageMult: 2.0, damageReduction: 0.0 },
   fortress: { id: 'fortress', label: 'Fortress', atkSpeedMult: 0.8, damageMult: 0.8, damageReduction: 0.5 },
 };
 
-export const STANCE_IDS = ['flurry', 'power', 'fortress'];
+export const STANCE_IDS = ['tempest', 'ruin', 'fortress'];
 export const STANCE_SWITCH_PAUSE_MS = 500;
 
 // Re-export layout and theme for backward compatibility.

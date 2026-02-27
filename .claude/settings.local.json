@@ -52,7 +52,14 @@
       "Bash(grep:*)",
       "Bash(npm run balance:gui:*)",
       "Bash(netstat:*)",
-      "Bash(taskkill:*)"
+      "Bash(taskkill:*)",
+      "Bash(python3:*)",
+      "WebFetch(domain:localhost)",
+      "Bash(cd D:\\\\projects\\\\litrpg idle:*)",
+      "Bash(cd \"D:\\\\projects\\\\litrpg idle\" && git fsck --lost-found 2>&1)",
+      "Bash(powershell.exe:*)",
+      "Bash(cat:*)",
+      "Bash(identify:*)"
     ]
   },
   "outputStyle": "default",

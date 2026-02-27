@@ -85,7 +85,7 @@ export function getEffectiveDamage() {
   const baseDmg = getBaseDamage();
   const prestigeMult = state.prestigeMultiplier;
   const territoryDmgMult = TerritoryManager.getBuffMultiplier('baseDamage');
-  const stance = STANCES[state.currentStance] || STANCES.power;
+  const stance = STANCES[state.currentStance] || STANCES.ruin;
   return Math.floor(baseDmg * prestigeMult * territoryDmgMult * stance.damageMult);
 }
 
@@ -110,7 +110,7 @@ export function getCritMultiplier() {
 /** Damage reduction from current stance (0.0–1.0). */
 export function getDamageReduction() {
   const state = Store.getState();
-  const stance = STANCES[state.currentStance] || STANCES.power;
+  const stance = STANCES[state.currentStance] || STANCES.ruin;
   return stance.damageReduction;
 }
 
@@ -143,7 +143,7 @@ export function getPlayerAtkSpeed() {
 /** Player auto-attack interval in ms (gear speed + upgrade/territory bonuses + stance). Floor 400ms. */
 export function getPlayerAutoAttackInterval() {
   const state = Store.getState();
-  const stance = STANCES[state.currentStance] || STANCES.power;
+  const stance = STANCES[state.currentStance] || STANCES.ruin;
   const effectiveSpeed = getPlayerAtkSpeed() * stance.atkSpeedMult;
   const baseInterval = Math.floor(COMBAT_V2.baseAttackIntervalMs / effectiveSpeed);
   // Apply upgrade and territory speed bonuses as reduction

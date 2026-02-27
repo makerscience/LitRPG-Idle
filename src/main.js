@@ -16,6 +16,7 @@ import OfflineProgress from './systems/OfflineProgress.js';
 // Conditional imports for gated systems
 import TerritoryManager from './systems/TerritoryManager.js';
 import OverworldScene from './scenes/OverworldScene.js';
+import SpritePreviewScene from './scenes/SpritePreviewScene.js';
 
 // ── Boot sequence ───────────────────────────────────────────────────
 Store.init();
@@ -27,6 +28,7 @@ OfflineProgress.apply();
 
 const scenes = [BootScene, GameScene, UIScene];
 if (FEATURES.territoryEnabled) scenes.push(OverworldScene);
+if (FEATURES.spritePreviewEnabled) scenes.push(SpritePreviewScene);
 
 const config = {
   type: Phaser.AUTO,
@@ -54,5 +56,34 @@ if (import.meta.env.DEV) {
   window.InventorySystem = InventorySystem;
   window.UpgradeManager = UpgradeManager;
   window.OfflineProgress = OfflineProgress;
+  window.__unlockSkill = (name) => {
+    const key = `unlocked${name}`;
+    Store.setFlag(key, true);
+    return Store.getState().flags[key];
+  };
+  window.__lockSkill = (name) => {
+    const key = `unlocked${name}`;
+    Store.setFlag(key, false);
+    return Store.getState().flags[key];
+  };
+  window.__resetUnlockFlags = () => {
+    const resetKeys = [
+      'unlockedArmorBreak',
+      'unlockedInterrupt',
+      'unlockedCleanse',
+      'shownUnlockArmorBreak',
+      'shownUnlockInterrupt',
+      'shownUnlockCleanse',
+    ];
+    for (const key of resetKeys) {
+      Store.setFlag(key, false);
+    }
+    const flags = Store.getState().flags;
+    return Object.fromEntries(resetKeys.map(key => [key, !!flags[key]]));
+  };
+  window.__grantSP = (amount = 1) => {
+    Store.addSkillPoints(amount);
+    return Store.getState().skillPoints;
+  };
   if (FEATURES.territoryEnabled) window.TerritoryManager = TerritoryManager;
 }

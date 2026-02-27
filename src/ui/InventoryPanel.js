@@ -15,6 +15,7 @@ import InventorySystem from '../systems/InventorySystem.js';
 import { parseStackKey } from '../systems/InventorySystem.js';
 import EnhancementManager from '../systems/EnhancementManager.js';
 import { makeButton } from './ui-utils.js';
+import { getActiveArmorSet } from '../config/playerSprites.js';
 
 const PANEL_W = 880;
 const PANEL_H = 560;
@@ -153,6 +154,11 @@ export default class InventoryPanel extends ModalPanel {
     // and gets replaced naturally on the next pointerover
     this._equipSlotBgs = {};
     this._pendingClick = null;
+
+    // Update silhouette texture to match active armor set
+    const armorSet = getActiveArmorSet(Store.getState().equipped, parseStackKey);
+    if (this._silhouette) this._silhouette.setTexture(armorSet.default);
+
     this._renderEquipmentSilhouette();
     this._renderInventoryGrid();
     this._renderItemDetail();

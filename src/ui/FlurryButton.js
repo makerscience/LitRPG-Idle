@@ -1,11 +1,10 @@
 // FlurryButton — "FLURRY" button for the Rapid Strikes active ability.
-// Visible when stance is 'flurry'. Calls CombatEngine.activateRapidStrikes().
+// Visible when stance is 'tempest'. Calls CombatEngine.activateRapidStrikes().
 
 import CombatEngine from '../systems/CombatEngine.js';
+import UpgradeManager from '../systems/UpgradeManager.js';
 import { on, emit, EVENTS } from '../events.js';
 import { LAYOUT } from '../config.js';
-
-const COOLDOWN_MS = 10000; // 10s cooldown
 
 export default class FlurryButton {
   constructor(scene) {
@@ -54,6 +53,14 @@ export default class FlurryButton {
     return Date.now() < this._cooldownEnd;
   }
 
+  _getCooldownMs() {
+    return UpgradeManager.hasUpgrade('flurry_t3') ? 7000 : 10000;
+  }
+
+  _getHitCount() {
+    return 5 + UpgradeManager.getFlatBonus('rapidStrikesHits');
+  }
+
   _refreshVisibility() {
     if (this._manualVisible) {
       this._btn.setVisible(true);
@@ -70,10 +77,11 @@ export default class FlurryButton {
     if (this._isOnCooldown()) return;
     if (!CombatEngine.hasTarget()) return;
 
-    CombatEngine.activateRapidStrikes();
-    emit(EVENTS.RAPID_STRIKES_USED, { hitCount: 5 });
+    const hitCount = this._getHitCount();
+    CombatEngine.activateRapidStrikes(hitCount);
+    emit(EVENTS.RAPID_STRIKES_USED, { hitCount });
 
-    this._cooldownEnd = Date.now() + COOLDOWN_MS;
+    this._cooldownEnd = Date.now() + this._getCooldownMs();
     this._startCooldownTimer();
   }
 

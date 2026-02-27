@@ -36,6 +36,7 @@ export default class GameScene extends Phaser.Scene {
 
     // Player attack pose config (from armor set)
     this._playerAttackSprites = [...this._armorSet.attackSprites];
+    this._lastAttackSprite = null;
     this._playerPoseTimer = null;
     this._playerAttacking = false; // true while attack pose is held (blocks hit reaction)
     this._hitReacting = false;     // true while hit reaction pose is held (blocks attacks)
@@ -89,7 +90,7 @@ export default class GameScene extends Phaser.Scene {
       stroke: '#000000', strokeThickness: 3,
     }).setOrigin(1, 0.5);
 
-    // Attack charge bar (visible in power stance only)
+    // Attack charge bar (visible in ruin stance only)
     this._chargeBarY = this._hpBarY + 12;
     this._chargeBarBg = this.add.rectangle(playerX, this._chargeBarY, 100, 6, 0x374151).setStrokeStyle(2, 0x000000).setVisible(false);
     this._chargeBarFill = this.add.rectangle(playerX - 50, this._chargeBarY, 100, 6, 0xef4444);
@@ -183,6 +184,9 @@ export default class GameScene extends Phaser.Scene {
           flapTimer: null,
           flapFrame: 0,
           atkTimerKey: null,
+          castTimerKey: null,
+          castKind: null,
+          showAutoChargeBar: false,
         },
         baseX: this._enemyX,
         baseY: this._enemyY,
@@ -197,6 +201,7 @@ export default class GameScene extends Phaser.Scene {
     this._unsubs.push(on(EVENTS.COMBAT_PLAYER_MISSED, (data) => this._onPlayerMissed(data)));
     this._unsubs.push(on(EVENTS.COMBAT_MEMBER_ADDED, (data) => this._onMemberAdded(data)));
     this._unsubs.push(on(EVENTS.COMBAT_ENEMY_CASTING, (data) => this._onEnemyCasting(data)));
+    this._unsubs.push(on(EVENTS.COMBAT_ENEMY_CHARGE_RESOLVED, (data) => this._onChargeResolved(data)));
     this._unsubs.push(on(EVENTS.COMBAT_INTERRUPTED, (data) => this._onInterrupted(data)));
     this._unsubs.push(on(EVENTS.CORRUPTION_CHANGED, (data) => this._onCorruptionChanged(data)));
     this._unsubs.push(on(EVENTS.CORRUPTION_CLEANSED, (data) => this._onCorruptionCleansed(data)));
@@ -235,8 +240,11 @@ export default class GameScene extends Phaser.Scene {
       this._applyStanceTint(Store.getState().currentStance);
     }));
 
-    // Stance tint on player sprite
-    this._unsubs.push(on(EVENTS.STANCE_CHANGED, ({ stanceId }) => this._applyStanceTint(stanceId)));
+    // Stance tint on player sprite + announcement
+    this._unsubs.push(on(EVENTS.STANCE_CHANGED, ({ stanceId }) => {
+      this._applyStanceTint(stanceId);
+      this._announceStance(stanceId);
+    }));
     this._applyStanceTint(Store.getState().currentStance);
 
     // Armor set swap on equip/unequip/load
@@ -301,7 +309,7 @@ export default class GameScene extends Phaser.Scene {
       }
     }
 
-    // Update power stance charge bar + charge sprite
+    // Update ruin stance charge bar + charge sprite
     if (this._chargeBarBg.visible) {
       const progress = TimeEngine.getProgress('combat:autoAttack');
       this._chargeBarFill.setDisplaySize(Math.max(0, progress * 100), 6);
@@ -323,7 +331,10 @@ export default class GameScene extends Phaser.Scene {
 
     // Update enemy attack charge bars + sync armor crack overlay
     for (const slot of this._enemySlots) {
-      if (slot.state.atkTimerKey && slot.chargeBarFill.visible) {
+      if (slot.state.castTimerKey && slot.state.castKind === 'charge' && slot.chargeBarFill.visible) {
+        const progress = TimeEngine.getProgress(slot.state.castTimerKey);
+        slot.chargeBarFill.setDisplaySize(Math.max(0, progress * 100), 4);
+      } else if (slot.state.atkTimerKey && slot.state.showAutoChargeBar && slot.chargeBarFill.visible) {
         const progress = TimeEngine.getProgress(slot.state.atkTimerKey);
         slot.chargeBarFill.setDisplaySize(Math.max(0, progress * 100), 4);
       }
@@ -514,6 +525,7 @@ export default class GameScene extends Phaser.Scene {
     if (newSet.id === this._armorSet.id) return;
     this._armorSet = newSet;
     this._playerAttackSprites = [...newSet.attackSprites];
+    this._lastAttackSprite = null;
     this._defaultWalkFrames = [...newSet.walkFrames];
     this._fortressWalkFrames = [...newSet.fortressWalkFrames];
     // Re-apply stance to pick up new walk frames + texture
@@ -529,7 +541,7 @@ export default class GameScene extends Phaser.Scene {
     const areaTint = areaTheme && areaTheme.playerTint != null ? areaTheme.playerTint : 0xffffff;
     let stanceTint = 0xffffff;
     switch (stanceId) {
-      case 'flurry':
+      case 'tempest':
         stanceTint = 0xaaccff;
         this._stanceIcon.setText('⚡').setColor('#facc15');
         break;
@@ -560,14 +572,69 @@ export default class GameScene extends Phaser.Scene {
       || (this._armorSet.largeFrames.includes(firstFrame) ? 1.05 : 1);
     this.playerRect.setDisplaySize(300 * frameScale, 375 * frameScale);
 
-    // Show charge bar only in power stance
-    const showCharge = stanceId === 'power';
+    // Show charge bar only in ruin stance
+    const showCharge = stanceId === 'ruin';
     this._chargeBarBg.setVisible(showCharge);
     this._chargeBarFill.setVisible(showCharge);
     if (!showCharge) {
       this._chargeBarFill.setDisplaySize(0, 6);
       this._powerCharging = false;
     }
+  }
+
+  _announceStance(stanceId) {
+    const stance = STANCES[stanceId];
+    if (!stance) return;
+
+    const stanceStyles = {
+      tempest:  { color: '#60a5fa', font: 'Impact, Arial Narrow, sans-serif' },
+      ruin:     { color: '#fb923c', font: 'Georgia, Times New Roman, serif' },
+      fortress: { color: '#a1a1aa', font: 'Trebuchet MS, Lucida Sans, sans-serif' },
+    };
+    const style = stanceStyles[stanceId] || stanceStyles.ruin;
+
+    const tx = this._playerX;
+    const ty = this._combatY - 280;
+
+    // Kill any existing announcement
+    if (this._stanceAnnounce) {
+      this.tweens.killTweensOf(this._stanceAnnounce);
+      this._stanceAnnounce.destroy();
+    }
+
+    const text = this.add.text(tx, ty, `${stance.label.toUpperCase()} STANCE`, {
+      fontFamily: style.font,
+      fontSize: '36px',
+      fontStyle: 'bold',
+      color: style.color,
+      stroke: '#000000',
+      strokeThickness: 5,
+    }).setOrigin(0.5).setDepth(100).setAlpha(0);
+
+    this._stanceAnnounce = text;
+
+    // Fade in, hold, fade out
+    this.tweens.add({
+      targets: text,
+      alpha: 1,
+      y: ty - 10,
+      duration: 150,
+      ease: 'Quad.easeOut',
+      onComplete: () => {
+        this.tweens.add({
+          targets: text,
+          alpha: 0,
+          y: ty - 30,
+          duration: 400,
+          delay: 300,
+          ease: 'Quad.easeIn',
+          onComplete: () => text.destroy(),
+        });
+      },
+    });
+
+    // Subtle screen shake
+    this.cameras.main.shake(120, 0.003);
   }
 
   _getAreaEnemyTint() {
@@ -771,6 +838,7 @@ export default class GameScene extends Phaser.Scene {
     if ((memberData.armor?.reduction ?? 0) > 0) traits.push({ label: 'A', color: '#93c5fd' });
     if ((memberData.corruption ?? 0) > 0) traits.push({ label: 'C', color: '#f472b6' });
     if (memberData.summon) traits.push({ label: 'S', color: '#f59e0b' });
+    if (memberData.chargeAttack) traits.push({ label: '!', color: '#fb923c' });
     const traitY = -(halfH) - 42 + npOff;
     let traitX = 56;
     for (const t of traits) {
@@ -787,16 +855,19 @@ export default class GameScene extends Phaser.Scene {
 
     // Charge bar tracking
     slot.state.atkTimerKey = `enc:${encounterId}:atk:${memberData.instanceId}`;
+    slot.state.castTimerKey = null;
+    slot.state.castKind = null;
     slot.state.chargeArmor = template?.chargeArmor ?? 0;
 
     const atkSpeed = memberData.attackSpeed ?? 1.0;
-    if (atkSpeed <= 0.8 && template?.chargeBar !== false) {
+    slot.state.showAutoChargeBar = atkSpeed <= 0.8 && template?.chargeBar !== false;
+    if (slot.state.showAutoChargeBar) {
       const chargeY = -(halfH) - 32 + npOff;
       slot.chargeBarBg.setY(chargeY).setVisible(true).setAlpha(1);
-      slot.chargeBarFill.setY(chargeY).setDisplaySize(0, 4).setVisible(true).setAlpha(1);
+      slot.chargeBarFill.setY(chargeY).setDisplaySize(0, 4).setVisible(true).setAlpha(1).setFillStyle(0xef4444);
     } else {
       slot.chargeBarBg.setVisible(false);
-      slot.chargeBarFill.setVisible(false);
+      slot.chargeBarFill.setDisplaySize(0, 4).setVisible(false).setFillStyle(0xef4444);
     }
 
     slot.container.setVisible(true).setAlpha(1);
@@ -837,6 +908,9 @@ export default class GameScene extends Phaser.Scene {
         if (slot.state.reactDelayTimer) { slot.state.reactDelayTimer.remove(); slot.state.reactDelayTimer = null; }
         if (slot.state.flapTimer) { slot.state.flapTimer.remove(); slot.state.flapTimer = null; }
         slot.state.atkTimerKey = null;
+        slot.state.castTimerKey = null;
+        slot.state.castKind = null;
+        slot.state.showAutoChargeBar = false;
         continue;
       }
 
@@ -871,6 +945,11 @@ export default class GameScene extends Phaser.Scene {
       slot.state.enraged = false;
       slot.state.dying = false;
       slot.state.atkTimerKey = null;
+      slot.state.castTimerKey = null;
+      slot.state.castKind = null;
+      slot.state.showAutoChargeBar = false;
+      slot.chargeBarFill.setFillStyle(0xef4444).setDisplaySize(0, 4).setVisible(false);
+      slot.chargeBarBg.setVisible(false);
     }
 
   }
@@ -892,6 +971,7 @@ export default class GameScene extends Phaser.Scene {
 
       const sIsPowerSmash = data.isPowerSmash || false;
       const sIsClick = data.isClick || false;
+      const sSkipAttackAnim = data.skipAttackAnim || false;
 
       // Click attacks (non-Power Smash): damage number only
       if (sIsClick && !sIsPowerSmash) {
@@ -899,16 +979,21 @@ export default class GameScene extends Phaser.Scene {
         return;
       }
 
+      if (sSkipAttackAnim) {
+        this._spawnDamageNumber(data.amount, false, false, slot.baseX, slot.baseY);
+        return;
+      }
+
       // Sprite priority: hitReaction > attack > walk
       // Hit reaction overrides everything
       if (this._hitReacting) return;
 
-      const isPowerStanceAttack = Store.getState().currentStance === 'power';
-      const isPowerStance = Store.getState().currentStance === 'power';
-      const isFlurry = Store.getState().currentStance === 'flurry';
+      const isPowerStanceAttack = Store.getState().currentStance === 'ruin';
+      const isPowerStance = Store.getState().currentStance === 'ruin';
+      const isTempest = Store.getState().currentStance === 'tempest';
 
-      // In flurry stance, don't let a new attack override a still-showing attack pose
-      if (isFlurry && this._playerPoseTimer && this._playerAttacking) {
+      // In tempest stance, don't let a new attack override a still-showing attack pose
+      if (isTempest && this._playerPoseTimer && this._playerAttacking) {
         // Still do the lunge, just don't swap the texture
         this.tweens.killTweensOf(this.playerRect);
         this.playerRect.x = this._playerX;
@@ -922,9 +1007,16 @@ export default class GameScene extends Phaser.Scene {
         return;
       }
 
-      const sAttackKey = (sIsPowerSmash || isPowerStanceAttack)
-        ? this._armorSet.strongPunch
-        : this._playerAttackSprites[Math.floor(Math.random() * this._playerAttackSprites.length)];
+      let sAttackKey;
+      if (sIsPowerSmash || isPowerStanceAttack) {
+        sAttackKey = this._armorSet.strongPunch;
+      } else {
+        const pool = this._playerAttackSprites.length > 1
+          ? this._playerAttackSprites.filter(k => k !== this._lastAttackSprite)
+          : this._playerAttackSprites;
+        sAttackKey = pool[Math.floor(Math.random() * pool.length)];
+      }
+      this._lastAttackSprite = sAttackKey;
       this._lockWalk();
       this.playerRect.setTexture(sAttackKey);
       const sAtkScale = (this._armorSet.scaleOverrides && this._armorSet.scaleOverrides[sAttackKey])
@@ -1203,6 +1295,8 @@ export default class GameScene extends Phaser.Scene {
 
     const slot = this._getSlotByInstanceId(data.instanceId);
       if (!slot) return;
+      slot.state.castTimerKey = null;
+      slot.state.castKind = null;
       slot.state.dying = true;
 
       // Remove armor crack overlay immediately on death
@@ -1365,8 +1459,8 @@ export default class GameScene extends Phaser.Scene {
           const halfFh = Math.floor(fh / 2);
 
           // Bottom half — stays in place, fades out
-          const bottom = this.add.image(absX, absY + dh / 4, 'bogrevenant001_dead')
-            .setDisplaySize(dw, dh / 2)
+          const bottom = this.add.image(absX, absY, 'bogrevenant001_dead')
+            .setDisplaySize(dw, dh)
             .setCrop(0, halfFh, fw, fh - halfFh)
             .setDepth(slot.sprite.depth + 1);
           slot.state.extraObjects.push(bottom);
@@ -1376,8 +1470,8 @@ export default class GameScene extends Phaser.Scene {
           });
 
           // Upper half — pops up then falls with rotation
-          const top = this.add.image(absX, absY - dh / 4, 'bogrevenant001_dead')
-            .setDisplaySize(dw, dh / 2)
+          const top = this.add.image(absX, absY, 'bogrevenant001_dead')
+            .setDisplaySize(dw, dh)
             .setCrop(0, 0, fw, halfFh)
             .setDepth(slot.sprite.depth + 2);
           slot.state.extraObjects.push(top);
@@ -1761,15 +1855,45 @@ export default class GameScene extends Phaser.Scene {
     this._spawnDodgeText();
   }
 
+  _restoreSlotAutoChargeBar(slot) {
+    slot.state.castTimerKey = null;
+    slot.state.castKind = null;
+    slot.chargeBarFill.setFillStyle(0xef4444);
+    if (slot.state.showAutoChargeBar) {
+      slot.chargeBarBg.setVisible(true).setAlpha(1);
+      slot.chargeBarFill.setDisplaySize(0, 4).setVisible(true).setAlpha(1);
+      return;
+    }
+    slot.chargeBarFill.setDisplaySize(0, 4).setVisible(false);
+    slot.chargeBarBg.setVisible(false);
+  }
+
   _onEnemyCasting(data) {
     const slot = this._getSlotByInstanceId(data.instanceId);
     if (!slot) return;
+    if (data.castKind === 'charge') {
+      slot.state.castTimerKey = `enc:${data.encounterId}:chargeCast:${data.instanceId}`;
+      slot.state.castKind = 'charge';
+      slot.chargeBarBg.setVisible(true).setAlpha(1);
+      slot.chargeBarFill.setDisplaySize(0, 4).setVisible(true).setAlpha(1).setFillStyle(0xf59e0b);
+      this._spawnStatusText(slot.baseX, slot.baseY - 115, 'CHARGING!', '#f59e0b');
+      return;
+    }
     this._spawnStatusText(slot.baseX, slot.baseY - 115, 'CASTING', '#f59e0b');
+  }
+
+  _onChargeResolved(data) {
+    const slot = this._getSlotByInstanceId(data.instanceId);
+    if (!slot) return;
+    this._restoreSlotAutoChargeBar(slot);
   }
 
   _onInterrupted(data) {
     const slot = this._getSlotByInstanceId(data.instanceId);
     if (!slot) return;
+    if (data.kind === 'charge') {
+      this._restoreSlotAutoChargeBar(slot);
+    }
     this._spawnStatusText(slot.baseX, slot.baseY - 115, 'INTERRUPTED!', '#22d3ee');
   }
 

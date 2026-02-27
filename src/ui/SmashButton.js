@@ -1,5 +1,5 @@
 // SmashButton — "SMASH" button for the Power Smash active ability.
-// Visible when stance is 'power'. Cooldown driven by upgrade levels.
+// Visible when stance is 'ruin'. Cooldown driven by tier upgrades.
 
 import CombatEngine from '../systems/CombatEngine.js';
 import UpgradeManager from '../systems/UpgradeManager.js';
@@ -47,7 +47,7 @@ export default class SmashButton {
 
     this._unsubs.push(on(EVENTS.SAVE_LOADED, () => this._refreshVisibility()));
     this._unsubs.push(on(EVENTS.UPG_PURCHASED, (data) => {
-      if (data.upgradeId === 'power_smash_recharge' && this._isOnCooldown()) {
+      if (data.upgradeId === 'smash_t3' && this._isOnCooldown()) {
         this._recalcCooldown();
       }
     }));
@@ -60,11 +60,11 @@ export default class SmashButton {
   }
 
   _getDamageMultiplier() {
-    return 3.0 + (UpgradeManager.getMultiplier('powerSmashDamage') - 1);
+    return UpgradeManager.hasUpgrade('smash_t1') ? 4.0 : 3.0;
   }
 
   _getCooldownMs() {
-    return 30000 * (1 - (UpgradeManager.getMultiplier('powerSmashCooldown') - 1));
+    return UpgradeManager.hasUpgrade('smash_t3') ? 22000 : 30000;
   }
 
   _refreshVisibility() {

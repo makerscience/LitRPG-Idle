@@ -1,5 +1,14 @@
 # CHANGELOG
 
+## 2026-02-27 - Stance Skill Progression System (Phases 1-3)
+- **Stance renames:** `power` → `Ruin`, `flurry` → `Tempest` (IDs, labels, save migration)
+- **18 skill tier upgrades:** 3 tiers each for Power Smash, Rapid Strikes, Bulwark, Armor Break, Interrupt, Cleanse (discrete tiers with `requires` chaining)
+- **Tabbed UpgradePanel:** Stats tab (existing upgrades) + Skills tab (grouped by stance: Ruin, Tempest, Fortress)
+- **Milestone unlock system:** Secondary skills gated behind progression flags; `SkillUnlockDirector` detects armored enemies (zone 6+), DOT/thorns (zone 11+), charge attacks (zone 13+)
+- **SYSTEM teaching moments:** Multi-line unlock sequences via `saySequence()`, plus one-shot quips for stance switching, thorns, evasion, regen
+- **Charge attack mechanic:** New `chargeAttack` enemy trait with visible amber wind-up bar, interruptable via Tempest Interrupt skill
+- **Save schema v3:** stance ID migration + SP refund for removed `power_smash_damage`/`power_smash_recharge`
+
 ## 2026-02-26 - Combat Visual Fixes + Area 2 Enemy Sprites
 - **Hit reaction tint fix:** Red flash no longer overridden by stance tint at 120ms; holds for full reaction duration
 - **Attack pose stability:** Walk timer guarded by `_playerAttacking` + elapsed reset on unpause; poses halved to 300-500ms

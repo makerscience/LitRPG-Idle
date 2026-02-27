@@ -117,6 +117,11 @@ export default class BootScene extends Phaser.Scene {
     this.load.image('roadbandit001_attack',   'Images/Enemies/area1/roadbandit001_attack.png');
     this.load.image('roadbandit001_dead',     'Images/Enemies/area1/roadbandit001_dead.png');
     this.load.image('crackedarmor001',       'Images/effects/crackedarmor001.png');
+
+    // Stance icons
+    this.load.image('icon_tempest',  'Images/TempestIcon.png');
+    this.load.image('icon_ruin',     'Images/RuinIcon.png');
+    this.load.image('icon_fortress', 'Images/FortressIcon.png');
     this.load.image('player001_default',        'Images/Player Images/armor001/Player001_default.png');
     this.load.image('player001_strongpunch',    'Images/Player Images/armor001/Player001_strongpunch.png');
     this.load.image('player001_jumpkick',       'Images/Player Images/armor001/Player001_jumpkick.png');
@@ -273,6 +278,7 @@ export default class BootScene extends Phaser.Scene {
       { keys: ['insectswarm001_default1', 'insectswarm001_default2', 'insectswarm001_reaction', 'insectswarm001_attack', 'insectswarm001_dead'], w: 360, h: 360 },
       { keys: ['goblinwarrior001_default', 'goblinwarrior001_reaction', 'goblinwarrior001_attack', 'goblinwarrior001_dead'], w: 320, h: 384 },
       { keys: ['crackedarmor001'], w: 512, h: 512 },
+      { keys: ['icon_tempest', 'icon_ruin', 'icon_fortress'], w: 128, h: 128 },
     ];
     for (const { keys, w, h } of enemyGroups) {
       for (const key of keys) {

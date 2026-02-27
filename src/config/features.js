@@ -6,4 +6,5 @@ export const FEATURES = {
   territoryEnabled: false,
   townEnabled: false,
   cheatsEnabled: false,
+  spritePreviewEnabled: true,
 };

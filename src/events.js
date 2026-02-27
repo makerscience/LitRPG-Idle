@@ -28,6 +28,7 @@ export const EVENTS = {
   COMBAT_DOT_TICK:      'combat:dotTick',
   COMBAT_MEMBER_ADDED:  'combat:memberAdded',
   COMBAT_ENEMY_CASTING: 'combat:enemyCasting',
+  COMBAT_ENEMY_CHARGE_RESOLVED: 'combat:enemyChargeResolved',
   COMBAT_INTERRUPTED:   'combat:interrupted',
   CORRUPTION_CHANGED:   'corruption:changed',
   CORRUPTION_CLEANSED:  'corruption:cleansed',
@@ -86,6 +87,7 @@ export const EVENTS = {
   // Dialogue / UI
   DIALOGUE_QUEUED:      'dialogue:queued',
   DIALOGUE_DISPLAYED:   'dialogue:displayed',
+  SKILL_UNLOCKED:       'skill:unlocked',
   UI_TOAST:             'ui:toast',
 };
 
@@ -164,8 +166,9 @@ const EVENT_CONTRACTS = {
   [EVENTS.COMBAT_ENEMY_DODGED]:  ['enemyId', 'name', 'hitChance', 'dodgeChance', 'accuracy', 'encounterId', 'instanceId', 'slot'],
   [EVENTS.COMBAT_PLAYER_MISSED]: ['encounterId', 'instanceId', 'slot', 'enemyId', 'source'],
   [EVENTS.COMBAT_MEMBER_ADDED]:  ['encounterId', 'memberCount', 'member'],
-  [EVENTS.COMBAT_ENEMY_CASTING]: ['encounterId', 'instanceId', 'slot', 'enemyId', 'castTime'],
-  [EVENTS.COMBAT_INTERRUPTED]:   ['encounterId', 'instanceId', 'slot', 'enemyId', 'source'],
+  [EVENTS.COMBAT_ENEMY_CASTING]: ['encounterId', 'instanceId', 'slot', 'enemyId', 'castTime', 'castKind'],
+  [EVENTS.COMBAT_ENEMY_CHARGE_RESOLVED]: ['encounterId', 'instanceId', 'slot', 'enemyId', 'damage'],
+  [EVENTS.COMBAT_INTERRUPTED]:   ['encounterId', 'instanceId', 'slot', 'enemyId', 'source', 'kind'],
   [EVENTS.CORRUPTION_CHANGED]:   ['encounterId', 'stacks', 'maxStacks', 'reason'],
   [EVENTS.CORRUPTION_CLEANSED]:  ['encounterId', 'removedStacks', 'reason'],
 
@@ -183,6 +186,7 @@ const EVENT_CONTRACTS = {
   [EVENTS.COMBAT_THORNS_DAMAGE]: ['amount', 'encounterId', 'instanceId', 'slot'],
   [EVENTS.COMBAT_ARMOR_BROKEN]:  ['encounterId', 'instanceId', 'slot', 'enemyId'],
   [EVENTS.COMBAT_ARMOR_RESTORED]:['encounterId', 'instanceId', 'slot', 'enemyId'],
+  [EVENTS.SKILL_UNLOCKED]:       ['skillId'],
 };
 
 export function emit(event, payload) {

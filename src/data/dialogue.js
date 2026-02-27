@@ -29,6 +29,37 @@ export const FIRST_SELL = [
   "You sold that for gold? You know that's just rendered pixels, right?",
 ];
 
+export const UNLOCK_ARMOR_BREAK = [
+  'Secondary slot unlocked: ARMOR BRK.',
+  'Ruin stance now has a trait counter. Use it against armored targets.',
+];
+
+export const UNLOCK_CLEANSE = [
+  'Secondary slot unlocked: CLEANSE.',
+  'Fortress stance can now clear corruption and damage pressure.',
+];
+
+export const UNLOCK_INTERRUPT = [
+  'Secondary slot unlocked: INTERRUPT.',
+  'Tempest stance can now stop enemy casts on demand.',
+];
+
+export const FIRST_STANCE_SWITCH = [
+  'Stance swap confirmed. Ruin hits hardest, Tempest attacks fastest, Fortress absorbs punishment.',
+];
+
+export const FIRST_THORNS_HIT = [
+  'Thorns reflected damage back to you. Watch trait icons before committing.',
+];
+
+export const FIRST_EVASION_DODGE = [
+  'That attack was dodged. Evasive targets can waste your burst windows.',
+];
+
+export const FIRST_REGEN_HEAL = [
+  'Enemy regeneration detected. Ruin burst and ARMOR BRK help punch through sustain.',
+];
+
 // ── Area entrances (one-shot per area) ─────────────────────────────
 
 export const ZONE_ENTRANCE = {
@@ -197,3 +228,4 @@ export const OFFLINE_RETURN = [
   "You left. I worked. The usual arrangement.",
   "Welcome back. I've been busy. You're welcome.",
 ];
+

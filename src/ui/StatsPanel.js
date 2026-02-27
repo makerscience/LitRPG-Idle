@@ -80,7 +80,7 @@ export default class StatsPanel extends ModalPanel {
 
   _getCombatRows() {
     const stats = ComputedStats.getAllStats();
-    const stance = STANCES[stats.currentStance] || STANCES.power;
+    const stance = STANCES[stats.currentStance] || STANCES.ruin;
     const atkSpeed = (1000 / stats.autoAttackInterval).toFixed(2);
     const drPct = Math.round(stats.damageReduction * 100);
 

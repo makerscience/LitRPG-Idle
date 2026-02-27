@@ -1,19 +1,25 @@
 // StanceSwitcher — rotary button cycling through combat stances.
-// Click cycles: flurry -> power -> fortress -> flurry.
+// Click cycles: tempest -> ruin -> fortress -> tempest.
 // Positioned in the upper-left of the game area.
 
 import Store from '../systems/Store.js';
 import CombatEngine from '../systems/CombatEngine.js';
 import { on, EVENTS } from '../events.js';
-import { LAYOUT, STANCES, STANCE_IDS } from '../config.js';
+import { LAYOUT, STANCE_IDS } from '../config.js';
 
 const STANCE_COLORS = {
-  flurry:   { bg: 0x1e3a5f, label: '#60a5fa' },
-  power:    { bg: 0x7c2d12, label: '#fb923c' },
-  fortress: { bg: 0x4a5568, label: '#a1a1aa' },
+  tempest:  { bg: 0xffffff, icon: 0x1e3a6e },
+  ruin:     { bg: 0xffffff, icon: 0x8b1a1a },
+  fortress: { bg: 0xffffff, icon: 0x4a4a4a },
 };
 
-const RADIUS = 26;
+const STANCE_ICONS = {
+  tempest:  'icon_tempest',
+  ruin:     'icon_ruin',
+  fortress: 'icon_fortress',
+};
+
+const RADIUS = 39;
 
 export default class StanceSwitcher {
   constructor(scene) {
@@ -25,24 +31,22 @@ export default class StanceSwitcher {
     this._y = ga.y + 50;
 
     // Background circle
-    this._circle = scene.add.circle(this._x, this._y, RADIUS, 0x1e3a5f);
-    this._circle.setStrokeStyle(2, 0xffffff, 0.6);
+    this._circle = scene.add.circle(this._x, this._y, RADIUS, 0xffffff);
+    this._circle.setStrokeStyle(2, 0x000000, 0.4);
     this._circle.setInteractive({ useHandCursor: true });
     this._circle.setDepth(10);
 
-    // Stance label (initial letter)
-    this._label = scene.add.text(this._x, this._y, 'P', {
-      fontFamily: 'monospace',
-      fontSize: '20px',
-      fontStyle: 'bold',
-      color: '#fb923c',
-      stroke: '#000000',
-      strokeThickness: 3,
-    }).setOrigin(0.5).setDepth(11);
+    // Stance icon
+    const iconSize = RADIUS * 2.1;
+    this._icon = scene.add.image(this._x, this._y, 'icon_ruin')
+      .setDisplaySize(iconSize, iconSize)
+      .setTintFill(0xffffff)
+      .setOrigin(0.5)
+      .setDepth(11);
 
     this._circle.on('pointerdown', () => this._cycle());
-    this._circle.on('pointerover', () => this._circle.setStrokeStyle(2, 0xffffff, 1));
-    this._circle.on('pointerout', () => this._circle.setStrokeStyle(2, 0xffffff, 0.6));
+    this._circle.on('pointerover', () => this._circle.setStrokeStyle(2, 0x000000, 0.7));
+    this._circle.on('pointerout', () => this._circle.setStrokeStyle(2, 0x000000, 0.4));
 
     this._unsubs.push(on(EVENTS.STANCE_CHANGED, ({ stanceId }) => this._updateVisual(stanceId)));
     this._unsubs.push(on(EVENTS.SAVE_LOADED, () => this._updateVisual(Store.getState().currentStance)));
@@ -60,12 +64,12 @@ export default class StanceSwitcher {
   }
 
   _updateVisual(stanceId) {
-    const colors = STANCE_COLORS[stanceId] || STANCE_COLORS.power;
-    const stance = STANCES[stanceId] || STANCES.power;
+    const colors = STANCE_COLORS[stanceId] || STANCE_COLORS.ruin;
+    const iconKey = STANCE_ICONS[stanceId] || STANCE_ICONS.ruin;
 
     this._circle.setFillStyle(colors.bg);
-    this._label.setText(stance.label[0]);
-    this._label.setStyle({ color: colors.label });
+    this._icon.setTexture(iconKey);
+    this._icon.setTintFill(colors.icon);
 
     // Brief pulse on switch
     this.scene.tweens.killTweensOf(this._circle);
@@ -82,12 +86,12 @@ export default class StanceSwitcher {
 
   show() {
     this._circle.setVisible(true);
-    this._label.setVisible(true);
+    this._icon.setVisible(true);
   }
 
   hide() {
     this._circle.setVisible(false);
-    this._label.setVisible(false);
+    this._icon.setVisible(false);
   }
 
   destroy() {

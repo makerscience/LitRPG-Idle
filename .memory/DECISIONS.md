@@ -10,6 +10,34 @@ Format:
 
 ---
 
+## 2026-02-27
+- Tags: architecture
+- Decision: Stance progression uses 3-tier upgrade system (maxLevel: 1 per tier, chained via `requires` field) instead of linear per-level upgrades. Each tier is a discrete qualitative change, not a numerical scaling.
+- Rationale: Discrete tiers create meaningful build choices and feel like real power spikes. Linear scaling (e.g., old `power_smash_damage` with maxLevel 8) was forgettable. Tier 2 effects add new mechanics (vulnerability debuff, DOT, thorns reflect) instead of just bigger numbers.
+- Alternatives considered: Keep linear upgrades alongside tiers (rejected: too many SP sinks, dilutes choices), discrete tiers with higher SP costs (rejected: 1 SP per tier matches existing economy).
+- Consequences / Follow-ups: Old `power_smash_damage`/`power_smash_recharge` removed with SP refund migration (schema v3). Upgrade IDs use `flurry_*` prefix despite stance rename to `tempest` for save compatibility.
+
+## 2026-02-27
+- Tags: architecture
+- Decision: Secondary skills (Armor Break, Interrupt, Cleanse) gated behind progression milestones (flag-based), not SP purchases. Unlock triggers fire mid-combat with SYSTEM narration sequences.
+- Rationale: Player should feel the problem (armored enemy, DOT, charge attack) before getting the solution. Mid-combat unlock creates a memorable teaching moment. SP purchase would let players buy skills before encountering the problem they solve.
+- Alternatives considered: SP purchase to unlock (rejected: no teaching moment), zone-based auto-unlock (rejected: player might not encounter the relevant enemy type).
+- Consequences / Follow-ups: `SkillUnlockDirector` system handles detection separately from `DialogueManager`. Three flags: `unlockedArmorBreak`, `unlockedInterrupt`, `unlockedCleanse`. Secondary upgrade tiers hidden in UpgradePanel until flag set.
+
+## 2026-02-27
+- Tags: architecture
+- Decision: Stance IDs renamed from `power`/`flurry` to `ruin`/`tempest` at the config/key level. Save migration maps old IDs. Upgrade IDs keep `flurry_*`/`smash_*` prefixes.
+- Rationale: Better thematic names. Upgrade IDs left unchanged to avoid unnecessary save migration complexity — they're internal-only and don't appear in UI.
+- Consequences / Follow-ups: `STANCE_IDS = ['tempest', 'ruin', 'fortress']`. Default stance: `'ruin'`. `hydrateState()` maps `'power'` → `'ruin'`, `'flurry'` → `'tempest'`.
+
+## 2026-02-27
+- Tags: workflow
+- Decision: Planning done in Claude (Opus), implementation handed to Codex. Plans saved to `Plans/` folder as `.md` files.
+- Rationale: User has limited Claude tokens per week; Codex is better suited for bulk implementation. Claude focuses on design, architecture, and planning.
+- Consequences / Follow-ups: Plans must be self-contained with exact file paths, code snippets, and verification steps. Codex revises plans with assessment critiques before implementing.
+
+---
+
 ## 2026-02-26
 - Tags: architecture, convention
 - Decision: Area 2 parallax uses `treeRowOverrides` array in `ZONE_THEMES` with `flatScroll: true` — all sprite layers (trees, fog, clutter) are unified under the tree row system with per-row overrides for `keys`, `skip`, `tint`, `alpha`, `depthSort`, `scaleRange`, `yRange`, `depth`, `count`, `speedMult`.

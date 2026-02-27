@@ -55,6 +55,27 @@ const migrations = {
 
     return next;
   },
+  3: (data) => {
+    const next = { ...data };
+    const purchased = { ...(next.purchasedUpgrades || {}) };
+
+    if (next.currentStance === 'power') next.currentStance = 'ruin';
+    if (next.currentStance === 'flurry') next.currentStance = 'tempest';
+
+    const smashDamageLevels = Math.max(0, Math.floor(Number(purchased.power_smash_damage) || 0));
+    const smashRechargeLevels = Math.max(0, Math.floor(Number(purchased.power_smash_recharge) || 0));
+    const refund = smashDamageLevels + smashRechargeLevels;
+    if (refund > 0) {
+      const currentSkillPoints = Math.max(0, Math.floor(Number(next.skillPoints) || 0));
+      next.skillPoints = currentSkillPoints + refund;
+    }
+
+    delete purchased.power_smash_damage;
+    delete purchased.power_smash_recharge;
+    next.purchasedUpgrades = purchased;
+
+    return next;
+  },
 };
 
 /** Run all applicable migrations in order. */

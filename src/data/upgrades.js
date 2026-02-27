@@ -1,11 +1,13 @@
-// Upgrade definitions — purchasable stat boosts (legit = gold, exploit = fragments).
+﻿// Upgrade definitions.
+// `group` controls panel placement: `stat` (legacy + exploit) vs `skill` (tiered stance skills).
 
 const UPGRADES = [
-  // ── Legit (gold cost) ─────────────────────────────────────────────
+  // -- Core stat upgrades --
   {
     id: 'sharpen_blade',
     name: 'Sharpen Blade',
     description: '+10% click damage per level',
+    group: 'stat',
     category: 'legit',
     currency: 'skillPoints',
     maxLevel: 10,
@@ -16,6 +18,7 @@ const UPGRADES = [
     id: 'battle_hardening',
     name: 'Battle Hardening',
     description: '+2 STR per level',
+    group: 'stat',
     category: 'legit',
     currency: 'skillPoints',
     maxLevel: 10,
@@ -26,6 +29,7 @@ const UPGRADES = [
     id: 'auto_attack_speed',
     name: 'Auto-Attack Speed',
     description: '-10% auto-attack interval per level',
+    group: 'stat',
     category: 'legit',
     currency: 'skillPoints',
     maxLevel: 5,
@@ -36,6 +40,7 @@ const UPGRADES = [
     id: 'gold_find',
     name: 'Gold Find',
     description: '+15% gold drops per level',
+    group: 'stat',
     category: 'legit',
     currency: 'skillPoints',
     maxLevel: 10,
@@ -43,33 +48,261 @@ const UPGRADES = [
     effect: { type: 'multiplier', target: 'goldMultiplier', valuePerLevel: 0.15 },
   },
 
-  // ── Power Smash ─────────────────────────────────────────────────
+  // -- Ruin: Power Smash --
   {
-    id: 'power_smash_damage',
-    name: 'Power Smash Damage',
-    description: '+0.5x smash damage per level',
+    id: 'smash_t1',
+    name: 'Heavy Impact',
+    description: 'Power Smash damage increased to 4x',
+    group: 'skill',
+    stance: 'ruin',
     category: 'legit',
     currency: 'skillPoints',
-    maxLevel: 8,
+    maxLevel: 1,
     costFormula: () => 1,
-    effect: { type: 'multiplier', target: 'powerSmashDamage', valuePerLevel: 0.5 },
+    effect: { type: 'flat', target: 'smashDamageBonus', valuePerLevel: 1.0 },
   },
   {
-    id: 'power_smash_recharge',
-    name: 'Power Smash Recharge',
-    description: '-10% smash cooldown per level',
+    id: 'smash_t2',
+    name: 'Crushing Blow',
+    description: 'Smash applies 15% vulnerability for 10s',
+    group: 'skill',
+    stance: 'ruin',
     category: 'legit',
     currency: 'skillPoints',
-    maxLevel: 5,
+    maxLevel: 1,
+    requires: 'smash_t1',
     costFormula: () => 1,
-    effect: { type: 'multiplier', target: 'powerSmashCooldown', valuePerLevel: 0.10 },
+    effect: { type: 'flag', target: 'smashVulnerability' },
+  },
+  {
+    id: 'smash_t3',
+    name: 'Cataclysm',
+    description: 'Power Smash cooldown reduced to 22s',
+    group: 'skill',
+    stance: 'ruin',
+    category: 'legit',
+    currency: 'skillPoints',
+    maxLevel: 1,
+    requires: 'smash_t2',
+    costFormula: () => 1,
+    effect: { type: 'flag', target: 'smashCooldown22s' },
   },
 
-  // ── Exploit (fragment cost, visible after crackTriggered) ─────────
+  // -- Tempest: Rapid Strikes --
+  {
+    id: 'flurry_t1',
+    name: 'Sixth Strike',
+    description: 'Rapid Strikes hits increased to 6',
+    group: 'skill',
+    stance: 'tempest',
+    category: 'legit',
+    currency: 'skillPoints',
+    maxLevel: 1,
+    costFormula: () => 1,
+    effect: { type: 'flat', target: 'rapidStrikesHits', valuePerLevel: 1 },
+  },
+  {
+    id: 'flurry_t2',
+    name: 'Bleeding Cuts',
+    description: 'Each Rapid Strike hit applies a small DOT',
+    group: 'skill',
+    stance: 'tempest',
+    category: 'legit',
+    currency: 'skillPoints',
+    maxLevel: 1,
+    requires: 'flurry_t1',
+    costFormula: () => 1,
+    effect: { type: 'flag', target: 'rapidStrikesDot' },
+  },
+  {
+    id: 'flurry_t3',
+    name: 'Relentless',
+    description: 'Rapid Strikes cooldown reduced to 7s',
+    group: 'skill',
+    stance: 'tempest',
+    category: 'legit',
+    currency: 'skillPoints',
+    maxLevel: 1,
+    requires: 'flurry_t2',
+    costFormula: () => 1,
+    effect: { type: 'flag', target: 'rapidStrikesCooldown7s' },
+  },
+
+  // -- Fortress: Bulwark --
+  {
+    id: 'bulwark_t1',
+    name: 'Reinforced Shell',
+    description: 'Shield absorb increased to 14% max HP',
+    group: 'skill',
+    stance: 'fortress',
+    category: 'legit',
+    currency: 'skillPoints',
+    maxLevel: 1,
+    costFormula: () => 1,
+    effect: { type: 'flag', target: 'bulwarkAbsorbBoost' },
+  },
+  {
+    id: 'bulwark_t2',
+    name: 'Thorned Barrier',
+    description: 'Attackers take reflected damage while shield holds',
+    group: 'skill',
+    stance: 'fortress',
+    category: 'legit',
+    currency: 'skillPoints',
+    maxLevel: 1,
+    requires: 'bulwark_t1',
+    costFormula: () => 1,
+    effect: { type: 'flag', target: 'bulwarkThorns' },
+  },
+  {
+    id: 'bulwark_t3',
+    name: 'Bastion',
+    description: 'Shield duration increased to 14s',
+    group: 'skill',
+    stance: 'fortress',
+    category: 'legit',
+    currency: 'skillPoints',
+    maxLevel: 1,
+    requires: 'bulwark_t2',
+    costFormula: () => 1,
+    effect: { type: 'flag', target: 'bulwarkDuration14s' },
+  },
+
+  // -- Ruin secondary: Armor Break --
+  {
+    id: 'armorbreak_t1',
+    name: 'Deeper Fractures',
+    description: 'Armor shred increased to 50%',
+    group: 'skill',
+    stance: 'ruin',
+    category: 'legit',
+    currency: 'skillPoints',
+    maxLevel: 1,
+    requiresFlag: 'unlockedArmorBreak',
+    costFormula: () => 1,
+    effect: { type: 'flat', target: 'armorBreakShredBonus', valuePerLevel: 0.15 },
+  },
+  {
+    id: 'armorbreak_t2',
+    name: 'Lingering Weakness',
+    description: 'Armor Break duration increased to 9s',
+    group: 'skill',
+    stance: 'ruin',
+    category: 'legit',
+    currency: 'skillPoints',
+    maxLevel: 1,
+    requiresFlag: 'unlockedArmorBreak',
+    requires: 'armorbreak_t1',
+    costFormula: () => 1,
+    effect: { type: 'flag', target: 'armorBreakDuration9s' },
+  },
+  {
+    id: 'armorbreak_t3',
+    name: 'Shatter',
+    description: 'Armor Break cooldown reduced to 10s',
+    group: 'skill',
+    stance: 'ruin',
+    category: 'legit',
+    currency: 'skillPoints',
+    maxLevel: 1,
+    requiresFlag: 'unlockedArmorBreak',
+    requires: 'armorbreak_t2',
+    costFormula: () => 1,
+    effect: { type: 'flag', target: 'armorBreakCooldown10s' },
+  },
+
+  // -- Tempest secondary: Interrupt --
+  {
+    id: 'interrupt_t1',
+    name: 'Staggering Blow',
+    description: 'Interrupt stun increased to 2s',
+    group: 'skill',
+    stance: 'tempest',
+    category: 'legit',
+    currency: 'skillPoints',
+    maxLevel: 1,
+    requiresFlag: 'unlockedInterrupt',
+    costFormula: () => 1,
+    effect: { type: 'flag', target: 'interruptStun2s' },
+  },
+  {
+    id: 'interrupt_t2',
+    name: 'Opportunist',
+    description: 'Interrupting grants 3s of +30% attack speed',
+    group: 'skill',
+    stance: 'tempest',
+    category: 'legit',
+    currency: 'skillPoints',
+    maxLevel: 1,
+    requiresFlag: 'unlockedInterrupt',
+    requires: 'interrupt_t1',
+    costFormula: () => 1,
+    effect: { type: 'flag', target: 'interruptSpeedBuff' },
+  },
+  {
+    id: 'interrupt_t3',
+    name: 'Hair Trigger',
+    description: 'Interrupt cooldown reduced to 8s',
+    group: 'skill',
+    stance: 'tempest',
+    category: 'legit',
+    currency: 'skillPoints',
+    maxLevel: 1,
+    requiresFlag: 'unlockedInterrupt',
+    requires: 'interrupt_t2',
+    costFormula: () => 1,
+    effect: { type: 'flag', target: 'interruptCooldown8s' },
+  },
+
+  // -- Fortress secondary: Cleanse --
+  {
+    id: 'cleanse_t1',
+    name: 'Residual Ward',
+    description: 'Grants 3s DOT immunity after cleanse',
+    group: 'skill',
+    stance: 'fortress',
+    category: 'legit',
+    currency: 'skillPoints',
+    maxLevel: 1,
+    requiresFlag: 'unlockedCleanse',
+    costFormula: () => 1,
+    effect: { type: 'flag', target: 'cleanseImmunity' },
+  },
+  {
+    id: 'cleanse_t2',
+    name: 'Purifying Flame',
+    description: 'Cleanse deals damage based on stacks purged',
+    group: 'skill',
+    stance: 'fortress',
+    category: 'legit',
+    currency: 'skillPoints',
+    maxLevel: 1,
+    requiresFlag: 'unlockedCleanse',
+    requires: 'cleanse_t1',
+    costFormula: () => 1,
+    effect: { type: 'flag', target: 'cleanseDamage' },
+  },
+  {
+    id: 'cleanse_t3',
+    name: 'Inner Peace',
+    description: 'Cleanse cooldown reduced to 14s',
+    group: 'skill',
+    stance: 'fortress',
+    category: 'legit',
+    currency: 'skillPoints',
+    maxLevel: 1,
+    requiresFlag: 'unlockedCleanse',
+    requires: 'cleanse_t2',
+    costFormula: () => 1,
+    effect: { type: 'flag', target: 'cleanseCooldown14s' },
+  },
+
+  // -- Exploit upgrades (visible after crackTriggered) --
   {
     id: 'unstable_crit',
     name: 'Unstable Crit',
     description: '+5% crit chance per level',
+    group: 'stat',
     category: 'exploit',
     currency: 'glitchFragments',
     maxLevel: 5,
@@ -80,6 +313,7 @@ const UPGRADES = [
     id: 'memory_leak',
     name: 'Memory Leak',
     description: '+25% gold multiplier per level',
+    group: 'stat',
     category: 'exploit',
     currency: 'glitchFragments',
     maxLevel: 5,
@@ -88,14 +322,22 @@ const UPGRADES = [
   },
 ];
 
-const upgradeMap = new Map(UPGRADES.map(u => [u.id, u]));
+const upgradeMap = new Map(UPGRADES.map((u) => [u.id, u]));
 
 export function getUpgrade(id) {
   return upgradeMap.get(id) ?? null;
 }
 
 export function getUpgradesByCategory(category) {
-  return UPGRADES.filter(u => u.category === category);
+  return UPGRADES.filter((u) => u.category === category);
+}
+
+export function getUpgradesByGroup(group) {
+  return UPGRADES.filter((u) => (u.group || 'stat') === group);
+}
+
+export function getSkillUpgradesByStance(stance) {
+  return UPGRADES.filter((u) => u.group === 'skill' && u.stance === stance);
 }
 
 export function getAllUpgrades() {

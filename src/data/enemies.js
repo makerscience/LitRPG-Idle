@@ -297,6 +297,11 @@ const ENEMIES = [
     armorPen: 0,
     dot: null,
     regen: 10,
+    chargeAttack: {
+      damageMult: 4.0,
+      castTimeMs: 2500,
+      cooldownMs: 15000,
+    },
     zones: [11, 15],
     goldDrop: 25,
     xpDrop: 25,

@@ -27,8 +27,10 @@ let _playerDead = false;
 let _shieldHp = 0;
 let _shieldTimerId = null;
 
-// ── Rapid Strikes timer tracking (populated in Phase 3) ──
+// ── Rapid Strikes timer tracking ──
 let _rapidStrikeTimerIds = new Set();
+let _interruptSpeedBuffEndAt = 0;
+let _cleanseImmunityEndAt = 0;
 
 // ── Encounter runtime ──
 let encounter = null;
@@ -39,6 +41,18 @@ function _generateId(prefix) {
 
 const SUMMONED_ADD_REWARD_MULT = COMBAT_V2.summonedAddRewardMult ?? 0;
 const ARMOR_BREAK_DURATION_MS = ABILITIES.armorBreak.durationMs;
+const SMASH_VULNERABILITY_BONUS = 0.15;
+const SMASH_VULNERABILITY_DURATION_MS = 10000;
+const BULWARK_REFLECT_RATIO = 0.30;
+const RAPID_STRIKES_DOT_TICKS = 3;
+const RAPID_STRIKES_DOT_INTERVAL_MS = 1000;
+const RAPID_STRIKES_DOT_SCALAR = 0.15;
+const INTERRUPT_BASE_STUN_MS = 1000;
+const INTERRUPT_UPGRADED_STUN_MS = 2000;
+const INTERRUPT_SPEED_BUFF_MULT = 1.30;
+const INTERRUPT_SPEED_BUFF_MS = 3000;
+const CLEANSE_IMMUNITY_MS = 3000;
+const CLEANSE_PURGE_SCALAR = 0.4;
 const CORRUPTION_CFG = {
   maxStacks: COMBAT_V2.corruption?.maxStacks ?? 8,
   perStackRegenReduction: COMBAT_V2.corruption?.perStackRegenReduction ?? 0.1,
@@ -47,6 +61,9 @@ const CORRUPTION_CFG = {
   decayMs: COMBAT_V2.corruption?.decayMs ?? 4000,
   tickMs: COMBAT_V2.corruption?.tickMs ?? 1000,
 };
+const CHARGE_ATTACK_DEFAULT_DAMAGE_MULT = 4.0;
+const CHARGE_ATTACK_DEFAULT_CAST_MS = 2500;
+const CHARGE_ATTACK_DEFAULT_COOLDOWN_MS = 15000;
 
 const CombatEngine = {
   init() {
@@ -59,7 +76,7 @@ const CombatEngine = {
     TimeEngine.register(
       'combat:autoAttack',
       () => CombatEngine.playerAttack(),
-      getPlayerAutoAttackInterval(),
+      CombatEngine._getCurrentAutoAttackInterval(),
       true,
     );
 
@@ -69,7 +86,7 @@ const CombatEngine = {
         TimeEngine.register(
           'combat:autoAttack',
           () => CombatEngine.playerAttack(),
-          getPlayerAutoAttackInterval(),
+          CombatEngine._getCurrentAutoAttackInterval(),
           true,
         );
       }
@@ -80,7 +97,7 @@ const CombatEngine = {
       TimeEngine.register(
         'combat:autoAttack',
         () => CombatEngine.playerAttack(),
-        getPlayerAutoAttackInterval(),
+        CombatEngine._getCurrentAutoAttackInterval(),
         true,
       );
     });
@@ -109,16 +126,16 @@ const CombatEngine = {
         TimeEngine.register(
           'combat:autoAttack',
           () => CombatEngine.playerAttack(),
-          getPlayerAutoAttackInterval(),
+          CombatEngine._getCurrentAutoAttackInterval(),
           true,
         );
       }
     });
 
-    // Stance switch: pause auto-attacks + cancel Rapid Strikes if leaving Flurry
+    // Stance switch: pause auto-attacks + cancel Rapid Strikes if leaving Tempest
     scope.on(EVENTS.STANCE_CHANGED, ({ stanceId, previousStance }) => {
-      // 1. Cancel Rapid Strikes if leaving Flurry
-      if (previousStance === 'flurry') {
+      // 1. Cancel Rapid Strikes if leaving Tempest
+      if (previousStance === 'tempest') {
         CombatEngine.cancelRapidStrikes();
       }
 
@@ -130,7 +147,7 @@ const CombatEngine = {
         TimeEngine.register(
           'combat:autoAttack',
           () => CombatEngine.playerAttack(),
-          getPlayerAutoAttackInterval(),
+          CombatEngine._getCurrentAutoAttackInterval(),
           true,
         );
       }, STANCE_SWITCH_PAUSE_MS);
@@ -149,6 +166,12 @@ const CombatEngine = {
     CombatEngine.spawnEnemy();
   },
 
+  _getCurrentAutoAttackInterval() {
+    const base = getPlayerAutoAttackInterval();
+    if (Date.now() >= _interruptSpeedBuffEndAt) return base;
+    return Math.max(200, Math.floor(base / INTERRUPT_SPEED_BUFF_MULT));
+  },
+
   destroy() {
     BossManager.destroy();
     CombatEngine._clearEncounterTimers();
@@ -159,8 +182,11 @@ const CombatEngine = {
     TimeEngine.unregister('combat:stancePause');
     TimeEngine.unregister('combat:spawnDelay');
     TimeEngine.unregister('combat:bossDefeatedDelay');
+    TimeEngine.unregister('combat:interruptSpeedBuffEnd');
     TimeEngine.unregister('combat:playerRegen');
     TimeEngine.unregister('combat:playerRespawn');
+    _interruptSpeedBuffEndAt = 0;
+    _cleanseImmunityEndAt = 0;
     scope?.destroy();
     scope = null;
     encounter = null;
@@ -196,6 +222,16 @@ const CombatEngine = {
           cooldownMs: enemyData.summon.cooldownMs ?? 0,
         }
       : null;
+    const chargeAttack = (
+      enemyData.chargeAttack
+      && typeof enemyData.chargeAttack === 'object'
+    )
+      ? {
+          damageMult: enemyData.chargeAttack.damageMult ?? CHARGE_ATTACK_DEFAULT_DAMAGE_MULT,
+          castTimeMs: enemyData.chargeAttack.castTimeMs ?? CHARGE_ATTACK_DEFAULT_CAST_MS,
+          cooldownMs: enemyData.chargeAttack.cooldownMs ?? CHARGE_ATTACK_DEFAULT_COOLDOWN_MS,
+        }
+      : null;
     return {
       instanceId: _generateId('mem'),
       slot,
@@ -216,12 +252,18 @@ const CombatEngine = {
       armor,
       corruption: enemyData.corruption ?? 0,
       summon: opts.isAdd ? null : summon,
+      chargeAttack,
       splitOnDeath: enemyData.splitOnDeath ?? null,
-      _armorBroken: false,
+      _armorShredPercent: 0,
       _armorBreakTimerId: null,
+      _smashVulnerabilityMult: 0,
+      _smashVulnerabilityTimerId: null,
       _enraged: false,
       _summonCasting: false,
       _summonCastTimerId: null,
+      _chargeCasting: false,
+      _chargeCastTimerId: null,
+      _interruptStunTimerId: null,
       lootTable: enemyData.lootTable,
       goldDrop: String(enemyData.goldDrop),
       xpDrop: String(enemyData.xpDrop),
@@ -274,6 +316,7 @@ const CombatEngine = {
       armor: member.armor,
       corruption: member.corruption,
       summon: member.summon,
+      chargeAttack: member.chargeAttack,
       attackSpeed: member.attackSpeed,
       defense: member.defense ?? 0,
       baseEnemyId: member.baseEnemyId ?? null,
@@ -332,7 +375,7 @@ const CombatEngine = {
       const dotKey = `enc:${encounter.id}:dot:${member.instanceId}`;
       let dotTickCount = 0;
       TimeEngine.register(dotKey, () => {
-        CombatEngine._applyIncomingDamage(member.dot, 'dot');
+        CombatEngine._applyIncomingDamage(member.dot, 'dot', member);
         dotTickCount++;
         emit(EVENTS.COMBAT_DOT_TICK, {
           damage: member.dot,
@@ -372,6 +415,13 @@ const CombatEngine = {
       TimeEngine.register(summonKey, () => CombatEngine._tryStartSummonCast(member.instanceId), summonInterval, true);
       encounter.activeTimerIds.add(summonKey);
     }
+
+    if (member.chargeAttack) {
+      const chargeInterval = member.chargeAttack.cooldownMs || CHARGE_ATTACK_DEFAULT_COOLDOWN_MS;
+      const chargeKey = `enc:${encounter.id}:charge:${member.instanceId}`;
+      TimeEngine.register(chargeKey, () => CombatEngine._tryStartChargeCast(member.instanceId), chargeInterval, true);
+      encounter.activeTimerIds.add(chargeKey);
+    }
   },
 
   /** Unregister attack + DoT + regen timers for a single member. */
@@ -381,14 +431,17 @@ const CombatEngine = {
     const dotKey = `enc:${encounter.id}:dot:${member.instanceId}`;
     const regenKey = `enc:${encounter.id}:regen:${member.instanceId}`;
     const summonKey = `enc:${encounter.id}:summon:${member.instanceId}`;
+    const chargeKey = `enc:${encounter.id}:charge:${member.instanceId}`;
     TimeEngine.unregister(atkKey);
     TimeEngine.unregister(dotKey);
     TimeEngine.unregister(regenKey);
     TimeEngine.unregister(summonKey);
+    TimeEngine.unregister(chargeKey);
     encounter.activeTimerIds.delete(atkKey);
     encounter.activeTimerIds.delete(dotKey);
     encounter.activeTimerIds.delete(regenKey);
     encounter.activeTimerIds.delete(summonKey);
+    encounter.activeTimerIds.delete(chargeKey);
 
     if (member._summonCastTimerId) {
       TimeEngine.unregister(member._summonCastTimerId);
@@ -397,10 +450,31 @@ const CombatEngine = {
       member._summonCasting = false;
     }
 
+    if (member._chargeCastTimerId) {
+      TimeEngine.unregister(member._chargeCastTimerId);
+      encounter.activeTimerIds.delete(member._chargeCastTimerId);
+      member._chargeCastTimerId = null;
+      member._chargeCasting = false;
+    }
+
     if (member._armorBreakTimerId) {
       TimeEngine.unregister(member._armorBreakTimerId);
       encounter.activeTimerIds.delete(member._armorBreakTimerId);
       member._armorBreakTimerId = null;
+    }
+    member._armorShredPercent = 0;
+
+    if (member._smashVulnerabilityTimerId) {
+      TimeEngine.unregister(member._smashVulnerabilityTimerId);
+      encounter.activeTimerIds.delete(member._smashVulnerabilityTimerId);
+      member._smashVulnerabilityTimerId = null;
+    }
+    member._smashVulnerabilityMult = 0;
+
+    if (member._interruptStunTimerId) {
+      TimeEngine.unregister(member._interruptStunTimerId);
+      encounter.activeTimerIds.delete(member._interruptStunTimerId);
+      member._interruptStunTimerId = null;
     }
   },
 
@@ -500,6 +574,7 @@ const CombatEngine = {
       slot: summoner.slot,
       enemyId: summoner.enemyId,
       castTime: summoner.summon.castTime,
+      castKind: 'summon',
     });
   },
 
@@ -544,6 +619,77 @@ const CombatEngine = {
       slot: member.slot,
       enemyId: member.enemyId,
       source,
+      kind: 'summon',
+    });
+    return true;
+  },
+
+  _tryStartChargeCast(instanceId) {
+    if (!encounter) return;
+    const member = encounter.memberById.get(instanceId);
+    if (!member?.alive || !member.chargeAttack) return;
+    if (member._chargeCasting || member._summonCasting) return;
+    if (member._interruptStunTimerId) return;
+
+    member._chargeCasting = true;
+    const castTimeMs = Math.max(100, member.chargeAttack.castTimeMs || CHARGE_ATTACK_DEFAULT_CAST_MS);
+    const castKey = `enc:${encounter.id}:chargeCast:${member.instanceId}`;
+    member._chargeCastTimerId = castKey;
+    TimeEngine.scheduleOnce(castKey, () => CombatEngine._resolveChargeCast(member.instanceId), castTimeMs);
+    encounter.activeTimerIds.add(castKey);
+
+    emit(EVENTS.COMBAT_ENEMY_CASTING, {
+      encounterId: encounter.id,
+      instanceId: member.instanceId,
+      slot: member.slot,
+      enemyId: member.enemyId,
+      castTime: castTimeMs,
+      castKind: 'charge',
+    });
+  },
+
+  _resolveChargeCast(instanceId) {
+    if (!encounter) return;
+    const member = encounter.memberById.get(instanceId);
+    if (!member) return;
+    const encounterId = encounter.id;
+    const slot = member.slot;
+    const enemyId = member.enemyId;
+
+    if (member._chargeCastTimerId) {
+      encounter.activeTimerIds.delete(member._chargeCastTimerId);
+      member._chargeCastTimerId = null;
+    }
+    if (!member.alive || !member.chargeAttack) {
+      member._chargeCasting = false;
+      return;
+    }
+
+    member._chargeCasting = false;
+    const rawDamage = Math.max(1, Math.floor(member.attack * Math.max(1, member.chargeAttack.damageMult || CHARGE_ATTACK_DEFAULT_DAMAGE_MULT)));
+    CombatEngine._applyIncomingDamage(rawDamage, 'attack', member);
+    emit(EVENTS.COMBAT_ENEMY_CHARGE_RESOLVED, {
+      encounterId,
+      instanceId: member.instanceId,
+      slot,
+      enemyId,
+      damage: rawDamage,
+    });
+  },
+
+  _cancelChargeCast(member, source = 'interrupt') {
+    if (!encounter || !member?._chargeCasting || !member._chargeCastTimerId) return false;
+    TimeEngine.unregister(member._chargeCastTimerId);
+    encounter.activeTimerIds.delete(member._chargeCastTimerId);
+    member._chargeCastTimerId = null;
+    member._chargeCasting = false;
+    emit(EVENTS.COMBAT_INTERRUPTED, {
+      encounterId: encounter.id,
+      instanceId: member.instanceId,
+      slot: member.slot,
+      enemyId: member.enemyId,
+      source,
+      kind: 'charge',
     });
     return true;
   },
@@ -551,7 +697,73 @@ const CombatEngine = {
   interruptTarget() {
     const target = CombatEngine.getTargetMember();
     if (!target) return false;
-    return CombatEngine._cancelSummonCast(target, 'player');
+
+    const interrupted = CombatEngine._cancelChargeCast(target, 'player')
+      || CombatEngine._cancelSummonCast(target, 'player');
+    if (!interrupted) return false;
+
+    const stunDuration = UpgradeManager.hasUpgrade('interrupt_t1')
+      ? INTERRUPT_UPGRADED_STUN_MS
+      : INTERRUPT_BASE_STUN_MS;
+    CombatEngine._applyInterruptStun(target, stunDuration);
+
+    if (UpgradeManager.hasUpgrade('interrupt_t2')) {
+      CombatEngine._applyInterruptSpeedBuff();
+    }
+
+    return true;
+  },
+
+  _applyInterruptStun(target, durationMs) {
+    if (!encounter || !target?.alive) return;
+
+    const attackKey = `enc:${encounter.id}:atk:${target.instanceId}`;
+    TimeEngine.unregister(attackKey);
+    encounter.activeTimerIds.delete(attackKey);
+
+    if (target._interruptStunTimerId) {
+      TimeEngine.unregister(target._interruptStunTimerId);
+      encounter.activeTimerIds.delete(target._interruptStunTimerId);
+    }
+
+    const recoverKey = `enc:${encounter.id}:interruptRecover:${target.instanceId}`;
+    target._interruptStunTimerId = recoverKey;
+    TimeEngine.scheduleOnce(recoverKey, () => {
+      if (!encounter) return;
+      const member = encounter.memberById.get(target.instanceId);
+      encounter.activeTimerIds.delete(recoverKey);
+      if (!member?.alive) return;
+      member._interruptStunTimerId = null;
+
+      const interval = Math.max(400, Math.floor(COMBAT_V2.baseAttackIntervalMs / member.attackSpeed));
+      TimeEngine.register(attackKey, () => CombatEngine.enemyAttack(member.instanceId), interval, true);
+      encounter.activeTimerIds.add(attackKey);
+    }, durationMs);
+    encounter.activeTimerIds.add(recoverKey);
+  },
+
+  _applyInterruptSpeedBuff() {
+    _interruptSpeedBuffEndAt = Date.now() + INTERRUPT_SPEED_BUFF_MS;
+    TimeEngine.unregister('combat:interruptSpeedBuffEnd');
+    TimeEngine.scheduleOnce('combat:interruptSpeedBuffEnd', () => {
+      _interruptSpeedBuffEndAt = 0;
+      if (_playerDead) return;
+      TimeEngine.register(
+        'combat:autoAttack',
+        () => CombatEngine.playerAttack(),
+        CombatEngine._getCurrentAutoAttackInterval(),
+        true,
+      );
+    }, INTERRUPT_SPEED_BUFF_MS);
+
+    if (!_playerDead) {
+      TimeEngine.register(
+        'combat:autoAttack',
+        () => CombatEngine.playerAttack(),
+        CombatEngine._getCurrentAutoAttackInterval(),
+        true,
+      );
+    }
   },
 
   armorBreakTarget(durationMs = ARMOR_BREAK_DURATION_MS) {
@@ -559,7 +771,8 @@ const CombatEngine = {
     const target = CombatEngine.getTargetMember();
     if (!target?.alive || !target.armor) return false;
 
-    target._armorBroken = true;
+    const shredBonus = UpgradeManager.getFlatBonus('armorBreakShredBonus');
+    target._armorShredPercent = Math.min(1, ABILITIES.armorBreak.defReductionPercent + shredBonus);
     emit(EVENTS.COMBAT_ARMOR_BROKEN, {
       encounterId: encounter.id,
       instanceId: target.instanceId,
@@ -577,10 +790,11 @@ const CombatEngine = {
     TimeEngine.scheduleOnce(restoreKey, () => {
       if (!encounter) return;
       const member = encounter.memberById.get(target.instanceId);
-      if (!member?.alive) return;
-      member._armorBroken = false;
+      if (!member) return;
+      member._armorShredPercent = 0;
       member._armorBreakTimerId = null;
       encounter.activeTimerIds.delete(restoreKey);
+      if (!member.alive) return;
       emit(EVENTS.COMBAT_ARMOR_RESTORED, {
         encounterId: encounter.id,
         instanceId: member.instanceId,
@@ -662,12 +876,29 @@ const CombatEngine = {
 
   cleanseCorruption() {
     if (!encounter) return false;
-    if ((encounter.corruptionStacks ?? 0) <= 0) return false;
+    const removedStacks = encounter.corruptionStacks ?? 0;
+    if (removedStacks <= 0) return false;
     CombatEngine._setCorruptionStacks(0, 'cleanse');
+
+    if (UpgradeManager.hasUpgrade('cleanse_t1')) {
+      _cleanseImmunityEndAt = Date.now() + CLEANSE_IMMUNITY_MS;
+    }
+
+    if (UpgradeManager.hasUpgrade('cleanse_t2')) {
+      const target = CombatEngine.getTargetMember();
+      if (target?.alive) {
+        const purgeDamage = Math.max(1, Math.floor(getBaseDamage() * CLEANSE_PURGE_SCALAR * removedStacks));
+        CombatEngine._dealDirectDamage(target, purgeDamage, {
+          skipAttackAnim: true,
+          source: 'cleanse_purge',
+        });
+      }
+    }
     return true;
   },
 
   _resetCorruption(reason = 'reset') {
+    _cleanseImmunityEndAt = 0;
     if (!encounter) {
       resetCombatDebuffs();
       return;
@@ -777,11 +1008,36 @@ const CombatEngine = {
     if (target.hp.lte(0)) {
       CombatEngine._onMemberDeath(target.instanceId);
     } else {
+      if (UpgradeManager.hasUpgrade('smash_t2')) {
+        CombatEngine._applySmashVulnerability(target);
+      }
       CombatEngine._checkEnrage(target);
     }
 
     // Thorns: reflect damage to player (triggers even if target died)
     CombatEngine._applyThorns(target);
+  },
+
+  _applySmashVulnerability(target) {
+    if (!encounter || !target?.alive) return;
+    target._smashVulnerabilityMult = SMASH_VULNERABILITY_BONUS;
+
+    if (target._smashVulnerabilityTimerId) {
+      TimeEngine.unregister(target._smashVulnerabilityTimerId);
+      encounter.activeTimerIds.delete(target._smashVulnerabilityTimerId);
+    }
+
+    const restoreKey = `enc:${encounter.id}:smashVulnRestore:${target.instanceId}`;
+    target._smashVulnerabilityTimerId = restoreKey;
+    TimeEngine.scheduleOnce(restoreKey, () => {
+      if (!encounter) return;
+      const member = encounter.memberById.get(target.instanceId);
+      encounter.activeTimerIds.delete(restoreKey);
+      if (!member) return;
+      member._smashVulnerabilityMult = 0;
+      member._smashVulnerabilityTimerId = null;
+    }, SMASH_VULNERABILITY_DURATION_MS);
+    encounter.activeTimerIds.add(restoreKey);
   },
 
   playerAttack(isClick = false) {
@@ -836,10 +1092,12 @@ const CombatEngine = {
   },
 
   _applyTargetArmorReduction(rawDamage, target) {
-    if (!target?.armor || target._armorBroken) return rawDamage;
+    if (!target?.armor) return rawDamage;
     const reduction = target.armor.reduction ?? 0;
-    if (reduction <= 0) return rawDamage;
-    const multiplier = Math.max(0, 1 - reduction);
+    const shred = target._armorShredPercent ?? 0;
+    const effectiveReduction = Math.max(0, reduction * (1 - shred));
+    if (effectiveReduction <= 0) return rawDamage;
+    const multiplier = Math.max(0, 1 - effectiveReduction);
     return Decimal.max(rawDamage.times(multiplier).floor(), D(1));
   },
 
@@ -866,11 +1124,12 @@ const CombatEngine = {
       critMult = isCrit ? baseCritMult : 1;
     }
 
-    const stance = STANCES[state.currentStance] || STANCES.power;
+    const stance = STANCES[state.currentStance] || STANCES.ruin;
     const stanceMult = isClick ? 1 : stance.damageMult;
+    const vulnerabilityMult = 1 + (target?._smashVulnerabilityMult || 0);
 
     const damage = D(rawDamage).times(clickDmgMult).times(prestigeMult).times(critMult)
-      .times(TerritoryManager.getBuffMultiplier('baseDamage')).times(stanceMult).floor();
+      .times(TerritoryManager.getBuffMultiplier('baseDamage')).times(stanceMult).times(vulnerabilityMult).floor();
     return { damage, isCrit };
   },
 
@@ -966,22 +1225,64 @@ const CombatEngine = {
     });
   },
 
+  _dealDirectDamage(member, amount, opts = {}) {
+    if (!encounter || !member?.alive) return false;
+
+    let damage = D(amount).floor();
+    if (damage.lte(0)) return false;
+    if (opts.applyArmor !== false) {
+      damage = CombatEngine._applyTargetArmorReduction(damage, member);
+    }
+
+    member.hp = Decimal.max(member.hp.minus(damage), 0);
+    emit(EVENTS.COMBAT_ENEMY_DAMAGED, {
+      enemyId: member.enemyId,
+      amount: damage,
+      isCrit: false,
+      isClick: false,
+      isPowerSmash: false,
+      skipAttackAnim: !!opts.skipAttackAnim,
+      source: opts.source || 'direct',
+      remainingHp: member.hp,
+      maxHp: member.maxHp,
+      encounterId: encounter.id,
+      instanceId: member.instanceId,
+      slot: member.slot,
+    });
+
+    if (member.hp.lte(0)) {
+      CombatEngine._onMemberDeath(member.instanceId);
+    } else {
+      CombatEngine._checkEnrage(member);
+    }
+    return true;
+  },
+
   // ── Incoming damage pipeline ──
 
   /**
    * Unified incoming damage: stance DR → Bulwark absorb → Store.damagePlayer.
    * @param {number} rawDamage - Pre-mitigation damage
-   * @param {string} _source - 'attack' | 'dot' (for future logging/analysis)
+   * @param {string} source - 'attack' | 'dot' | 'corruption'
+   * @param {?object} sourceMember - attacking member, if applicable
    */
-  _applyIncomingDamage(rawDamage, _source) {
+  _applyIncomingDamage(rawDamage, source, sourceMember = null) {
+    if ((source === 'dot' || source === 'corruption') && Date.now() < _cleanseImmunityEndAt) {
+      return;
+    }
+
     const state = Store.getState();
-    const stance = STANCES[state.currentStance] || STANCES.power;
+    const stance = STANCES[state.currentStance] || STANCES.ruin;
 
     // 1. Stance damage reduction (Fortress)
     let dmg = rawDamage * (1 - stance.damageReduction);
 
     // 2. Bulwark shield absorb
     if (_shieldHp > 0) {
+      if (sourceMember?.alive && UpgradeManager.hasUpgrade('bulwark_t2')) {
+        const reflectDamage = Math.max(1, Math.floor(dmg * BULWARK_REFLECT_RATIO));
+        CombatEngine._dealDirectDamage(sourceMember, reflectDamage, { skipAttackAnim: true, source: 'bulwark_reflect' });
+      }
       if (dmg <= _shieldHp) {
         _shieldHp -= dmg;
         return; // fully absorbed
@@ -998,20 +1299,46 @@ const CombatEngine = {
   },
 
   /**
-   * Activate Rapid Strikes — 5 hits at 200ms spacing using auto-attack damage.
+   * Activate Rapid Strikes — N hits at 200ms spacing using auto-attack damage.
    * Each hit targets the current live target; whiffs if no target exists.
    */
-  activateRapidStrikes() {
+  activateRapidStrikes(hitCount = 5) {
     const castId = _generateId('rapid');
-    for (let i = 0; i < 5; i++) {
+    const totalHits = Math.max(1, Math.floor(hitCount));
+    for (let i = 0; i < totalHits; i++) {
       const timerId = `ability:rapid:${castId}:${i}`;
       _rapidStrikeTimerIds.add(timerId);
       TimeEngine.scheduleOnce(timerId, () => {
         _rapidStrikeTimerIds.delete(timerId);
         // Whiff silently if no living target (spawn-delay gap)
-        if (!CombatEngine.hasTarget()) return;
+        const target = CombatEngine.getTargetMember();
+        if (!target) return;
         CombatEngine.playerAttack(false);
+        if (UpgradeManager.hasUpgrade('flurry_t2')) {
+          CombatEngine._applyRapidStrikesDot(target);
+        }
       }, 200 * (i + 1));
+    }
+  },
+
+  _applyRapidStrikesDot(target) {
+    if (!encounter || !target?.alive) return;
+    const dotDamage = Math.max(1, Math.floor(COMBAT_V2.playerDamage(getBaseDamage(), target.defense ?? 0) * RAPID_STRIKES_DOT_SCALAR));
+    const castId = _generateId('rapidDot');
+    for (let i = 0; i < RAPID_STRIKES_DOT_TICKS; i++) {
+      const timerId = `ability:rapidDot:${castId}:${i}`;
+      _rapidStrikeTimerIds.add(timerId);
+      TimeEngine.scheduleOnce(timerId, () => {
+        _rapidStrikeTimerIds.delete(timerId);
+        if (!encounter) return;
+        const member = encounter.memberById.get(target.instanceId);
+        if (!member?.alive) return;
+        CombatEngine._dealDirectDamage(member, dotDamage, {
+          applyArmor: false,
+          skipAttackAnim: true,
+          source: 'rapid_strikes_dot',
+        });
+      }, RAPID_STRIKES_DOT_INTERVAL_MS * (i + 1));
     }
   },
 
@@ -1087,8 +1414,8 @@ const CombatEngine = {
     const playerDef = getEffectiveDef();
     const armorPen = member.armorPen ?? 0;
     const damage = COMBAT_V2.enemyDamage(member.attack, playerDef, armorPen);
-    CombatEngine._applyIncomingDamage(damage, 'attack');
-    if ((member.corruption ?? 0) > 0) {
+    CombatEngine._applyIncomingDamage(damage, 'attack', member);
+    if (member.alive && (member.corruption ?? 0) > 0) {
       CombatEngine._addCorruptionStacks(member.corruption, member);
     }
   },
@@ -1112,6 +1439,9 @@ const CombatEngine = {
     _playerDead = true;
     CombatEngine._clearShield();
     CombatEngine.cancelRapidStrikes();
+    TimeEngine.unregister('combat:interruptSpeedBuffEnd');
+    _interruptSpeedBuffEndAt = 0;
+    _cleanseImmunityEndAt = 0;
     // Pause combat
     TimeEngine.setEnabled('combat:autoAttack', false);
     TimeEngine.setEnabled('combat:playerRegen', false);
@@ -1128,7 +1458,12 @@ const CombatEngine = {
     TimeEngine.scheduleOnce('combat:playerRespawn', () => {
       _playerDead = false;
       Store.resetPlayerHp();
-      TimeEngine.setEnabled('combat:autoAttack', true);
+      TimeEngine.register(
+        'combat:autoAttack',
+        () => CombatEngine.playerAttack(),
+        CombatEngine._getCurrentAutoAttackInterval(),
+        true,
+      );
       TimeEngine.setEnabled('combat:playerRegen', true);
       // Don't spawn a regular enemy if a boss fight was started during the death window
       if (!BossManager.isBossActive()) {
@@ -1144,6 +1479,7 @@ const CombatEngine = {
 
     // 1. Mark dead, stop this member's timers
     member.alive = false;
+    CombatEngine._cancelChargeCast(member, 'death');
     CombatEngine._cancelSummonCast(member, 'death');
     CombatEngine._unregisterMemberTimers(member);
 
@@ -1231,6 +1567,16 @@ const CombatEngine = {
     CombatEngine._clearEncounterTimers();
     CombatEngine.cancelRapidStrikes();
     CombatEngine._resetCorruption('encounter_end');
+    TimeEngine.unregister('combat:interruptSpeedBuffEnd');
+    _interruptSpeedBuffEndAt = 0;
+    if (!_playerDead) {
+      TimeEngine.register(
+        'combat:autoAttack',
+        () => CombatEngine.playerAttack(),
+        CombatEngine._getCurrentAutoAttackInterval(),
+        true,
+      );
+    }
 
     // 2. Despawn remaining alive members (boss adds) — no rewards
     for (const m of enc.members) {

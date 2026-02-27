@@ -2,6 +2,7 @@
 // Visibility/layout are controlled by UIScene action-slot logic.
 
 import CombatEngine from '../systems/CombatEngine.js';
+import UpgradeManager from '../systems/UpgradeManager.js';
 import { ABILITIES, LAYOUT } from '../config.js';
 
 export default class ArmorBreakButton {
@@ -10,6 +11,8 @@ export default class ArmorBreakButton {
     this._cooldownEnd = 0;
     this._cooldownTimer = null;
     this._manualVisible = false;
+    this._pulseTween = null;
+    this._pulsePending = false;
 
     const ga = LAYOUT.gameArea;
     const btnX = ga.x + 110;
@@ -46,13 +49,21 @@ export default class ArmorBreakButton {
     return Date.now() < this._cooldownEnd;
   }
 
+  _getDurationMs() {
+    return UpgradeManager.hasUpgrade('armorbreak_t2') ? 9000 : ABILITIES.armorBreak.durationMs;
+  }
+
+  _getCooldownMs() {
+    return UpgradeManager.hasUpgrade('armorbreak_t3') ? 10000 : ABILITIES.armorBreak.cooldownMs;
+  }
+
   _onActivate() {
     if (this._isOnCooldown()) return;
     if (!CombatEngine.hasTarget()) return;
-    const applied = CombatEngine.armorBreakTarget(ABILITIES.armorBreak.durationMs);
+    const applied = CombatEngine.armorBreakTarget(this._getDurationMs());
     if (!applied) return;
 
-    this._cooldownEnd = Date.now() + ABILITIES.armorBreak.cooldownMs;
+    this._cooldownEnd = Date.now() + this._getCooldownMs();
     this._startCooldownTimer();
   }
 
@@ -99,14 +110,52 @@ export default class ArmorBreakButton {
     }
   }
 
+  _startPulseTween() {
+    this._stopPulseTween();
+    this._btn.setScale(1);
+    this._pulseTween = this.scene.tweens.add({
+      targets: this._btn,
+      scaleX: 1.08,
+      scaleY: 1.08,
+      duration: 170,
+      yoyo: true,
+      repeat: 5,
+      onComplete: () => {
+        this._btn.setScale(1);
+        this._pulseTween = null;
+      },
+    });
+  }
+
+  _stopPulseTween() {
+    if (!this._pulseTween) return;
+    this._pulseTween.stop();
+    this._pulseTween = null;
+    this._btn.setScale(1);
+  }
+
   show() {
     this._manualVisible = true;
     this._refreshVisibility();
+    if (this._btn.visible && this._pulsePending) {
+      this._pulsePending = false;
+      this._startPulseTween();
+    }
   }
 
   hide() {
     this._manualVisible = false;
+    this._stopPulseTween();
     this._btn.setVisible(false);
+  }
+
+  pulseUnlock() {
+    if (!this._btn.visible) {
+      this._pulsePending = true;
+      return;
+    }
+    this._pulsePending = false;
+    this._startPulseTween();
   }
 
   setPosition(x, y) {
@@ -114,6 +163,7 @@ export default class ArmorBreakButton {
   }
 
   destroy() {
+    this._stopPulseTween();
     this._stopCooldownTimer();
   }
 }

@@ -2,13 +2,14 @@
 // Visible when stance is 'fortress'. Calls CombatEngine.activateShield().
 
 import CombatEngine from '../systems/CombatEngine.js';
+import UpgradeManager from '../systems/UpgradeManager.js';
 import { getEffectiveMaxHp } from '../systems/ComputedStats.js';
 import { on, EVENTS } from '../events.js';
 import { LAYOUT } from '../config.js';
 
 const COOLDOWN_MS = 45000; // 45s cooldown
-const SHIELD_HP_MULT = 0.1;
-const SHIELD_DURATION_MS = 8000;
+const BASE_SHIELD_HP_MULT = 0.10;
+const BASE_SHIELD_DURATION_MS = 8000;
 
 export default class BulwarkButton {
   constructor(scene) {
@@ -57,6 +58,14 @@ export default class BulwarkButton {
     return Date.now() < this._cooldownEnd;
   }
 
+  _getShieldHpMult() {
+    return UpgradeManager.hasUpgrade('bulwark_t1') ? 0.14 : BASE_SHIELD_HP_MULT;
+  }
+
+  _getShieldDurationMs() {
+    return UpgradeManager.hasUpgrade('bulwark_t3') ? 14000 : BASE_SHIELD_DURATION_MS;
+  }
+
   _refreshVisibility() {
     if (this._manualVisible) {
       this._btn.setVisible(true);
@@ -72,8 +81,8 @@ export default class BulwarkButton {
   _onActivate() {
     if (this._isOnCooldown()) return;
 
-    const shieldAmount = Math.floor(getEffectiveMaxHp() * SHIELD_HP_MULT);
-    CombatEngine.activateShield(shieldAmount, SHIELD_DURATION_MS);
+    const shieldAmount = Math.floor(getEffectiveMaxHp() * this._getShieldHpMult());
+    CombatEngine.activateShield(shieldAmount, this._getShieldDurationMs());
 
     this._cooldownEnd = Date.now() + COOLDOWN_MS;
     this._startCooldownTimer();

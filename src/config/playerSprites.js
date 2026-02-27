@@ -44,18 +44,19 @@ const COMBAT_SLOTS = ['chest', 'boots', 'head', 'legs', 'main_hand'];
 
 /**
  * Determine which armor set should be active based on equipped items.
- * Returns armor002 if ALL 5 combat slots have a2_ items, else armor001.
+ * Returns armor002 if ALL 5 combat slots have area 2+ items (a2_, a3_, etc.), else armor001.
  *
  * @param {Object} equipped - Store.getState().equipped
  * @param {Function} parseStackKey - InventorySystem.parseStackKey
  * @returns {Object} The active ARMOR_SETS entry
  */
 export function getActiveArmorSet(equipped, parseStackKey) {
-  const allA2 = COMBAT_SLOTS.every(slot => {
+  const allA2Plus = COMBAT_SLOTS.every(slot => {
     const stackKey = equipped[slot];
     if (!stackKey) return false;
     const { itemId } = parseStackKey(stackKey);
-    return itemId.startsWith('a2_');
+    const m = itemId.match(/^a(\d+)_/);
+    return m && parseInt(m[1], 10) >= 2;
   });
-  return allA2 ? ARMOR_SETS.armor002 : ARMOR_SETS.armor001;
+  return allA2Plus ? ARMOR_SETS.armor002 : ARMOR_SETS.armor001;
 }
