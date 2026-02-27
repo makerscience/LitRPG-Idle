@@ -1,5 +1,18 @@
 # CHANGELOG
 
+## 2026-02-27 - 3-Slot Save System
+- **Save slots:** 3 independent save slots replacing single save file; each shows level, area, and zone
+- **Slot picker UI:** New Game and Load Game both open a slot picker; empty slots grayed on Load, overwrite confirmation on occupied New Game slots
+- **Per-slot delete:** X button on each occupied slot with confirmation dialog
+- **Migration:** Existing single save auto-migrates to Slot 1 on first boot
+- **SaveManager API:** `load(slotId)`, `hasSave(slotId)`, `getSlotSummary(slotId)`, `setActiveSlot(slotId)`, `clearSaveForNewGame(slotId)`
+
+## 2026-02-27 - Start Screen + Stance Icon Switcher
+- **Start screen:** New "Exile's Ascension" main menu with scrolling bright sky/grass parallax, New Game (with overwrite confirmation), Load Game (grayed if no save), Settings (volume), Quit (cosmetic)
+- **Stance icon switcher:** Replaced letter buttons with icon sprites (tornado/fist/castle) on white circle, per-stance colors (dark blue/dark red/dark grey)
+- **Stance announcement:** Big text above player on stance switch with per-stance fonts + screen shake
+- **SaveManager:** Added `hasSave()` and `clearSaveForNewGame()` for safe menu-driven save management
+
 ## 2026-02-27 - Stance Skill Progression System (Phases 1-3)
 - **Stance renames:** `power` → `Ruin`, `flurry` → `Tempest` (IDs, labels, save migration)
 - **18 skill tier upgrades:** 3 tiers each for Power Smash, Rapid Strikes, Bulwark, Armor Break, Interrupt, Cleanse (discrete tiers with `requires` chaining)

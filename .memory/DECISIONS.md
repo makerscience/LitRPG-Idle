@@ -12,6 +12,33 @@ Format:
 
 ## 2026-02-27
 - Tags: architecture
+- Decision: Game title is "Exile's Ascension". StartScene sits between BootScene and GameScene as the main menu.
+- Rationale: Game needed a proper start screen. Title captures the dark fantasy + progression identity better than "LitRPG Idle".
+- Alternatives considered: No start screen (rejected: no presentation layer), title "Stancebound" / "Ruinborne" / "Shattered Stance" (rejected by user preference).
+- Consequences / Follow-ups: May want to update package.json name, HTML `<title>`, and any Itch.io metadata to match new title.
+
+## 2026-02-27
+- Tags: architecture
+- Decision: SaveManager uses `hasSave()` and `clearSaveForNewGame()` for menu-driven save management, distinct from `deleteSave()` which is the debug/dev wipe path.
+- Rationale: `deleteSave()` sets `window.__saveWiped = true` which blocks future saves — unsafe for in-game New Game flow.
+- Alternatives considered: Reusing `deleteSave()` directly (rejected: blocks autosave).
+- Consequences / Follow-ups: StartScene uses `clearSaveForNewGame()` + `Store.resetState()` for New Game overwrite.
+
+## 2026-02-27
+- Tags: architecture
+- Decision: 3 independent save slots using `litrpg_idle_vslice_save_slot{1,2,3}` keys. Existing single save auto-migrates to slot 1. Active slot tracked in `litrpg_idle_active_slot`.
+- Rationale: Players want multiple characters/runs. Slot-based keys keep saves isolated. Migration preserves existing progress seamlessly.
+- Alternatives considered: Single save with manual export/import (rejected: poor UX), unlimited saves (rejected: YAGNI, 3 is standard).
+- Consequences / Follow-ups: SaveManager API is now slot-parameterized. `deleteSave()` (dev wipe) clears all slots. SettingsPanel wipe still works via `deleteSave()`.
+
+## 2026-02-27
+- Tags: convention
+- Decision: Start screen uses its own parallax background images (`Images/Backgrounds/Start screen/`) separate from in-game area backgrounds.
+- Rationale: Start screen has a bright, open-sky feel (blue sky + grass field) distinct from the dark forest/swamp gameplay areas.
+- Alternatives considered: Reusing Area 1 forest backgrounds (rejected: user wanted distinct visual identity for start screen).
+
+## 2026-02-27
+- Tags: architecture
 - Decision: Stance progression uses 3-tier upgrade system (maxLevel: 1 per tier, chained via `requires` field) instead of linear per-level upgrades. Each tier is a discrete qualitative change, not a numerical scaling.
 - Rationale: Discrete tiers create meaningful build choices and feel like real power spikes. Linear scaling (e.g., old `power_smash_damage` with maxLevel 8) was forgettable. Tier 2 effects add new mechanics (vulnerability debuff, DOT, thorns reflect) instead of just bigger numbers.
 - Alternatives considered: Keep linear upgrades alongside tiers (rejected: too many SP sinks, dilutes choices), discrete tiers with higher SP costs (rejected: 1 SP per tier matches existing economy).
