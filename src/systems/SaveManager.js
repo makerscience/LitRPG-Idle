@@ -198,6 +198,27 @@ const SaveManager = {
     emit(EVENTS.SAVE_LOADED, {});
   },
 
+  /** True when a parseable save exists in primary or backup slot. */
+  hasSave() {
+    const hasParsable = (key) => {
+      const raw = localStorage.getItem(key);
+      if (!raw) return false;
+      try {
+        JSON.parse(raw);
+        return true;
+      } catch {
+        return false;
+      }
+    };
+    return hasParsable(PRIMARY_KEY) || hasParsable(BACKUP_KEY);
+  },
+
+  /** Clear persisted save data for gameplay New Game flow (non-debug path). */
+  clearSaveForNewGame() {
+    localStorage.removeItem(PRIMARY_KEY);
+    localStorage.removeItem(BACKUP_KEY);
+  },
+
   /** Wipe both save keys. Dev/debug tool.
    *  Sets window.__saveWiped to block orphaned HMR listeners from re-saving. */
   deleteSave() {

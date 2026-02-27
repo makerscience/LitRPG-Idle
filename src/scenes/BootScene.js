@@ -118,6 +118,10 @@ export default class BootScene extends Phaser.Scene {
     this.load.image('roadbandit001_dead',     'Images/Enemies/area1/roadbandit001_dead.png');
     this.load.image('crackedarmor001',       'Images/effects/crackedarmor001.png');
 
+    // Start screen backgrounds
+    this.load.image('start_sky',    'Images/Backgrounds/Start screen/background002_rear.png');
+    this.load.image('start_ground', 'Images/Backgrounds/Start screen/foreground002.png');
+
     // Stance icons
     this.load.image('icon_tempest',  'Images/TempestIcon.png');
     this.load.image('icon_ruin',     'Images/RuinIcon.png');
@@ -229,9 +233,9 @@ export default class BootScene extends Phaser.Scene {
 
     console.log('[BootScene] lifecycle complete — rectangle rendered');
 
-    // Transition to GameScene after brief display
+    // Transition to StartScene after brief display
     this.time.delayedCall(1000, () => {
-      this.scene.start('GameScene');
+      this.scene.start('StartScene');
     });
   }
 

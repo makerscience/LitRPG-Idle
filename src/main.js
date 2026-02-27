@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import BootScene from './scenes/BootScene.js';
+import StartScene from './scenes/StartScene.js';
 import GameScene from './scenes/GameScene.js';
 import UIScene from './scenes/UIScene.js';
 import { WORLD } from './config.js';
@@ -26,7 +27,7 @@ LootEngine.init();
 if (FEATURES.territoryEnabled) TerritoryManager.init();
 OfflineProgress.apply();
 
-const scenes = [BootScene, GameScene, UIScene];
+const scenes = [BootScene, StartScene, GameScene, UIScene];
 if (FEATURES.territoryEnabled) scenes.push(OverworldScene);
 if (FEATURES.spritePreviewEnabled) scenes.push(SpritePreviewScene);
 
