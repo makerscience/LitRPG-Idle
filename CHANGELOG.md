@@ -1,5 +1,21 @@
 # CHANGELOG
 
+## 2026-02-26 - Combat Visual Fixes + Area 2 Enemy Sprites
+- **Hit reaction tint fix:** Red flash no longer overridden by stance tint at 120ms; holds for full reaction duration
+- **Attack pose stability:** Walk timer guarded by `_playerAttacking` + elapsed reset on unpause; poses halved to 300-500ms
+- **5 Area 2 enemies wired:** Blightcap Fungi (idle anim), Goblin Warrior, Insect Swarm, Vine Crawler, Bog Revenant — all with downscaled sprites and tuned sizes/offsets
+- **Per-enemy tint system:** New `spriteTint` property on enemy data, blended with area + effect tints
+- **Custom death animations:** Insect Swarm (expand dispersal), Vine Crawler (collapse downward), Bog Revenant (split in half)
+- **Dying flag:** Death animations no longer cut short when encounter ends (last enemy in duo)
+- **Area 2 player tint lightened** from `0x888888` to `0xc4c4c4`
+
+## 2026-02-26 - Armor002 Sprite Swap System
+- **Armor set swap:** Player combat sprites change to armor002 look when all 5 Area 2 combat pieces (chest, boots, helm, legs, weapon) are equipped; unequipping any piece reverts to armor001
+- **New config:** `src/config/playerSprites.js` defines armor set sprite mappings and detection logic
+- **13 armor002 textures loaded** in BootScene with canvas-downscale pass
+- **Store fix:** `unequipItem()` now emits `INV_ITEM_EQUIPPED` event (was missing)
+- **Inventory silhouette** updates to match active armor set
+
 ## 2026-02-26 - Fog Tuning, Sky Compression, Player Tint
 - **Area 1 sky compressed:** `skyHeightScale: 0.333` squishes sky to top 1/3 of screen
 - **Area 2 fog overhaul:** all 3 fog layers doubled in count (total ~96 sprites), repositioned, opacity raised to 0.7 on front/mid layers; fog002/fog003 sprites sized 10% larger in front layer

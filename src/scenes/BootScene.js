@@ -54,6 +54,28 @@ export default class BootScene extends Phaser.Scene {
     this.load.image('bogzombie_dead',      'Images/Enemies/area2/bogzombie_dead.png');
     this.load.image('bogzombie_dead2',     'Images/Enemies/area2/bogzombie_dead2.png');
     this.load.image('bogzombie_head',      'Images/Enemies/area2/bogzombie_head.png');
+    this.load.image('blightcapfungi001_default',  'Images/Enemies/area2/blightcapfungi001_default.png');
+    this.load.image('blightcapfungi001_default2', 'Images/Enemies/area2/blightcapfungi001_default2.png');
+    this.load.image('blightcapfungi001_reaction', 'Images/Enemies/area2/blightcapfungi001_reaction.png');
+    this.load.image('blightcapfungi001_attack',   'Images/Enemies/area2/blightcapfungi001_attack.png');
+    this.load.image('blightcapfungi001_dead',     'Images/Enemies/area2/blightcapfungi001_dead.png');
+    this.load.image('bogrevenant001_default',  'Images/Enemies/area2/bogrevenant001_default.png');
+    this.load.image('bogrevenant001_reaction', 'Images/Enemies/area2/bogrevenant001_reaction.png');
+    this.load.image('bogrevenant001_attack',   'Images/Enemies/area2/bogrevenant001_attack.png');
+    this.load.image('bogrevenant001_dead',     'Images/Enemies/area2/bogrevenant001_dead.png');
+    this.load.image('vinecrawler001_default',  'Images/Enemies/area2/vinecrawler001_default.png');
+    this.load.image('vinecrawler001_reaction', 'Images/Enemies/area2/vinecrawler001_reaction.png');
+    this.load.image('vinecrawler001_attack',   'Images/Enemies/area2/vinecrawler001_attack.png');
+    this.load.image('vinecrawler001_dead',     'Images/Enemies/area2/vinecrawler001_dead.png');
+    this.load.image('insectswarm001_default1',  'Images/Enemies/area2/insectswarm001_default1.png');
+    this.load.image('insectswarm001_default2', 'Images/Enemies/area2/insectswarm001_default2.png');
+    this.load.image('insectswarm001_reaction', 'Images/Enemies/area2/insectswarm001_reaction.png');
+    this.load.image('insectswarm001_attack',   'Images/Enemies/area2/insectswarm001_attack.png');
+    this.load.image('insectswarm001_dead',     'Images/Enemies/area2/insectswarm001_dead.png');
+    this.load.image('goblinwarrior001_default',  'Images/Enemies/area2/goblinwarrior001_default.png');
+    this.load.image('goblinwarrior001_reaction', 'Images/Enemies/area2/goblinwarrior001_reaction.png');
+    this.load.image('goblinwarrior001_attack',   'Images/Enemies/area2/goblinwarrior001_attack.png');
+    this.load.image('goblinwarrior001_dead',     'Images/Enemies/area2/goblinwarrior001_dead.png');
     this.load.image('thornbackboar2_default',  'Images/Enemies/area2/thornbackboar_default.png');
     this.load.image('thornbackboar2_reaction', 'Images/Enemies/area2/thornbackboar_reaction.png');
     this.load.image('thornbackboar2_attack',   'Images/Enemies/area2/thornbackboar_attack.png');
@@ -109,6 +131,21 @@ export default class BootScene extends Phaser.Scene {
     this.load.image('fortressstance_001',      'Images/Player Images/armor001/fortressstance_001.png');
     this.load.image('fortressstance_002',      'Images/Player Images/armor001/fortressstance_002.png');
     this.load.image('powerstance_001charge',   'Images/Player Images/armor001/powerstance_001charge.png');
+
+    // Armor002 player sprites
+    this.load.image('player002_default',        'Images/Player Images/armor002/player001_default.png');
+    this.load.image('player002_walk1',          'Images/Player Images/armor002/player001_walk1.png');
+    this.load.image('player002_walk2',          'Images/Player Images/armor002/player001_walk2.png');
+    this.load.image('player002_attack1',        'Images/Player Images/armor002/attack1.png');
+    this.load.image('player002_attack2',        'Images/Player Images/armor002/attack2.png');
+    this.load.image('player002_attack3',        'Images/Player Images/armor002/attack3.png');
+    this.load.image('player002_attack4',        'Images/Player Images/armor002/attack4.png');
+    this.load.image('player002_attack5',        'Images/Player Images/armor002/attack5.png');
+    this.load.image('player002_stronghit',      'Images/Player Images/armor002/player001_stronghit.png');
+    this.load.image('player002_hitreaction',    'Images/Player Images/armor002/player001_hitreaction.png');
+    this.load.image('player002_charge',         'Images/Player Images/armor002/player001_charge.png');
+    this.load.image('player002_fortressstance1','Images/Player Images/armor002/fortressstance001.png');
+    this.load.image('player002_powerstance1',   'Images/Player Images/armor002/powerstance001.png');
 
     // Equipment thumbnails (128px pre-scaled for inventory/equip slots)
     this.load.image('weapon001_sharpstick', 'Images/equipment/weapon001_sharpstick_thumb.png');
@@ -207,6 +244,12 @@ export default class BootScene extends Phaser.Scene {
       'player001_walk1', 'player001_walk3',
       'fortressstance_001', 'fortressstance_002',
       'powerstance_001charge',
+      // Armor002
+      'player002_default', 'player002_walk1', 'player002_walk2',
+      'player002_attack1', 'player002_attack2', 'player002_attack3',
+      'player002_attack4', 'player002_attack5',
+      'player002_stronghit', 'player002_hitreaction', 'player002_charge',
+      'player002_fortressstance1', 'player002_powerstance1',
     ];
     for (const key of playerKeys) {
       this._downscaleTexture(key, playerTarget.w, playerTarget.h);
@@ -224,6 +267,11 @@ export default class BootScene extends Phaser.Scene {
       { keys: ['roadbandit001_default', 'roadbandit001_reaction', 'roadbandit001_attack', 'roadbandit001_dead'], w: 512, h: 512 },
       { keys: ['blightedstalker_default', 'blightedstalker_reaction', 'blightedstalker_attack', 'blightedstalker_dead', 'blightedstalker_dead2'], w: 396, h: 478 },
       { keys: ['blightedstalker_head'], w: 160, h: 160 },
+      { keys: ['blightcapfungi001_default', 'blightcapfungi001_default2', 'blightcapfungi001_reaction', 'blightcapfungi001_attack', 'blightcapfungi001_dead'], w: 288, h: 346 },
+      { keys: ['bogrevenant001_default', 'bogrevenant001_reaction', 'bogrevenant001_attack', 'bogrevenant001_dead'], w: 540, h: 652 },
+      { keys: ['vinecrawler001_default', 'vinecrawler001_reaction', 'vinecrawler001_attack', 'vinecrawler001_dead'], w: 600, h: 328 },
+      { keys: ['insectswarm001_default1', 'insectswarm001_default2', 'insectswarm001_reaction', 'insectswarm001_attack', 'insectswarm001_dead'], w: 360, h: 360 },
+      { keys: ['goblinwarrior001_default', 'goblinwarrior001_reaction', 'goblinwarrior001_attack', 'goblinwarrior001_dead'], w: 320, h: 384 },
       { keys: ['crackedarmor001'], w: 512, h: 512 },
     ];
     for (const { keys, w, h } of enemyGroups) {

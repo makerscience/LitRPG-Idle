@@ -8,6 +8,8 @@ import { on, EVENTS } from '../events.js';
 import { format } from '../systems/BigNum.js';
 import { UI, LAYOUT, ZONE_THEMES, COMBAT_V2, PARALLAX, TREE_ROWS, FERN_ROWS, STANCES } from '../config.js';
 import { getEnemyById } from '../data/enemies.js';
+import { getActiveArmorSet, ARMOR_SETS } from '../config/playerSprites.js';
+import { parseStackKey } from '../systems/InventorySystem.js';
 
 export default class GameScene extends Phaser.Scene {
   constructor() {
@@ -29,14 +31,14 @@ export default class GameScene extends Phaser.Scene {
     // Create parallax background first (lowest depth) — keyed on area, not zone
     this._createParallax(Store.getState().currentArea);
 
-    // Player attack pose config
-    this._playerAttackSprites = [
-      'player001_jumpkick', 'player001_kick',
-      'player001_elbow', 'player001_kneestrike', 'player001_roundhousekick',
-      'player001_jab',
-    ];
+    // Active armor set (swaps when all 5 combat slots have a2_ items)
+    this._armorSet = getActiveArmorSet(Store.getState().equipped, parseStackKey);
+
+    // Player attack pose config (from armor set)
+    this._playerAttackSprites = [...this._armorSet.attackSprites];
     this._playerPoseTimer = null;
     this._playerAttacking = false; // true while attack pose is held (blocks hit reaction)
+    this._hitReacting = false;     // true while hit reaction pose is held (blocks attacks)
     this._powerCharging = false;  // true when showing charge-up sprite at 50%
 
     // Player HP bar + name above player head
@@ -44,13 +46,13 @@ export default class GameScene extends Phaser.Scene {
     this._nameLabelY = this._hpBarY - 18;
 
     // Player walk animation (per-stance frames)
-    this._defaultWalkFrames = ['player001_walk1', 'player001_walk3'];
-    this._fortressWalkFrames = ['fortressstance_001', 'fortressstance_002'];
+    this._defaultWalkFrames = [...this._armorSet.walkFrames];
+    this._fortressWalkFrames = [...this._armorSet.fortressWalkFrames];
     this._walkFrames = this._defaultWalkFrames;
     this._walkIndex = 0;
 
     // Player sprite — start with first walk frame
-    this.playerRect = this.add.image(playerX, this._combatY, 'player001_walk1');
+    this.playerRect = this.add.image(playerX, this._combatY, this._armorSet.walkFrames[0]);
     this.playerRect.setDisplaySize(300, 375);
 
     // Looping walk cycle timer (~150ms per frame)
@@ -58,15 +60,17 @@ export default class GameScene extends Phaser.Scene {
       delay: 450,
       loop: true,
       callback: () => {
-        // Hold charge sprite until attack fires
-        if (this._powerCharging) return;
+        // Hold pose until current animation finishes
+        if (this._powerCharging || this._hitReacting || this._playerAttacking) return;
 
         this._walkIndex = (this._walkIndex + 1) % this._walkFrames.length;
         const key = this._walkFrames[this._walkIndex];
         this.playerRect.setTexture(key);
 
-        const scale = (key === 'player001_walk3' || key.startsWith('fortressstance_')) ? 1.05 : 1;
+        const scale = (this._armorSet.scaleOverrides && this._armorSet.scaleOverrides[key])
+          || (this._armorSet.largeFrames.includes(key) ? 1.05 : 1);
         this.playerRect.setDisplaySize(300 * scale, 375 * scale);
+        this.playerRect.y = this._combatY;
       },
     });
     this.playerNameText = this.add.text(playerX, this._nameLabelY, 'Player', {
@@ -175,6 +179,7 @@ export default class GameScene extends Phaser.Scene {
           deathFadeTimer: null,
           extraObjects: [],
           enraged: false,
+          dying: false,
           flapTimer: null,
           flapFrame: 0,
           atkTimerKey: null,
@@ -234,6 +239,10 @@ export default class GameScene extends Phaser.Scene {
     this._unsubs.push(on(EVENTS.STANCE_CHANGED, ({ stanceId }) => this._applyStanceTint(stanceId)));
     this._applyStanceTint(Store.getState().currentStance);
 
+    // Armor set swap on equip/unequip/load
+    this._unsubs.push(on(EVENTS.INV_ITEM_EQUIPPED, () => this._checkArmorSwap()));
+    this._unsubs.push(on(EVENTS.SAVE_LOADED, () => this._checkArmorSwap()));
+
     // Register shutdown handler
     this.events.on('shutdown', () => this._shutdown());
 
@@ -246,6 +255,11 @@ export default class GameScene extends Phaser.Scene {
     // Launch OverworldScene (starts sleeping — toggled by UIScene via M key)
     if (this.scene.get('OverworldScene')) {
       this.scene.launch('OverworldScene');
+    }
+
+    // Launch SpritePreviewScene (starts sleeping — toggled by UIScene via P key)
+    if (this.scene.get('SpritePreviewScene')) {
+      this.scene.launch('SpritePreviewScene');
     }
 
     // Background music — use HTML5 Audio for streaming (file is ~200MB, too large for Web Audio decode)
@@ -293,14 +307,15 @@ export default class GameScene extends Phaser.Scene {
       this._chargeBarFill.setDisplaySize(Math.max(0, progress * 100), 6);
 
       // Switch to charge-up sprite at 50% if not mid-attack
-      if (!this._playerAttacking && progress >= 0.75 && !this._powerCharging) {
+      if (!this._playerAttacking && !this._hitReacting && progress >= 0.75 && !this._powerCharging) {
         this._powerCharging = true;
         this._walkTimer.paused = true;
-        this.playerRect.setTexture('powerstance_001charge');
+        this.playerRect.setTexture(this._armorSet.powerCharge);
         this.playerRect.setDisplaySize(300, 375);
       } else if (progress < 0.75 && this._powerCharging) {
         this._powerCharging = false;
-        if (!this._playerAttacking && this._attackLockCount === 0) {
+        if (!this._playerAttacking && this._attackLockCount === 0 && !this._hitReacting) {
+          this._walkTimer.elapsed = 0;
           this._walkTimer.paused = false;
         }
       }
@@ -492,6 +507,19 @@ export default class GameScene extends Phaser.Scene {
     return this._enemySlots[index] || null;
   }
 
+  // ── Armor set swap ─────────────────────────────────────────────
+
+  _checkArmorSwap() {
+    const newSet = getActiveArmorSet(Store.getState().equipped, parseStackKey);
+    if (newSet.id === this._armorSet.id) return;
+    this._armorSet = newSet;
+    this._playerAttackSprites = [...newSet.attackSprites];
+    this._defaultWalkFrames = [...newSet.walkFrames];
+    this._fortressWalkFrames = [...newSet.fortressWalkFrames];
+    // Re-apply stance to pick up new walk frames + texture
+    this._applyStanceTint(Store.getState().currentStance);
+  }
+
   // ── Stance tint ─────────────────────────────────────────────────
 
   _applyStanceTint(stanceId) {
@@ -528,7 +556,8 @@ export default class GameScene extends Phaser.Scene {
     this._walkIndex = 0;
     const firstFrame = this._walkFrames[0];
     this.playerRect.setTexture(firstFrame);
-    const frameScale = (firstFrame === 'player001_walk3' || firstFrame.startsWith('fortressstance_')) ? 1.05 : 1;
+    const frameScale = (this._armorSet.scaleOverrides && this._armorSet.scaleOverrides[firstFrame])
+      || (this._armorSet.largeFrames.includes(firstFrame) ? 1.05 : 1);
     this.playerRect.setDisplaySize(300 * frameScale, 375 * frameScale);
 
     // Show charge bar only in power stance
@@ -549,14 +578,15 @@ export default class GameScene extends Phaser.Scene {
     return theme.playerTint != null ? theme.playerTint : null;
   }
 
-  _applyEnemyTint(sprite, effectTint) {
+  _applyEnemyTint(sprite, effectTint, enemyBaseTint) {
     const areaTint = this._getAreaEnemyTint();
-    const baseTint = effectTint || 0xffffff;
-    if (areaTint == null && !effectTint) { sprite.clearTint(); return; }
+    const et = effectTint || 0xffffff;
+    const bt = enemyBaseTint || 0xffffff;
     const at = areaTint || 0xffffff;
-    const r = ((baseTint >> 16) & 0xff) * ((at >> 16) & 0xff) / 255;
-    const g = ((baseTint >> 8) & 0xff) * ((at >> 8) & 0xff) / 255;
-    const b = (baseTint & 0xff) * (at & 0xff) / 255;
+    if (areaTint == null && !effectTint && !enemyBaseTint) { sprite.clearTint(); return; }
+    const r = ((et >> 16) & 0xff) * ((at >> 16) & 0xff) * ((bt >> 16) & 0xff) / (255 * 255);
+    const g = ((et >> 8) & 0xff) * ((at >> 8) & 0xff) * ((bt >> 8) & 0xff) / (255 * 255);
+    const b = (et & 0xff) * (at & 0xff) * (bt & 0xff) / (255 * 255);
     sprite.setTint((Math.round(r) << 16) | (Math.round(g) << 8) | Math.round(b));
   }
 
@@ -569,7 +599,8 @@ export default class GameScene extends Phaser.Scene {
 
   _unlockWalk() {
     this._attackLockCount = Math.max(0, this._attackLockCount - 1);
-    if (this._attackLockCount === 0 && !this._playerAttacking && !this._powerCharging) {
+    if (this._attackLockCount === 0 && !this._playerAttacking && !this._powerCharging && !this._hitReacting) {
+      this._walkTimer.elapsed = 0;
       this._walkTimer.paused = false;
     }
   }
@@ -631,7 +662,7 @@ export default class GameScene extends Phaser.Scene {
       if (slot.state.flapTimer) { slot.state.flapTimer.remove(); slot.state.flapTimer = null; }
       for (const obj of slot.state.extraObjects) obj.destroy();
       slot.state.extraObjects = [];
-      this._applyEnemyTint(slot.sprite);
+      this._applyEnemyTint(slot.sprite, null, slot.state.baseTint);
       slot.rect.setFillStyle(0xef4444);
     }
 
@@ -650,6 +681,7 @@ export default class GameScene extends Phaser.Scene {
     // Bind state
     slot.state.instanceId = memberData.instanceId;
     slot.state.enemyId = memberData.enemyId;
+    slot.state.dying = false;
     slot.state.currentSprites = sprites;
     slot.state.spriteW = size.w;
     slot.state.spriteH = size.h;
@@ -658,6 +690,7 @@ export default class GameScene extends Phaser.Scene {
     slot.state.lungeDist = (template?.lungeDistance || 20) * 2;
     slot.state.attackSpriteOffsetY = template?.attackSpriteOffsetY ?? null;
     slot.state.attackSpriteOffsetX = template?.attackSpriteOffsetX ?? 0;
+    slot.state.baseTint = template?.spriteTint ?? null;
     slot.state.attackSpriteScale = template?.attackSpriteScale ?? 1;
     slot.state.spriteSpreadBonus = template?.spriteSpreadBonus ?? 0;
     slot.state.enraged = false;
@@ -685,7 +718,7 @@ export default class GameScene extends Phaser.Scene {
       slot.sprite.setDisplaySize(size.w, size.h);
       slot.sprite.setPosition(0, spriteOffsetY + bottomAlignOffsetY);
       slot.sprite.setVisible(true).setAlpha(1);
-      this._applyEnemyTint(slot.sprite);
+      this._applyEnemyTint(slot.sprite, null, slot.state.baseTint);
       slot.sprite.setInteractive({ useHandCursor: true });
       slot.rect.setVisible(false);
       slot.rect.disableInteractive();
@@ -797,6 +830,16 @@ export default class GameScene extends Phaser.Scene {
     for (const slot of this._enemySlots) {
       if (!slot.state.instanceId) continue;
 
+      // Let dying slots finish their death animation
+      if (slot.state.dying) {
+        // Still clear combat timers that shouldn't persist
+        if (slot.state.poseRevertTimer) { slot.state.poseRevertTimer.remove(); slot.state.poseRevertTimer = null; }
+        if (slot.state.reactDelayTimer) { slot.state.reactDelayTimer.remove(); slot.state.reactDelayTimer = null; }
+        if (slot.state.flapTimer) { slot.state.flapTimer.remove(); slot.state.flapTimer = null; }
+        slot.state.atkTimerKey = null;
+        continue;
+      }
+
       // Kill tweens
       this.tweens.killTweensOf(slot.sprite);
       this.tweens.killTweensOf(slot.rect);
@@ -826,6 +869,7 @@ export default class GameScene extends Phaser.Scene {
       slot.state.enemyId = null;
       slot.state.currentSprites = null;
       slot.state.enraged = false;
+      slot.state.dying = false;
       slot.state.atkTimerKey = null;
     }
 
@@ -855,18 +899,39 @@ export default class GameScene extends Phaser.Scene {
         return;
       }
 
-      // Player attack pose + lunge
+      // Sprite priority: hitReaction > attack > walk
+      // Hit reaction overrides everything
+      if (this._hitReacting) return;
+
       const isPowerStanceAttack = Store.getState().currentStance === 'power';
+      const isPowerStance = Store.getState().currentStance === 'power';
+      const isFlurry = Store.getState().currentStance === 'flurry';
+
+      // In flurry stance, don't let a new attack override a still-showing attack pose
+      if (isFlurry && this._playerPoseTimer && this._playerAttacking) {
+        // Still do the lunge, just don't swap the texture
+        this.tweens.killTweensOf(this.playerRect);
+        this.playerRect.x = this._playerX;
+        this.tweens.add({
+          targets: this.playerRect,
+          x: this._playerX + 20,
+          duration: 80,
+          ease: 'Quad.easeOut',
+          yoyo: true,
+        });
+        return;
+      }
+
       const sAttackKey = (sIsPowerSmash || isPowerStanceAttack)
-        ? 'player001_strongpunch'
+        ? this._armorSet.strongPunch
         : this._playerAttackSprites[Math.floor(Math.random() * this._playerAttackSprites.length)];
       this._lockWalk();
       this.playerRect.setTexture(sAttackKey);
-      if (sAttackKey === 'player001_roundhousekick') {
-        this.playerRect.setDisplaySize(300 * 0.95, 375 * 0.95);
-      } else {
-        this.playerRect.setDisplaySize(300, 375);
-      }
+      const sAtkScale = (this._armorSet.scaleOverrides && this._armorSet.scaleOverrides[sAttackKey])
+        || (sAttackKey === 'player001_roundhousekick' ? 0.95 : 1);
+      this.playerRect.setDisplaySize(300 * sAtkScale, 375 * sAtkScale);
+      const sAtkYOff = (this._armorSet.yOffsets && this._armorSet.yOffsets[sAttackKey]) || 0;
+      this.playerRect.y = this._combatY + sAtkYOff;
       const sLungeDist = sIsPowerSmash ? 40 : 20;
       const sLungeDur = sIsPowerSmash ? 100 : 80;
       this.tweens.killTweensOf(this.playerRect);
@@ -885,14 +950,16 @@ export default class GameScene extends Phaser.Scene {
         this._playerPoseTimer.remove();
         this._unlockWalk();
       }
-      const isPowerStance = Store.getState().currentStance === 'power';
-      const poseDuration = isPowerStance ? 1000 : 400;
-      this._playerAttacking = isPowerStance;
+      const poseDuration = isPowerStance ? 500 : 300;
+      this._playerAttacking = true;
       this._powerCharging = false;
       this._playerPoseTimer = this.time.delayedCall(poseDuration, () => {
         this._playerAttacking = false;
         this._attackLockCount = 0;
-        this._walkTimer.paused = false;
+        if (!this._hitReacting) {
+          this._walkTimer.elapsed = 0;
+          this._walkTimer.paused = false;
+        }
       });
 
       const sKnockbackDist = sIsPowerSmash ? 24 : isPowerStance ? 24 : 12;
@@ -917,9 +984,9 @@ export default class GameScene extends Phaser.Scene {
         slot.state.reactDelayTimer = this.time.delayedCall(sReactDelay, () => {
           slot.sprite.setTexture(slot.state.currentSprites.reaction);
           slot.sprite.setDisplaySize(slot.state.spriteW, slot.state.spriteH);
-          this._applyEnemyTint(slot.sprite, 0xffffff);
+          this._applyEnemyTint(slot.sprite, 0xffffff, slot.state.baseTint);
           this.time.delayedCall(80, () => {
-            this._applyEnemyTint(slot.sprite, slot.state.enraged ? 0xff6666 : null);
+            this._applyEnemyTint(slot.sprite, slot.state.enraged ? 0xff6666 : null, slot.state.baseTint);
           });
 
           // Reset to local home position before knockback
@@ -1024,7 +1091,7 @@ export default class GameScene extends Phaser.Scene {
     // Persistent red tint on sprite/rect
     slot.state.enraged = true;
     if (slot.state.currentSprites) {
-      this._applyEnemyTint(slot.sprite, 0xff6666);
+      this._applyEnemyTint(slot.sprite, 0xff6666, slot.state.baseTint);
     } else {
       slot.rect.setFillStyle(0xff4444);
     }
@@ -1136,6 +1203,7 @@ export default class GameScene extends Phaser.Scene {
 
     const slot = this._getSlotByInstanceId(data.instanceId);
       if (!slot) return;
+      slot.state.dying = true;
 
       // Remove armor crack overlay immediately on death
       if (slot.state.armorCrackOverlay) {
@@ -1149,6 +1217,7 @@ export default class GameScene extends Phaser.Scene {
       this.tweens.killTweensOf(slot.rect);
       if (slot.state.reactDelayTimer) { slot.state.reactDelayTimer.remove(); slot.state.reactDelayTimer = null; }
       if (slot.state.poseRevertTimer) { slot.state.poseRevertTimer.remove(); slot.state.poseRevertTimer = null; }
+      if (slot.state.flapTimer) { slot.state.flapTimer.remove(); slot.state.flapTimer = null; }
 
       if (slot.state.currentSprites) {
         slot.sprite.setTexture(slot.state.currentSprites.dead);
@@ -1264,6 +1333,71 @@ export default class GameScene extends Phaser.Scene {
               });
             });
           });
+        } else if (slot.state.enemyId === 'a2_insect_swarm') {
+          // Swarm dispersal — expand outward while fading
+          const bsX = slot.sprite.scaleX;
+          const bsY = slot.sprite.scaleY;
+          this.tweens.add({
+            targets: slot.sprite,
+            scaleX: bsX * 2.5, scaleY: bsY * 2.5, alpha: 0,
+            duration: 600, ease: 'Sine.easeOut',
+          });
+        } else if (slot.state.enemyId === 'a2_vine_crawler') {
+          // Vine collapse — squish downward into the ground while fading
+          slot.sprite.setOrigin(0.5, 1);
+          slot.sprite.y += slot.sprite.displayHeight / 2;
+          const bsY = slot.sprite.scaleY;
+          this.tweens.add({
+            targets: slot.sprite,
+            scaleY: bsY * 0.05, alpha: 0,
+            duration: 600, ease: 'Quad.easeIn',
+          });
+        } else if (slot.state.enemyId === 'a2_bog_revenant') {
+          // Split in half — upper half pops up and falls
+          const absX = slot.baseX + slot.sprite.x;
+          const absY = slot.baseY + slot.sprite.y;
+          const dw = slot.state.spriteW;
+          const dh = slot.state.spriteH;
+          const tex = this.textures.get('bogrevenant001_dead');
+          const frame = tex.get();
+          const fw = frame.width;
+          const fh = frame.height;
+          const halfFh = Math.floor(fh / 2);
+
+          // Bottom half — stays in place, fades out
+          const bottom = this.add.image(absX, absY + dh / 4, 'bogrevenant001_dead')
+            .setDisplaySize(dw, dh / 2)
+            .setCrop(0, halfFh, fw, fh - halfFh)
+            .setDepth(slot.sprite.depth + 1);
+          slot.state.extraObjects.push(bottom);
+          this.tweens.add({
+            targets: bottom, alpha: 0, delay: 400, duration: 400, ease: 'Linear',
+            onComplete: () => { bottom.destroy(); slot.state.extraObjects = slot.state.extraObjects.filter(o => o !== bottom); },
+          });
+
+          // Upper half — pops up then falls with rotation
+          const top = this.add.image(absX, absY - dh / 4, 'bogrevenant001_dead')
+            .setDisplaySize(dw, dh / 2)
+            .setCrop(0, 0, fw, halfFh)
+            .setDepth(slot.sprite.depth + 2);
+          slot.state.extraObjects.push(top);
+          this.tweens.add({
+            targets: top,
+            y: absY - dh / 2 - 60,
+            angle: -25,
+            duration: 350, ease: 'Quad.easeOut',
+            onComplete: () => {
+              this.tweens.add({
+                targets: top,
+                y: absY + dh, angle: 15, alpha: 0,
+                duration: 450, ease: 'Quad.easeIn',
+                onComplete: () => { top.destroy(); slot.state.extraObjects = slot.state.extraObjects.filter(o => o !== top); },
+              });
+            },
+          });
+
+          // Hide original sprite
+          slot.sprite.setAlpha(0);
         } else {
           // Default: knockback then slide away — local coords
           this.tweens.add({
@@ -1670,29 +1804,44 @@ export default class GameScene extends Phaser.Scene {
 
     // Skip hit reaction visuals in fortress stance, while charging, or while holding attack pose
     const stance = Store.getState().currentStance;
-    if (!this._playerAttacking && !this._powerCharging && stance !== 'fortress') {
-      // Delay player reaction so the enemy lunge lands first.
+    const now = this.time.now;
+    if (!this._powerCharging && stance !== 'fortress'
+        && now - (this._lastHitReactTime || 0) >= 1200) {
+      this._lastHitReactTime = now;
+      this._hitReacting = true;
+      this._playerAttacking = false;
+      this._powerCharging = false;
+      this._attackLockCount = 0;
       this._walkTimer.paused = true;
-      this.time.delayedCall(60, () => {
-        if (this._playerAttacking) return; // guard against race
-        this.playerRect.setTexture('player001_hitreaction');
-        this.playerRect.setDisplaySize(300, 375);
-        this.playerRect.setTint(0xef4444);
-        // Knockback on hit (away from enemy = left)
-        this.tweens.add({
-          targets: this.playerRect,
-          x: this._playerX - 12,
-          duration: 80,
-          ease: 'Quad.easeOut',
-          yoyo: true,
-        });
-        this.time.delayedCall(120, () => {
-          if (this.playerRect) this._applyStanceTint(Store.getState().currentStance);
-        });
+      // Cancel any pending attack pose revert
+      if (this._playerPoseTimer) {
+        this._playerPoseTimer.remove();
+        this._playerPoseTimer = null;
+      }
+      // Show reaction immediately (no delay — priority override)
+      this.tweens.killTweensOf(this.playerRect);
+      this.playerRect.x = this._playerX;
+      this.playerRect.setTexture(this._armorSet.hitReaction);
+      this.playerRect.setDisplaySize(300, 375);
+      this.playerRect.y = this._combatY;
+      this.playerRect.setTint(0xef4444);
+      // Knockback on hit (away from enemy = left)
+      this.tweens.add({
+        targets: this.playerRect,
+        x: this._playerX - 12,
+        duration: 80,
+        ease: 'Quad.easeOut',
+        yoyo: true,
       });
-      if (this._playerPoseTimer) this._playerPoseTimer.remove();
-      this._playerPoseTimer = this.time.delayedCall(460, () => {
+      this.time.delayedCall(120, () => {
+        if (this.playerRect && !this._hitReacting) this._applyStanceTint(Store.getState().currentStance);
+      });
+      this._playerPoseTimer = this.time.delayedCall(350, () => {
+        this._hitReacting = false;
+        this._attackLockCount = 0;
+        this._walkTimer.elapsed = 0;
         this._walkTimer.paused = false;
+        this._applyStanceTint(Store.getState().currentStance);
       });
     }
   }
@@ -1756,7 +1905,7 @@ export default class GameScene extends Phaser.Scene {
     this._walkTimer.paused = true;
     if (this._playerPoseTimer) this._playerPoseTimer.remove();
     this.tweens.killTweensOf(this.playerRect);
-    this.playerRect.setTexture('player001_hitreaction');
+    this.playerRect.setTexture(this._armorSet.hitReaction);
 
     this.playerRect.setDisplaySize(300, 375);
     this.playerRect.setTint(0xef4444);

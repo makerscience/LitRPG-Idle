@@ -65,7 +65,7 @@ export const ZONE_THEMES = {
     skyOffsetY: 0,
     skyHeightScale: 0.5775,
     groundHeightScale: 0.7,
-    playerTint: 0x888888,
+    playerTint: 0xc4c4c4,
     enemyTint: 0xb3b3b3,
     path: 'swamp_path',
     pathHeight: 150,

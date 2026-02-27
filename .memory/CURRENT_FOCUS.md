@@ -1,34 +1,33 @@
 # CURRENT_FOCUS
 
 ## One-liner
-- Area 2 fog layers heavily tuned (3 fog layers with doubled counts, repositioned, opacity/scale adjustments); Area 1 sky compressed to top 1/3; player tint lightened.
+- Area 2 enemy sprite wiring and combat visual polish (hit reaction, attack poses, death animations).
 
 ## Active Objectives (max 3)
-1. **Area 2 visual polish:** Continue wiring remaining Area 2 enemy sprites (fungi, goblin warrior, blighted stalker area2 variants) and tune parallax layers
-2. **Playtest & tune:** Run zones 1-20 and validate SP/enhancement economy, sprite animations, area transitions
-3. **Data completeness cleanup:** Add droppable item coverage for zones 31-35
+1. **Area 2 enemy sprites:** Wire remaining Area 2 enemies and tune sprite sizes/offsets/tints
+2. **Combat visual polish:** Tune attack/reaction pose timing, walk cycle guards, death animations
+3. **Playtest & tune:** Run zones 1-20 and validate SP/enhancement economy, sprite animations, area transitions
 
 ## Next Actions
-- [ ] Wire remaining Area 2 enemy sprites (a2_fungi, a2_goblin_warrior, a2_blighted_stalker with area2 art)
-- [ ] Playtest zones 1-15: validate parallax tuning, area transitions, depth sorting
+- [ ] Playtest zones 11-20: validate new enemy sprites, death animations, tint levels
+- [ ] Wire any remaining Area 2 enemies without sprites (check enemies.js for `sprites: null`)
 - [ ] Tune enhancement gold costs from observed gold income pacing
 - [ ] Add/retune item drop coverage for zones 31-35 and rerun `npm run validate:data`
 
 ## Open Loops / Blockers
-- `npm run validate:data` passes with one warning: zones 31-35 have no droppable items
 - `npm run build` passes with a pre-existing large bundle warning (Phaser chunk >500kB)
 - Prestige, territory, and cheats remain behind feature gates during current balancing pass
-- Enemy/boss sprite coverage for Area 2-3 content is still incomplete (fungi, goblin warrior, stalker area2)
+- Bog Revenant split-death uses `setCrop` — user manually cropped images to fix squish issue
 
 ## How to Resume in 30 Seconds
 - **Open:** `.memory/CURRENT_FOCUS.md`
-- **Last change:** Area 2 fog tuning (doubled counts, repositioned, opacity 0.7), Area 1 sky compressed, player tint lightened
+- **Last change:** Wired 5 Area 2 enemy sprites + combat visual fixes (hit reaction tint, attack pose timing, death animations)
 - **Key implementation files:**
-  - `src/config/theme.js` (ZONE_THEMES area 2: sky, ground, path, treeRowOverrides with 9 layers, playerTint/enemyTint)
-  - `src/scenes/BootScene.js` (sprite loading + downscale entries for area2 backgrounds + enemies)
-  - `src/scenes/GameScene.js` (sky scroll, flat scroll, depthSort, groundKey, pathContainer, area tint blending)
-  - `src/data/enemies.js` (goblin scout, bog zombie, thornback boar sprites + offsets)
-- **Area 2 theme config:** `treeRowOverrides` array with 12 entries (3 tree rows, 3 fog layers split into 6 rows for per-key scaling, 2 clutter rows)
+  - `src/config/playerSprites.js` (ARMOR_SETS definitions, scaleOverrides, yOffsets)
+  - `src/config/theme.js` (ZONE_THEMES area 2: playerTint lightened to 0xc4c4c4)
+  - `src/scenes/BootScene.js` (sprite loading + downscale entries)
+  - `src/scenes/GameScene.js` (walk timer guards, hit reaction tint fix, per-enemy death anims, dying flag, per-enemy spriteTint)
+  - `src/data/enemies.js` (sprite configs, spriteTint, nameplateOffsetY for all wired enemies)
 - **Verification commands:** `npm run build`, `npm run validate:data`
 
 ## Key Context
@@ -46,13 +45,14 @@
 ---
 
 ## Last Session Summary (max ~8 bullets)
-- Compressed Area 1 sky background to top 1/3 of screen (`skyHeightScale: 0.333`)
-- Area 2 front fog: doubled to 32 sprites, moved down 20px, opacity 0.7, speed +20%, split fog001/fog002+fog003 rows for independent sizing
-- Area 2 middle fog: doubled to 24 sprites, tightened scale to [0.12, 0.14], opacity 0.7, split into fog001/fog002+fog003 rows
-- Area 2 rear fog: doubled to 40 sprites, moved down 10px
-- Area 2 front trees: scale increased 10%
-- Lightened Area 2 player tint from 0x666666 to 0x888888
-- Restored Area 2 sky to original `skyHeightScale: 0.5775` (was accidentally changed to 0.333 with Area 1)
+- Fixed hit reaction tint being overridden by stance tint at t=120ms (guarded with `_hitReacting` flag)
+- Fixed attack visuals disappearing: added `_playerAttacking` guard to walk callback + reset `_walkTimer.elapsed` on unpause
+- Halved attack pose durations (power: 500ms, normal/flurry: 300ms) and hit reaction (350ms)
+- Wired 5 Area 2 enemies: Blightcap Fungi, Goblin Warrior, Insect Swarm, Vine Crawler, Bog Revenant
+- Added per-enemy `spriteTint` system (blended with area + effect tints)
+- Added `dying` flag to prevent `_onEncounterEnded` from killing death animation tweens
+- Custom death animations: Insect Swarm (expand+fade dispersal), Vine Crawler (collapse downward), Bog Revenant (split upper/lower halves)
+- Lightened area 2 player tint from 0x888888 to 0xc4c4c4
 
 ## Pinned References
 - Governance rules: `CLAUDE.md`
