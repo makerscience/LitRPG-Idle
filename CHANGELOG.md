@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## 2026-02-27 - Entity Shadows (feature-gated)
+- **Shadow system:** Dark ellipse shadows under player and all enemies
+- **Per-enemy tuning:** `shadowOffsetY` field on each enemy for fine-tuning shadow position
+- **Feature-gated:** Behind `FEATURES.shadowsEnabled` (off by default, needs per-enemy tweaking)
+
 ## 2026-02-27 - 3-Slot Save System
 - **Save slots:** 3 independent save slots replacing single save file; each shows level, area, and zone
 - **Slot picker UI:** New Game and Load Game both open a slot picker; empty slots grayed on Load, overwrite confirmation on occupied New Game slots

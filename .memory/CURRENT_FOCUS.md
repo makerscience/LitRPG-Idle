@@ -48,14 +48,12 @@
 ---
 
 ## Last Session Summary (max ~8 bullets)
-- 3-slot save system: SaveManager now slot-aware with `slotKey(id)`/`slotBackupKey(id)`, activeSlot tracking
-- Migration: existing single save auto-migrates to slot 1 on first boot
-- Slot picker UI on start screen: 3 cards showing "Lv.X - Area Y, Zone Z" or "Empty"
-- New Game opens slot picker (all slots clickable), Load Game opens picker (empty grayed)
-- Per-slot delete with confirmation, overwrite confirmation for occupied slots
-- Stance icon switcher: icon sprites (tornado/fist/castle), white circle bg, dark colors
-- Stance change announcement: big text above player with per-stance fonts + screen shake
-- Start screen parallax: custom bright sky + grass field, horizon at y=460
+- Added shadow system for player and enemies (ellipses at feet)
+- Player shadow: single ellipse below player sprite
+- Enemy shadows: per-slot ellipse in container, auto-sized to enemy sprite
+- Per-enemy `shadowOffsetY` field added to all sprite-bearing enemies in `enemies.js`
+- Shadows gated behind `FEATURES.shadowsEnabled` (currently `false`) — needs per-enemy tuning
+- Feature gate in `src/config/features.js`
 
 ## Pinned References
 - Governance rules: `CLAUDE.md`

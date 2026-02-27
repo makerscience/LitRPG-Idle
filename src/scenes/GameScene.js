@@ -9,6 +9,7 @@ import { format } from '../systems/BigNum.js';
 import { UI, LAYOUT, ZONE_THEMES, COMBAT_V2, PARALLAX, TREE_ROWS, FERN_ROWS, STANCES } from '../config.js';
 import { getEnemyById } from '../data/enemies.js';
 import { getActiveArmorSet, ARMOR_SETS } from '../config/playerSprites.js';
+import { FEATURES } from '../config/features.js';
 import { parseStackKey } from '../systems/InventorySystem.js';
 
 export default class GameScene extends Phaser.Scene {
@@ -51,6 +52,11 @@ export default class GameScene extends Phaser.Scene {
     this._fortressWalkFrames = [...this._armorSet.fortressWalkFrames];
     this._walkFrames = this._defaultWalkFrames;
     this._walkIndex = 0;
+
+    // Player shadow (ellipse at feet)
+    if (FEATURES.shadowsEnabled) {
+      this._playerShadow = this.add.ellipse(playerX, this._combatY + 375 / 2 - 50, 100, 24, 0x000000, 0.3);
+    }
 
     // Player sprite — start with first walk frame
     this.playerRect = this.add.image(playerX, this._combatY, this._armorSet.walkFrames[0]);
@@ -110,6 +116,12 @@ export default class GameScene extends Phaser.Scene {
       const container = this.add.container(this._enemyX, this._enemyY);
       container.setVisible(false);
 
+      // Shadow ellipse (at feet, behind sprite)
+      const shadow = FEATURES.shadowsEnabled
+        ? this.add.ellipse(0, 250 / 2 - 10, 80, 20, 0x000000, 0.3)
+        : null;
+      if (shadow) container.add(shadow);
+
       // Enemy rect fallback (centered in container at 0,0)
       const rect = this.add.rectangle(0, 0, 200, 250, 0xef4444);
       rect.setVisible(false);
@@ -157,6 +169,7 @@ export default class GameScene extends Phaser.Scene {
 
       this._enemySlots.push({
         container,
+        shadow,
         sprite,
         rect,
         hpBarBg,
@@ -777,6 +790,13 @@ export default class GameScene extends Phaser.Scene {
     slot.hpBarBg.setY(-(halfH) - 42 + npOff);
     slot.hpBarFill.setY(-(halfH) - 42 + npOff);
     slot.hpBarFill.setX(-50); // reset left anchor
+
+    // Resize & reposition shadow to match enemy feet
+    if (slot.shadow) {
+      const shadowOffY = template?.shadowOffsetY ?? 0;
+      slot.shadow.setPosition(0, halfH + spriteOffsetY + bottomAlignOffsetY - 65 + shadowOffY);
+      slot.shadow.setDisplaySize(Math.min(size.w * 0.7, 120), 20);
+    }
 
     // Configure sprite or rect
     if (sprites) {
