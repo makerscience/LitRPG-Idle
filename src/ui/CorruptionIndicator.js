@@ -3,6 +3,7 @@
 
 import { on, EVENTS } from '../events.js';
 import { COMBAT_V2, LAYOUT } from '../config.js';
+import { snapPx } from './ui-utils.js';
 
 export default class CorruptionIndicator {
   constructor(scene) {
@@ -13,8 +14,8 @@ export default class CorruptionIndicator {
     this._maxStacks = COMBAT_V2.corruption?.maxStacks ?? 8;
 
     const ga = LAYOUT.gameArea;
-    const x = ga.x + 190;
-    const y = ga.y + 30;
+    const x = snapPx(ga.x + 190);
+    const y = snapPx(ga.y + 30);
 
     this._bg = scene.add.rectangle(x, y, 170, 24, 0x111827, 0.82)
       .setStrokeStyle(1, 0x9d174d, 0.9)
@@ -69,8 +70,10 @@ export default class CorruptionIndicator {
   }
 
   setPosition(x, y) {
-    this._bg.setPosition(x, y);
-    this._text.setPosition(x, y);
+    const sx = snapPx(x);
+    const sy = snapPx(y);
+    this._bg.setPosition(sx, sy);
+    this._text.setPosition(sx, sy);
   }
 
   destroy() {

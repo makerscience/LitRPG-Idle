@@ -5,6 +5,10 @@ import CombatEngine from '../systems/CombatEngine.js';
 import UpgradeManager from '../systems/UpgradeManager.js';
 import { on, emit, EVENTS } from '../events.js';
 import { LAYOUT } from '../config.js';
+import { snapPx } from './ui-utils.js';
+
+const HOVER_SCALE = 1.05;
+const COOLDOWN_DARK_ALPHA = 0.76;
 
 export default class FlurryButton {
   constructor(scene) {
@@ -17,12 +21,12 @@ export default class FlurryButton {
     this._manualVisible = false;
 
     const ga = LAYOUT.gameArea;
-    const btnX = ga.x + 110;
-    const btnY = ga.y + ga.h - 10;
-    const iconSize = 44 * 1.45;
+    const btnX = snapPx(ga.x + 110);
+    const btnY = snapPx(ga.y + ga.h - 10);
+    const iconSize = 100;
     const half = iconSize / 2;
-    const localX = half;
-    const localY = -half + 5;
+    const localX = snapPx(half);
+    const localY = snapPx(-half + 5);
 
     this._container = scene.add.container(btnX, btnY);
     this._container.setDepth(10).setVisible(false);
@@ -30,12 +34,14 @@ export default class FlurryButton {
     this._icon = scene.add.image(localX, localY, 'icon_flurry_button');
     this._icon.setDisplaySize(iconSize, iconSize);
     this._icon.setInteractive({ useHandCursor: true });
+    this._baseScaleX = this._icon.scaleX;
+    this._baseScaleY = this._icon.scaleY;
 
-    // Cooldown overlay uses the same icon, tinted and cropped from bottom up.
+    // Cooldown overlay darkens the full icon, then fades away as cooldown recovers.
     this._cooldownOverlay = scene.add.image(localX, localY, 'icon_flurry_button');
     this._cooldownOverlay.setDisplaySize(iconSize, iconSize);
-    this._cooldownOverlay.setTint(0x1d4ed8);
-    this._cooldownOverlay.setAlpha(0.68);
+    this._cooldownOverlay.setTint(0x000000);
+    this._cooldownOverlay.setAlpha(COOLDOWN_DARK_ALPHA);
     this._cooldownOverlay.setVisible(false);
 
     this._container.add([this._icon, this._cooldownOverlay]);
@@ -43,12 +49,12 @@ export default class FlurryButton {
     this._icon.on('pointerdown', () => this._onActivate());
     this._icon.on('pointerover', () => {
       if (this._container.visible && !this._isOnCooldown()) {
-        this._icon.setAlpha(0.9);
+        this._icon.setScale(this._baseScaleX * HOVER_SCALE, this._baseScaleY * HOVER_SCALE);
       }
     });
     this._icon.on('pointerout', () => {
       if (this._container.visible && !this._isOnCooldown()) {
-        this._icon.setAlpha(1);
+        this._icon.setScale(this._baseScaleX, this._baseScaleY);
       }
     });
 
@@ -109,22 +115,22 @@ export default class FlurryButton {
       this._stopCooldownTimer();
       this._cooldownOverlay.setVisible(false);
       this._cooldownOverlay.setCrop();
-      this._icon.setAlpha(1);
+      this._cooldownOverlay.setAlpha(COOLDOWN_DARK_ALPHA);
+      this._icon.setScale(this._baseScaleX, this._baseScaleY);
       return;
     }
-
-    const elapsed = Date.now() - this._cooldownStart;
-    const progress = Math.max(0, Math.min(1, this._cooldownMs > 0 ? elapsed / this._cooldownMs : 0));
+    const ratio = Math.max(0, Math.min(1, this._cooldownMs > 0 ? remaining / this._cooldownMs : 0));
     const frameW = this._cooldownOverlay.frame.cutWidth;
     const frameH = this._cooldownOverlay.frame.cutHeight;
-    const fillH = Math.round(frameH * progress);
-    if (fillH <= 0) {
+    const darkH = Math.round(frameH * ratio);
+    if (darkH <= 0) {
       this._cooldownOverlay.setVisible(false);
-      this._cooldownOverlay.setCrop(0, frameH, frameW, 0);
+      this._cooldownOverlay.setCrop(0, 0, frameW, 0);
       return;
     }
     this._cooldownOverlay.setVisible(true);
-    this._cooldownOverlay.setCrop(0, frameH - fillH, frameW, fillH);
+    this._cooldownOverlay.setAlpha(COOLDOWN_DARK_ALPHA);
+    this._cooldownOverlay.setCrop(0, 0, frameW, darkH);
   }
 
   _stopCooldownTimer() {
@@ -145,7 +151,7 @@ export default class FlurryButton {
   }
 
   setPosition(x, y) {
-    this._container.setPosition(x, y);
+    this._container.setPosition(snapPx(x), snapPx(y));
   }
 
   destroy() {

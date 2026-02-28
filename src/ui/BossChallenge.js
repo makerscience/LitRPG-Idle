@@ -6,6 +6,7 @@ import CombatEngine from '../systems/CombatEngine.js';
 import { on, EVENTS } from '../events.js';
 import { LAYOUT } from '../config.js';
 import { BOSS_TYPES } from '../data/areas.js';
+import { snapPx } from './ui-utils.js';
 
 export default class BossChallenge {
   constructor(scene) {
@@ -13,8 +14,8 @@ export default class BossChallenge {
     this._unsubs = [];
     this._pulseTween = null;
 
-    const btnX = LAYOUT.zoneNav.centerX;
-    const btnY = LAYOUT.zoneNav.y + 48;
+    const btnX = snapPx(LAYOUT.zoneNav.centerX);
+    const btnY = snapPx(LAYOUT.zoneNav.y + 48);
 
     // Challenge button — hidden by default
     this._btn = scene.add.text(btnX, btnY, 'CHALLENGE BOSS', {

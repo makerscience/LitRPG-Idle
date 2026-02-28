@@ -249,6 +249,7 @@ export default class GameScene extends Phaser.Scene {
     this._unsubs.push(on(EVENTS.RAPID_STRIKES_USED, (data) => {
       const hitCount = Math.max(1, Math.floor(data?.hitCount || 5));
       this._activateSkillVisualLock(hitCount * 200 + 350);
+      this._announceFlurry();
     }));
 
     // Visual juice subscriptions
@@ -653,6 +654,52 @@ export default class GameScene extends Phaser.Scene {
     this.cameras.main.shake(120, 0.003);
   }
 
+  _announceFlurry() {
+    const tx = this._playerX;
+    const ty = this._combatY - 315;
+
+    if (this._flurryAnnounce) {
+      this.tweens.killTweensOf(this._flurryAnnounce);
+      this._flurryAnnounce.destroy();
+    }
+
+    const text = this.add.text(tx, ty, 'FLURRY!!!', {
+      fontFamily: 'Impact, Arial Black, sans-serif',
+      fontSize: '54px',
+      fontStyle: 'bold',
+      color: '#ef4444',
+      stroke: '#000000',
+      strokeThickness: 6,
+    }).setOrigin(0.5).setDepth(110).setAlpha(0).setScale(0.9);
+
+    this._flurryAnnounce = text;
+
+    this.tweens.add({
+      targets: text,
+      alpha: 1,
+      scaleX: 1.08,
+      scaleY: 1.08,
+      duration: 90,
+      ease: 'Quad.easeOut',
+      onComplete: () => {
+        this.tweens.add({
+          targets: text,
+          alpha: 0,
+          y: ty - 25,
+          scaleX: 1,
+          scaleY: 1,
+          duration: 300,
+          delay: 140,
+          ease: 'Quad.easeIn',
+          onComplete: () => {
+            text.destroy();
+            if (this._flurryAnnounce === text) this._flurryAnnounce = null;
+          },
+        });
+      },
+    });
+  }
+
   _getAreaEnemyTint() {
     const area = Store.getState().currentArea;
     const theme = ZONE_THEMES[area];
@@ -1020,7 +1067,12 @@ export default class GameScene extends Phaser.Scene {
       const sIsClick = data.isClick || false;
       const sSkipAttackAnim = data.skipAttackAnim || false;
       const sSource = data.source || null;
+      const sIsRapidStrikesHit = sSource === 'rapid_strikes';
       const sIsSkillVisualDamage = sIsPowerSmash || sSource === 'rapid_strikes';
+
+      if (sSource === 'rapid_strikes') {
+        this.cameras.main.shake(85, 0.004);
+      }
 
       // Click attacks (non-Power Smash): damage number only
       if (sIsClick && !sIsPowerSmash) {
@@ -1046,7 +1098,7 @@ export default class GameScene extends Phaser.Scene {
 
       if (!suppressPlayerPose) {
         // In tempest stance, don't let a new attack override a still-showing attack pose
-        if (isTempest && this._playerPoseTimer && this._playerAttacking) {
+        if (isTempest && this._playerPoseTimer && this._playerAttacking && !sIsRapidStrikesHit) {
           // Still do the lunge, just don't swap the texture
           this.tweens.killTweensOf(this.playerRect);
           this.playerRect.x = this._playerX;
@@ -1077,8 +1129,8 @@ export default class GameScene extends Phaser.Scene {
         this.playerRect.setDisplaySize(300 * sAtkScale, 375 * sAtkScale);
         const sAtkYOff = (this._armorSet.yOffsets && this._armorSet.yOffsets[sAttackKey]) || 0;
         this.playerRect.y = this._combatY + sAtkYOff;
-        const sLungeDist = sIsPowerSmash ? 40 : 20;
-        const sLungeDur = sIsPowerSmash ? 100 : 80;
+        const sLungeDist = sIsPowerSmash ? 40 : sIsRapidStrikesHit ? 14 : 20;
+        const sLungeDur = sIsPowerSmash ? 100 : sIsRapidStrikesHit ? 55 : 80;
         this.tweens.killTweensOf(this.playerRect);
         this.playerRect.x = this._playerX;
         this.tweens.add({
@@ -1088,14 +1140,14 @@ export default class GameScene extends Phaser.Scene {
           ease: 'Quad.easeOut',
           yoyo: true,
         });
-        if (sIsPowerSmash) this.cameras.main.shake(150, 0.006);
+        if (sIsPowerSmash) this.cameras.main.shake(220, 0.01);
 
         // If replacing an existing timer, balance the lock count it would have released
         if (this._playerPoseTimer) {
           this._playerPoseTimer.remove();
           this._unlockWalk();
         }
-        const poseDuration = isPowerStance ? 500 : 300;
+        const poseDuration = sIsRapidStrikesHit ? 110 : isPowerStance ? 500 : 300;
         this._playerAttacking = true;
         this._powerCharging = false;
         this._playerPoseTimer = this.time.delayedCall(poseDuration, () => {
@@ -1110,12 +1162,21 @@ export default class GameScene extends Phaser.Scene {
 
       const sKnockbackDist = sIsPowerSmash ? 24 : isPowerStance ? 24 : 12;
       const sReactDelay = 60;
+      const forceEnemyRecoil = sIsSkillVisualDamage;
+      const enemyReactDelay = forceEnemyRecoil ? 0 : sReactDelay;
+      const enemyReactCooldownMs = forceEnemyRecoil ? 0 : 1000;
+      const enemyRecoilDuration = forceEnemyRecoil ? 60 : 80;
+      const enemyRevertDelay = forceEnemyRecoil ? 170 : 500;
 
-      // Spawn damage number immediately
-      this._spawnDamageNumber(data.amount, data.isCrit, sIsPowerSmash, slot.baseX, slot.baseY);
+      // Spawn damage text immediately
+      if (sIsPowerSmash) {
+        this._spawnSmashDamageText(data.amount, slot.baseX, slot.baseY);
+      } else {
+        this._spawnDamageNumber(data.amount, data.isCrit, false, slot.baseX, slot.baseY);
+      }
 
       // chargeArmor: skip hit reaction when enemy attack is half-charged or more
-      if (slot.state.chargeArmor > 0 && slot.state.atkTimerKey) {
+      if (!forceEnemyRecoil && slot.state.chargeArmor > 0 && slot.state.atkTimerKey) {
         const progress = TimeEngine.getProgress(slot.state.atkTimerKey);
         if (progress >= slot.state.chargeArmor) return;
       }
@@ -1123,11 +1184,10 @@ export default class GameScene extends Phaser.Scene {
       if (slot.state.currentSprites) {
         // Sprite hit reaction — cooldown so it doesn't flicker on rapid hits
         const now = this.time.now;
-        if (now - (slot.state.lastReactTime || 0) < 1000) return;
+        if (enemyReactCooldownMs > 0 && now - (slot.state.lastReactTime || 0) < enemyReactCooldownMs) return;
         slot.state.lastReactTime = now;
 
-        if (slot.state.reactDelayTimer) slot.state.reactDelayTimer.remove();
-        slot.state.reactDelayTimer = this.time.delayedCall(sReactDelay, () => {
+        const runSpriteReaction = () => {
           slot.sprite.setTexture(slot.state.currentSprites.reaction);
           slot.sprite.setDisplaySize(slot.state.spriteW, slot.state.spriteH);
           this._applyEnemyTint(slot.sprite, 0xffffff, slot.state.baseTint);
@@ -1143,22 +1203,30 @@ export default class GameScene extends Phaser.Scene {
           this.tweens.add({
             targets: slot.sprite,
             x: sKnockbackDist,
-            duration: 80,
+            duration: enemyRecoilDuration,
             ease: 'Quad.easeOut',
             yoyo: true,
           });
 
           if (slot.state.poseRevertTimer) slot.state.poseRevertTimer.remove();
-          slot.state.poseRevertTimer = this.time.delayedCall(500, () => {
+          slot.state.poseRevertTimer = this.time.delayedCall(enemyRevertDelay, () => {
             if (slot.state.currentSprites) {
               slot.sprite.setTexture(slot.state.currentSprites.default);
               slot.sprite.setDisplaySize(slot.state.spriteW, slot.state.spriteH);
             }
           });
-        });
+        };
+
+        if (slot.state.reactDelayTimer) slot.state.reactDelayTimer.remove();
+        if (enemyReactDelay > 0) {
+          slot.state.reactDelayTimer = this.time.delayedCall(enemyReactDelay, runSpriteReaction);
+        } else {
+          slot.state.reactDelayTimer = null;
+          runSpriteReaction();
+        }
       } else {
         // Rect hit reaction
-        this.time.delayedCall(sReactDelay, () => {
+        const runRectReaction = () => {
           slot.rect.setFillStyle(0xffffff);
           this.time.delayedCall(80, () => slot.rect.setFillStyle(0xef4444));
 
@@ -1170,11 +1238,17 @@ export default class GameScene extends Phaser.Scene {
             scaleX: 0.85,
             scaleY: 1.15,
             x: sIsPowerSmash ? 16 : 8,
-            duration: 60,
+            duration: forceEnemyRecoil ? 45 : 60,
             ease: 'Quad.easeOut',
             yoyo: true,
           });
-        });
+        };
+
+        if (enemyReactDelay > 0) {
+          this.time.delayedCall(enemyReactDelay, runRectReaction);
+        } else {
+          runRectReaction();
+        }
       }
   }
 
@@ -1679,6 +1753,66 @@ export default class GameScene extends Phaser.Scene {
       alpha: 0,
       delay: dur * 0.7,
       duration: dur * 0.3,
+      ease: 'Linear',
+      onComplete: () => text.destroy(),
+    });
+  }
+
+  _spawnSmashDamageText(amount, targetX = null, targetY = null) {
+    const ga = LAYOUT.gameArea;
+    const baseX = targetX ?? this._enemyX;
+    const baseY = targetY ?? this._enemyY;
+
+    // Quick red screen flash on Smash impact.
+    const overlay = this.add.rectangle(
+      ga.x + ga.w / 2,
+      ga.y + ga.h / 2,
+      ga.w,
+      ga.h,
+      0xef4444,
+      0.24
+    ).setDepth(95);
+
+    this.tweens.add({
+      targets: overlay,
+      alpha: 0,
+      duration: 220,
+      ease: 'Quad.easeOut',
+      onComplete: () => overlay.destroy(),
+    });
+
+    const text = this.add.text(baseX + 8, baseY - 52, `SMASH ${format(amount)}`, {
+      fontFamily: 'Impact, Arial Black, sans-serif',
+      fontSize: '40px',
+      fontStyle: 'bold',
+      color: '#ef4444',
+      stroke: '#000000',
+      strokeThickness: 6,
+      shadow: {
+        offsetX: 0,
+        offsetY: 0,
+        color: '#7f1d1d',
+        blur: 10,
+        fill: true,
+      },
+    }).setOrigin(0.5).setDepth(120).setScale(1.06);
+
+    // Fly backward from the enemy (enemy side -> further right) while fading.
+    this.tweens.add({
+      targets: text,
+      x: baseX + 150,
+      y: baseY - 82,
+      angle: -10,
+      scaleX: 0.95,
+      scaleY: 0.95,
+      duration: 500,
+      ease: 'Cubic.easeOut',
+    });
+    this.tweens.add({
+      targets: text,
+      alpha: 0,
+      delay: 380,
+      duration: 320,
       ease: 'Linear',
       onComplete: () => text.destroy(),
     });
@@ -2465,6 +2599,11 @@ export default class GameScene extends Phaser.Scene {
     for (const unsub of this._unsubs) unsub();
     this._unsubs = [];
     this._destroyParallax();
+    if (this._flurryAnnounce) {
+      this.tweens.killTweensOf(this._flurryAnnounce);
+      this._flurryAnnounce.destroy();
+      this._flurryAnnounce = null;
+    }
 
     // Clean up slot containers
     for (const slot of this._enemySlots) {

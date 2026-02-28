@@ -5,6 +5,7 @@
 import Phaser from 'phaser';
 import { on } from '../events.js';
 import { LAYOUT } from '../config.js';
+import { snapPx } from './ui-utils.js';
 
 export default class ModalPanel {
   /**
@@ -35,8 +36,8 @@ export default class ModalPanel {
     this._titleColor = opts.titleColor ?? '#ffffff';
     this._titleSize = opts.titleSize ?? '16px';
 
-    this._cx = LAYOUT.gameArea.x + LAYOUT.gameArea.w / 2;
-    this._cy = LAYOUT.gameArea.y + LAYOUT.gameArea.h / 2;
+    this._cx = snapPx(LAYOUT.gameArea.x + LAYOUT.gameArea.w / 2);
+    this._cy = snapPx(LAYOUT.gameArea.y + LAYOUT.gameArea.h / 2);
 
     this._createToggleButton(opts.buttonLabel, opts.buttonX, opts.buttonColor ?? '#ffffff');
     this._createModal();
@@ -61,9 +62,10 @@ export default class ModalPanel {
   }
 
   _createToggleButton(label, x, color) {
-    const by = LAYOUT.bottomBar.y + LAYOUT.bottomBar.h / 2;
+    const bx = snapPx(x);
+    const by = snapPx(LAYOUT.bottomBar.y + LAYOUT.bottomBar.h / 2);
 
-    this._toggleBtn = this.scene.add.text(x, by, label, {
+    this._toggleBtn = this.scene.add.text(bx, by, label, {
       fontFamily: 'monospace', fontSize: '14px', color,
       backgroundColor: '#333333', padding: { x: 12, y: 6 },
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
@@ -113,8 +115,8 @@ export default class ModalPanel {
     this._modalObjects.push(this._title);
 
     // Close button
-    const closeX = this._cx + this._panelW / 2 - 20;
-    const closeY = this._cy - this._panelH / 2 + 20;
+    const closeX = snapPx(this._cx + this._panelW / 2 - 20);
+    const closeY = snapPx(this._cy - this._panelH / 2 + 20);
     this._closeBtn = this.scene.add.text(closeX, closeY, 'X', {
       fontFamily: 'monospace', fontSize: '16px', color: '#ef4444', fontStyle: 'bold',
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });

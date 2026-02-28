@@ -1,5 +1,15 @@
 # CHANGELOG
 
+## 2026-02-28 - Stance/Skill Icon + Smash VFX Pass
+- **Stance icon assets refreshed:** Ruin/Fortress stance icons now load `RuinIcon2` and `Fortressstance2`; added dedicated skill icons for Smash and Bulwark
+- **Stance switcher simplification:** removed `STANCE SELECTOR` label and ring background; switcher is now icon-only, moved slightly upward, with hover-scale feedback
+- **Primary skill button unification:** Flurry, Smash, and Bulwark are now icon buttons sharing the same left-side combat anchor near player midpoint
+- **Cooldown readability redesign:** primary skill icons use a full dark overlay that clears from bottom to top during cooldown; darkness intensity reduced by 20% for legibility
+- **Hover behavior cleanup:** removed icon transparency-on-hover in favor of subtle scale-up for stance and skill icons
+- **UI pixel snapping pass:** added `snapPx()` utility and applied integer positioning/sizing to key UI controls (modals, action buttons, corruption indicator, boss challenge, text buttons) for cleaner rendering
+- **Smash impact VFX:** stronger Smash camera shake, red impact flash, and a backward-flying `SMASH <damage>` callout with longer on-screen timing
+- **Flurry impact feedback:** `FLURRY!!!` callout on activation, per-hit shake, faster rapid-strike pose cadence, and forced enemy recoil visuals for skill hits
+
 ## 2026-02-27 - Combat/UI Polish Pass
 - **Flurry icon rework:** Replaced text `FLURRY` button with icon button using bottom-up cooldown tint fill; moved to explicit left-side combat anchor near player midpoint
 - **Tempest icon update:** Swapped Tempest stance icon to `TempestIcon2` and removed icon fill tinting so artwork renders naturally

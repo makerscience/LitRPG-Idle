@@ -6,6 +6,7 @@ import { getEffectiveMaxHp } from '../systems/ComputedStats.js';
 import { getItem } from '../data/items.js';
 import { on, emit, EVENTS } from '../events.js';
 import { LAYOUT } from '../config.js';
+import { snapPx } from './ui-utils.js';
 
 export default class DrinkButton {
   constructor(scene) {
@@ -15,8 +16,8 @@ export default class DrinkButton {
     this._cooldownTimer = null;
 
     const ga = LAYOUT.gameArea;
-    const btnX = ga.x + 20;
-    const btnY = ga.y + ga.h - 10;
+    const btnX = snapPx(ga.x + 20);
+    const btnY = snapPx(ga.y + ga.h - 10);
 
     this._btn = scene.add.text(btnX, btnY, 'DRINK', {
       fontFamily: 'monospace',

@@ -1,10 +1,15 @@
-// SmashButton — "SMASH" button for the Power Smash active ability.
+// SmashButton - icon button for the Ruin Smash active ability.
 // Visible when stance is 'ruin'. Cooldown driven by tier upgrades.
 
 import CombatEngine from '../systems/CombatEngine.js';
 import UpgradeManager from '../systems/UpgradeManager.js';
 import { on, emit, EVENTS } from '../events.js';
 import { LAYOUT } from '../config.js';
+import { snapPx } from './ui-utils.js';
+
+const HOVER_SCALE = 1.05;
+const ICON_SIZE = 100;
+const COOLDOWN_DARK_ALPHA = 0.76;
 
 export default class SmashButton {
   constructor(scene) {
@@ -12,36 +17,43 @@ export default class SmashButton {
     this._unsubs = [];
     this._cooldownStart = 0;
     this._cooldownEnd = 0;
+    this._cooldownMs = 0;
     this._cooldownTimer = null;
     this._manualVisible = false;
 
     const ga = LAYOUT.gameArea;
-    const btnX = ga.x + 110;
-    const btnY = ga.y + ga.h - 10;
+    const btnX = snapPx(ga.x + 110);
+    const btnY = snapPx(ga.y + ga.h - 10);
+    const half = ICON_SIZE / 2;
+    const localX = snapPx(half);
+    const localY = snapPx(-half + 5);
 
-    this._btn = scene.add.text(btnX, btnY, 'SMASH', {
-      fontFamily: 'monospace',
-      fontSize: '14px',
-      color: '#ffffff',
-      fontStyle: 'bold',
-      backgroundColor: '#7c2d12',
-      padding: { x: 16, y: 8 },
-      stroke: '#000000',
-      strokeThickness: 2,
-    }).setOrigin(0, 1).setInteractive({ useHandCursor: true });
+    this._container = scene.add.container(btnX, btnY);
+    this._container.setDepth(10).setVisible(false);
 
-    this._btn.setVisible(false);
-    this._btn.setDepth(10);
+    this._icon = scene.add.image(localX, localY, 'icon_smash_button');
+    this._icon.setDisplaySize(ICON_SIZE, ICON_SIZE);
+    this._icon.setInteractive({ useHandCursor: true });
+    this._baseScaleX = this._icon.scaleX;
+    this._baseScaleY = this._icon.scaleY;
 
-    this._btn.on('pointerdown', () => this._onSmash());
-    this._btn.on('pointerover', () => {
-      if (this._btn.visible && !this._isOnCooldown()) {
-        this._btn.setStyle({ backgroundColor: '#9a3412' });
+    this._cooldownOverlay = scene.add.image(localX, localY, 'icon_smash_button');
+    this._cooldownOverlay.setDisplaySize(ICON_SIZE, ICON_SIZE);
+    this._cooldownOverlay.setTint(0x000000);
+    this._cooldownOverlay.setAlpha(COOLDOWN_DARK_ALPHA);
+    this._cooldownOverlay.setVisible(false);
+
+    this._container.add([this._icon, this._cooldownOverlay]);
+
+    this._icon.on('pointerdown', () => this._onSmash());
+    this._icon.on('pointerover', () => {
+      if (this._container.visible && !this._isOnCooldown()) {
+        this._icon.setScale(this._baseScaleX * HOVER_SCALE, this._baseScaleY * HOVER_SCALE);
       }
     });
-    this._btn.on('pointerout', () => {
-      if (this._btn.visible && !this._isOnCooldown()) {
-        this._btn.setStyle({ backgroundColor: '#7c2d12' });
+    this._icon.on('pointerout', () => {
+      if (this._container.visible && !this._isOnCooldown()) {
+        this._icon.setScale(this._baseScaleX, this._baseScaleY);
       }
     });
 
@@ -69,13 +81,10 @@ export default class SmashButton {
 
   _refreshVisibility() {
     if (this._manualVisible) {
-      this._btn.setVisible(true);
-      if (!this._isOnCooldown()) {
-        this._btn.setText('SMASH');
-        this._btn.setStyle({ backgroundColor: '#7c2d12', color: '#ffffff' });
-      }
+      this._container.setVisible(true);
+      this._updateCooldownVisual();
     } else {
-      this._btn.setVisible(false);
+      this._container.setVisible(false);
     }
   }
 
@@ -84,38 +93,49 @@ export default class SmashButton {
     if (!CombatEngine.hasTarget()) return;
 
     const multiplier = this._getDamageMultiplier();
-    const cooldownMs = this._getCooldownMs();
+    this._cooldownMs = this._getCooldownMs();
 
     emit(EVENTS.POWER_SMASH_USED, { multiplier });
     CombatEngine.powerSmashAttack(multiplier);
 
     this._cooldownStart = Date.now();
-    this._cooldownEnd = this._cooldownStart + cooldownMs;
+    this._cooldownEnd = this._cooldownStart + this._cooldownMs;
     this._startCooldownTimer();
   }
 
   _startCooldownTimer() {
     this._stopCooldownTimer();
-    this._btn.setStyle({ backgroundColor: '#333333', color: '#888888' });
-    this._updateCooldownText();
+    this._updateCooldownVisual();
 
     this._cooldownTimer = this.scene.time.addEvent({
-      delay: 500,
+      delay: 40,
       loop: true,
-      callback: () => this._updateCooldownText(),
+      callback: () => this._updateCooldownVisual(),
     });
   }
 
-  _updateCooldownText() {
+  _updateCooldownVisual() {
     const remaining = this._cooldownEnd - Date.now();
     if (remaining <= 0) {
       this._stopCooldownTimer();
-      this._btn.setText('SMASH');
-      this._btn.setStyle({ backgroundColor: '#7c2d12', color: '#ffffff' });
+      this._cooldownOverlay.setVisible(false);
+      this._cooldownOverlay.setCrop();
+      this._cooldownOverlay.setAlpha(COOLDOWN_DARK_ALPHA);
+      this._icon.setScale(this._baseScaleX, this._baseScaleY);
       return;
     }
-    const secs = Math.ceil(remaining / 1000);
-    this._btn.setText(`SMASH (${secs}s)`);
+    const ratio = Math.max(0, Math.min(1, this._cooldownMs > 0 ? remaining / this._cooldownMs : 0));
+    const frameW = this._cooldownOverlay.frame.cutWidth;
+    const frameH = this._cooldownOverlay.frame.cutHeight;
+    const darkH = Math.round(frameH * ratio);
+    if (darkH <= 0) {
+      this._cooldownOverlay.setVisible(false);
+      this._cooldownOverlay.setCrop(0, 0, frameW, 0);
+      return;
+    }
+    this._cooldownOverlay.setVisible(true);
+    this._cooldownOverlay.setAlpha(COOLDOWN_DARK_ALPHA);
+    this._cooldownOverlay.setCrop(0, 0, frameW, darkH);
   }
 
   _stopCooldownTimer() {
@@ -126,19 +146,25 @@ export default class SmashButton {
   }
 
   _recalcCooldown() {
-    const newEnd = this._cooldownStart + this._getCooldownMs();
+    this._cooldownMs = this._getCooldownMs();
+    const newEnd = this._cooldownStart + this._cooldownMs;
     if (newEnd <= Date.now()) {
       this._resetCooldown();
     } else {
       this._cooldownEnd = newEnd;
-      this._updateCooldownText();
+      this._updateCooldownVisual();
     }
   }
 
   _resetCooldown() {
     this._cooldownStart = 0;
     this._cooldownEnd = 0;
+    this._cooldownMs = 0;
     this._stopCooldownTimer();
+    this._cooldownOverlay.setVisible(false);
+    this._cooldownOverlay.setCrop();
+    this._cooldownOverlay.setAlpha(COOLDOWN_DARK_ALPHA);
+    this._icon.setScale(this._baseScaleX, this._baseScaleY);
     this._refreshVisibility();
   }
 
@@ -149,16 +175,20 @@ export default class SmashButton {
 
   hide() {
     this._manualVisible = false;
-    this._btn.setVisible(false);
+    this._container.setVisible(false);
   }
 
   setPosition(x, y) {
-    this._btn.setPosition(x, y);
+    this._container.setPosition(snapPx(x), snapPx(y));
   }
 
   destroy() {
     for (const unsub of this._unsubs) unsub();
     this._unsubs = [];
     this._stopCooldownTimer();
+    if (this._container) {
+      this._container.destroy();
+      this._container = null;
+    }
   }
 }

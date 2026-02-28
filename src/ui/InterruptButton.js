@@ -4,6 +4,7 @@
 import CombatEngine from '../systems/CombatEngine.js';
 import UpgradeManager from '../systems/UpgradeManager.js';
 import { ABILITIES, LAYOUT } from '../config.js';
+import { snapPx } from './ui-utils.js';
 
 export default class InterruptButton {
   constructor(scene) {
@@ -15,8 +16,8 @@ export default class InterruptButton {
     this._pulsePending = false;
 
     const ga = LAYOUT.gameArea;
-    const btnX = ga.x + 110;
-    const btnY = ga.y + ga.h - 46;
+    const btnX = snapPx(ga.x + 110);
+    const btnY = snapPx(ga.y + ga.h - 46);
 
     this._btn = scene.add.text(btnX, btnY, 'INTERRUPT', {
       fontFamily: 'monospace',
@@ -158,7 +159,7 @@ export default class InterruptButton {
   }
 
   setPosition(x, y) {
-    this._btn.setPosition(x, y);
+    this._btn.setPosition(snapPx(x), snapPx(y));
   }
 
   destroy() {

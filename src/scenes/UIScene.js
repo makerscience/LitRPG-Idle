@@ -79,18 +79,15 @@ export default class UIScene extends Phaser.Scene {
     this.stanceSwitcher = new StanceSwitcher(this);
     this.corruptionIndicator = new CorruptionIndicator(this);
 
-    // Stance action layout: Slot A = legacy skill, Slot B = new trait-counter skill.
-    const slotAX = ga.x + Math.round(ga.w * (110 / 960));
-    const slotAY = ga.y + ga.h - 10;
+    // Stance action layout: Slot A = primary stance skill, Slot B = trait-counter skill.
     const slotBX = ga.x + Math.round(ga.w * (110 / 960));
     const slotBY = ga.y + ga.h - 46;
-    // Flurry icon uses a custom icon container anchor, so place it explicitly:
-    // near left screen edge and around the player's vertical midpoint.
+    // Primary skill icons share a custom anchor near the left edge and around the player's midpoint.
     const flurryX = ga.x + 2;
     const flurryY = ga.y + ga.h - 205;
-    this.smashButton.setPosition(slotAX, slotAY);
+    this.smashButton.setPosition(flurryX, flurryY);
     this.flurryButton.setPosition(flurryX, flurryY);
-    this.bulwarkButton.setPosition(slotAX, slotAY);
+    this.bulwarkButton.setPosition(flurryX, flurryY);
     this.armorBreakButton.setPosition(slotBX, slotBY);
     this.interruptButton.setPosition(slotBX, slotBY);
     this.cleanseButton.setPosition(slotBX, slotBY);

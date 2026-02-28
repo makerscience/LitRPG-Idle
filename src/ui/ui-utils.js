@@ -1,9 +1,14 @@
 // UI utilities — small helpers that eliminate scattered boilerplate.
 
+/** Snap a coordinate/size to integer pixels for crisper UI rendering. */
+export function snapPx(value) {
+  return Math.round(value);
+}
+
 /** Create a text button with hover states. Returns the Phaser Text object. */
 export function makeButton(scene, x, y, text, { bg = '#333333', hoverBg = '#555555', color = '#ffffff', fontSize = '11px', padding, onDown } = {}) {
   const pad = padding ?? { x: 6, y: 3 };
-  const btn = scene.add.text(x, y, text, {
+  const btn = scene.add.text(snapPx(x), snapPx(y), text, {
     fontFamily: 'monospace', fontSize, color,
     backgroundColor: bg, padding: pad,
   }).setInteractive({ useHandCursor: true });
@@ -27,5 +32,5 @@ export const TEXT_STYLES = {
 /** Add text with a preset style. Returns the Phaser Text object. */
 export function addText(scene, x, y, text, styleName, overrides = {}) {
   const base = TEXT_STYLES[styleName] || TEXT_STYLES.label;
-  return scene.add.text(x, y, text, { ...base, ...overrides });
+  return scene.add.text(snapPx(x), snapPx(y), text, { ...base, ...overrides });
 }
