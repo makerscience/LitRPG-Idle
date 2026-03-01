@@ -11,6 +11,7 @@ import { getEnemyById } from '../data/enemies.js';
 import { getActiveArmorSet, ARMOR_SETS } from '../config/playerSprites.js';
 import { FEATURES } from '../config/features.js';
 import { parseStackKey } from '../systems/InventorySystem.js';
+import MusicManager from '../systems/MusicManager.js';
 
 const PLAYER_X_RATIO = 200 / 960;
 const ENEMY_X_RATIO = 700 / 960;
@@ -328,25 +329,8 @@ export default class GameScene extends Phaser.Scene {
       this.scene.launch('SpritePreviewScene');
     }
 
-    // Background music — use HTML5 Audio for streaming (file is ~200MB, too large for Web Audio decode)
-    this._bgm = new Audio('Sound/soundtrack/ambient progression.mp3');
-    this._bgm.loop = true;
-    this._bgm.volume = Store.getState().settings.musicVolume;
-    this._bgm.play().catch(() => {
-      // Autoplay blocked — retry on first user interaction
-      const resume = () => {
-        this._bgm.play().catch(() => {});
-        document.removeEventListener('pointerdown', resume);
-      };
-      document.addEventListener('pointerdown', resume);
-    });
-
-    // Sync volume when settings change
-    this._unsubs.push(on(EVENTS.STATE_CHANGED, ({ changedKeys }) => {
-      if (changedKeys.includes('settings') && this._bgm) {
-        this._bgm.volume = Store.getState().settings.musicVolume;
-      }
-    }));
+    // Ensure shared soundtrack is running (persisted across Start/Game scenes).
+    MusicManager.ensurePlaying();
 
     console.log('[GameScene] create â€" combat initialized');
   }
@@ -3006,7 +2990,6 @@ export default class GameScene extends Phaser.Scene {
   }
 
   _shutdown() {
-    if (this._bgm) { this._bgm.pause(); this._bgm.src = ''; this._bgm = null; }
     this.scene.stop('OverworldScene');
     this.scene.stop('UIScene');
     for (const unsub of this._unsubs) unsub();

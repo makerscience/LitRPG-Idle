@@ -1,18 +1,19 @@
 # CURRENT_FOCUS
 
 ## One-liner
-- Current work is focused on polishing the Area 1 Zone 1-5 demo slice: Slimefang encounter readability, end-of-demo flow, and skill economy tuning.
+- Current work is focused on demo-slice polish plus startup/audio UX: clearer boot feedback, persistent soundtrack continuity from menu -> gameplay, and stable settings defaults.
 
 ## Active Objectives (max 3)
 1. **Demo endpoint quality:** End the current build cleanly after Slimefang (Area 1 Zone 5) with a dedicated end screen and no accidental progression into later zones.
 2. **Boss readability:** Keep Slimefang's encounter telegraphs readable (enrage warnings, countdown timer, death sequence clarity).
-3. **Early progression feel:** Tune early skill economy and Fortress skill upgrades for first-demo pacing (respec access/cost, Bulwark t1/t3 behavior).
+3. **Startup/gameflow UX:** Keep first-load and scene transitions legible and smooth (loading screen visibility, music continuity, sane default volume).
 
 ## Next Actions
 - [ ] Full playtest from fresh save through Slimefang kill and demo-complete overlay transition
 - [ ] Verify Slimefang timed enrage behavior in live run (50% trigger -> 15s countdown -> expire -> optional 10% retrigger)
 - [ ] Verify demoCompleted persistence across save/load and menu return
-- [ ] Confirm Area 1 Zone 6+ remains inaccessible during demo lock
+- [ ] Confirm soundtrack starts on StartScene, persists into GameScene without restart, and respects slider changes in both scenes
+- [ ] Confirm new loading UI appears immediately during BootScene preload on slower loads/dev refreshes
 
 ## Open Loops / Blockers
 - `npm run build` passes; Vite Phaser chunk warning remains pre-existing
@@ -30,7 +31,15 @@
   - Respec unlock moved to level 5 but gated behind `enhanceTutorialCompleted`; respec gold base cost lowered to 300
   - Bulwark upgrades retuned: t1 absorb 20% max HP, t3 now reduces cooldown to 20s (duration bonus removed)
   - Skills panel now defaults to ACTIVE tab on open
+  - Music default for fresh saves set to 50% (`settings.musicVolume = 0.5`)
+  - Added BootScene loading overlay (`LOADING...`, progress bar, percentage)
+  - Added shared `MusicManager` singleton; soundtrack now starts in `StartScene` and continues into `GameScene` without restarting
 - **Key files (latest session):**
+  - `src/systems/MusicManager.js`
+  - `src/main.js`
+  - `src/scenes/StartScene.js`
+  - `src/scenes/BootScene.js`
+  - `src/systems/Store.js`
   - `src/systems/BossManager.js`
   - `src/systems/CombatEngine.js`
   - `src/scenes/GameScene.js`

@@ -8,6 +8,7 @@ import { FEATURES } from './config/features.js';
 import Store from './systems/Store.js';
 import SaveManager from './systems/SaveManager.js';
 import TimeEngine from './systems/TimeEngine.js';
+import MusicManager from './systems/MusicManager.js';
 import CombatEngine from './systems/CombatEngine.js';
 import LootEngine from './systems/LootEngine.js';
 import InventorySystem from './systems/InventorySystem.js';
@@ -23,6 +24,7 @@ import SpritePreviewScene from './scenes/SpritePreviewScene.js';
 Store.init();
 SaveManager.init(Store);
 TimeEngine.init();
+MusicManager.init();
 LootEngine.init();
 if (FEATURES.territoryEnabled) TerritoryManager.init();
 OfflineProgress.apply();
@@ -104,6 +106,7 @@ if (import.meta.hot) {
 
   import.meta.hot.dispose(() => {
     try { SaveManager.save(); } catch {}
+    try { MusicManager.destroy(); } catch {}
     try { SaveManager.destroy(); } catch {}
     try { TimeEngine.destroy(); } catch {}
   });

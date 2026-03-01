@@ -3,6 +3,7 @@ import { WORLD, PARALLAX } from '../config.js';
 import { emit, EVENTS } from '../events.js';
 import Store from '../systems/Store.js';
 import SaveManager from '../systems/SaveManager.js';
+import MusicManager from '../systems/MusicManager.js';
 
 const BUTTON_STYLE = {
   fontFamily: 'monospace',
@@ -33,6 +34,7 @@ export default class StartScene extends Phaser.Scene {
 
   create() {
     this.cameras.main.setBackgroundColor('#0b1220');
+    MusicManager.ensurePlaying();
 
     this._createParallax();
     this._createChrome();

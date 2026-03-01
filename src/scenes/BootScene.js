@@ -8,6 +8,49 @@ export default class BootScene extends Phaser.Scene {
   }
 
   preload() {
+    const { width, height } = this.scale;
+    const barWidth = 420;
+    const barHeight = 22;
+    const barX = Math.floor((width - barWidth) * 0.5);
+    const barY = Math.floor(height * 0.52);
+
+    this.cameras.main.setBackgroundColor(0x0a0f1d);
+
+    const titleText = this.add.text(Math.floor(width * 0.5), Math.floor(height * 0.45), 'LOADING...', {
+      fontSize: '36px',
+      fontFamily: 'Verdana',
+      color: '#d9e6ff',
+      fontStyle: 'bold',
+    }).setOrigin(0.5);
+
+    const progressText = this.add.text(Math.floor(width * 0.5), Math.floor(height * 0.58), '0%', {
+      fontSize: '22px',
+      fontFamily: 'Verdana',
+      color: '#a9b8d8',
+      fontStyle: 'bold',
+    }).setOrigin(0.5);
+
+    const progressFrame = this.add.graphics();
+    progressFrame.fillStyle(0x1f2b46, 0.95);
+    progressFrame.fillRect(barX, barY, barWidth, barHeight);
+
+    const progressFill = this.add.graphics();
+
+    this.load.on('progress', (value) => {
+      const clamped = Phaser.Math.Clamp(value, 0, 1);
+      progressFill.clear();
+      progressFill.fillStyle(0x5fa8ff, 1);
+      progressFill.fillRect(barX + 2, barY + 2, Math.floor((barWidth - 4) * clamped), barHeight - 4);
+      progressText.setText(`${Math.floor(clamped * 100)}%`);
+    });
+
+    this.load.once('complete', () => {
+      progressFill.destroy();
+      progressFrame.destroy();
+      progressText.destroy();
+      titleText.destroy();
+    });
+
     this.load.image('slime001_default',   'Images/Enemies/area1/slime001_default.png');
     this.load.image('slime001_reaction',  'Images/Enemies/area1/slime001_reaction.png');
     this.load.image('slime001_attack',    'Images/Enemies/area1/slime001_attack.png');

@@ -11,6 +11,27 @@ Format:
 ---
 
 ## 2026-03-01
+- Tags: audio, architecture, scenes
+- Decision: Background soundtrack ownership moved out of `GameScene` into a shared `MusicManager` singleton; both `StartScene` and `GameScene` call `MusicManager.ensurePlaying()` instead of creating independent `Audio` instances.
+- Rationale: Music now needs to begin on the main menu and continue seamlessly into gameplay without restarting or gap-cutting on scene transitions.
+- Alternatives considered: Keep scene-local audio in each scene (rejected: restart/cut on transition), play only in gameplay (rejected: user requested menu playback too).
+- Consequences / Follow-ups: `GameScene` no longer tears down BGM on shutdown; volume sync is centralized via `EVENTS.STATE_CHANGED` (`settings`). Ensure `MusicManager.destroy()` runs in HMR dispose path.
+
+## 2026-03-01
+- Tags: startup, ui, ux
+- Decision: BootScene now renders an explicit loading overlay (`LOADING...`, progress bar, percent) during preload and removes it on loader `complete`.
+- Rationale: Asset load can be long enough that a blank/quiet screen reads like a hang; the overlay confirms progress and expected wait.
+- Alternatives considered: No loading UI (rejected: ambiguous startup state), static splash only (rejected: no progress signal).
+- Consequences / Follow-ups: Loading visuals are lightweight scene text/graphics only; keep them simple to avoid preload overhead.
+
+## 2026-03-01
+- Tags: audio, defaults, settings
+- Decision: Fresh-state default music volume is `0.5` (50%) in `Store.createInitialState()`.
+- Rationale: New sessions should have audible soundtrack by default, while still honoring persisted player settings on existing saves.
+- Alternatives considered: Keep 0% default (rejected: silent first impression), force-reset existing saves to 50% (rejected: overrides user preference).
+- Consequences / Follow-ups: Existing saves retain stored volume; default only applies when no saved settings are present.
+
+## 2026-03-01
 - Tags: progression, release-scope, ui
 - Decision: Current build is a 5-zone demo slice that ends at Slimefang (`boss_a1z5_the_hollow`) with a dedicated full-screen "DEMO COMPLETE" overlay instead of advancing to Zone 6+.
 - Rationale: We need a polished vertical-slice endpoint while later area/zone content is still under active iteration.
