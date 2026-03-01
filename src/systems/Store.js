@@ -77,6 +77,7 @@ function createInitialState() {
       enhanceTutorialIntroShown: false,
       enhanceTutorialStage: 'inactive',
       enhanceTutorialCompleted: false,
+      demoCompleted: false,
       // Area entrance flags
       reachedArea2: false, reachedArea3: false, reachedArea4: false, reachedArea5: false,
     },
@@ -456,6 +457,11 @@ const Store = {
     emit(EVENTS.STATE_CHANGED, { changedKeys: ['purchasedUpgrades'] });
   },
 
+  setPurchasedUpgrades(nextPurchasedUpgrades) {
+    state.purchasedUpgrades = { ...(nextPurchasedUpgrades || {}) };
+    emit(EVENTS.STATE_CHANGED, { changedKeys: ['purchasedUpgrades'] });
+  },
+
   // ── Cheat mutations ───────────────────────────────────────────────
 
   unlockCheat(cheatId) {
@@ -516,6 +522,18 @@ const Store = {
 
   resetPlayerHp() {
     state.playerHp = getEffectiveMaxHp();
+  },
+
+  clampPlayerHpToMax() {
+    const maxHp = getEffectiveMaxHp();
+    if (state.playerHp.lte(maxHp)) return;
+    state.playerHp = maxHp;
+    emit(EVENTS.COMBAT_PLAYER_DAMAGED, {
+      amount: D(0),
+      remainingHp: state.playerHp,
+      maxHp,
+    });
+    emit(EVENTS.STATE_CHANGED, { changedKeys: ['playerHp'] });
   },
 
   // ── Kill tracking mutations ──────────────────────────────────────

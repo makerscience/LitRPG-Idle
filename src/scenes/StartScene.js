@@ -99,7 +99,7 @@ export default class StartScene extends Phaser.Scene {
       strokeThickness: 6,
     }).setOrigin(0.5).setDepth(10);
 
-    this.add.text(WORLD.width / 2, 198, 'A LitRPG Idle Adventure', {
+    this.add.text(WORLD.width / 2, 198, 'An RPG Idle Adventure?', {
       fontFamily: 'monospace',
       fontSize: '16px',
       color: '#d1d5db',

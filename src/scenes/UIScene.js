@@ -38,6 +38,7 @@ export default class UIScene extends Phaser.Scene {
     super('UIScene');
     this._unsubs = [];
     this._mapOpen = false;
+    this._demoEndContainer = null;
   }
 
   create() {
@@ -114,6 +115,7 @@ export default class UIScene extends Phaser.Scene {
       this._refreshStanceActions();
       this._pulseUnlockedSkill(skillId);
     }));
+    this._unsubs.push(on(EVENTS.DEMO_COMPLETED, (data) => this._showDemoEndScreen(data)));
     this._refreshStanceActions();
     this.inventoryPanel = new InventoryPanel(this);
     this.upgradePanel = new UpgradePanel(this);
@@ -180,6 +182,9 @@ export default class UIScene extends Phaser.Scene {
     }
 
     this.events.on('shutdown', () => this._shutdown());
+    if (Store.getState().flags.demoCompleted) {
+      this._showDemoEndScreen({ area: 1, zone: 5, name: 'Slimefang' });
+    }
 
     console.log('[UIScene] create — UI overlay initialized');
   }
@@ -274,6 +279,78 @@ export default class UIScene extends Phaser.Scene {
     }
   }
 
+  _showDemoEndScreen(_data = null) {
+    if (this._demoEndContainer) return;
+    this.closeAllModals();
+    this._setCombatUiVisibility(false);
+
+    const manager = this.scene?.manager;
+    if (manager?.isActive?.('GameScene') && !manager?.isPaused?.('GameScene')) {
+      manager.pause('GameScene');
+    }
+
+    const ga = LAYOUT.gameArea;
+    const cx = ga.x + ga.w / 2;
+    const cy = ga.y + ga.h / 2;
+
+    const backdrop = this.add.rectangle(cx, cy, ga.w, ga.h, 0x000000, 0.78)
+      .setDepth(500)
+      .setInteractive({ useHandCursor: true });
+    const panel = this.add.rectangle(cx, cy, 760, 360, 0x111827, 0.97)
+      .setStrokeStyle(3, 0x60a5fa, 0.95)
+      .setDepth(501);
+    const title = this.add.text(cx, cy - 104, 'DEMO COMPLETE', {
+      fontFamily: 'monospace',
+      fontSize: '48px',
+      color: '#93c5fd',
+      fontStyle: 'bold',
+      stroke: '#000000',
+      strokeThickness: 6,
+    }).setOrigin(0.5).setDepth(502);
+    const body = this.add.text(cx, cy - 18, [
+      'You defeated Slimefang and completed the first 5-zone demo.',
+      '',
+      'More zones and areas are coming soon.',
+    ], {
+      fontFamily: 'monospace',
+      fontSize: '21px',
+      color: '#e5e7eb',
+      align: 'center',
+      lineSpacing: 7,
+    }).setOrigin(0.5).setDepth(502);
+    const menuBtn = this.add.text(cx, cy + 112, 'RETURN TO MAIN MENU', {
+      fontFamily: 'monospace',
+      fontSize: '22px',
+      color: '#f8fafc',
+      backgroundColor: '#1d4ed8',
+      padding: { x: 18, y: 10 },
+      fontStyle: 'bold',
+    }).setOrigin(0.5).setDepth(503).setInteractive({ useHandCursor: true });
+    menuBtn.on('pointerover', () => menuBtn.setStyle({ backgroundColor: '#2563eb' }));
+    menuBtn.on('pointerout', () => menuBtn.setStyle({ backgroundColor: '#1d4ed8' }));
+    menuBtn.on('pointerdown', () => this._goToMainMenuFromDemo());
+
+    this._demoEndContainer = this.add.container(0, 0, [backdrop, panel, title, body, menuBtn]).setDepth(500);
+  }
+
+  _goToMainMenuFromDemo() {
+    const scenePlugin = this.scene;
+    const manager = scenePlugin?.manager;
+    if (!scenePlugin || !manager) return;
+
+    scenePlugin.stop('OverworldScene');
+    scenePlugin.stop('SpritePreviewScene');
+    scenePlugin.stop('UIScene');
+    scenePlugin.stop('GameScene');
+    scenePlugin.start('StartScene');
+
+    setTimeout(() => {
+      if (!manager.isActive('StartScene')) {
+        window.location.reload();
+      }
+    }, 120);
+  }
+
   _shutdown() {
     for (const unsub of this._unsubs) unsub();
     this._unsubs = [];
@@ -312,6 +389,10 @@ export default class UIScene extends Phaser.Scene {
     }
     if (FEATURES.prestigeEnabled) {
       PrestigeManager.destroy();
+    }
+    if (this._demoEndContainer) {
+      this._demoEndContainer.destroy(true);
+      this._demoEndContainer = null;
     }
     console.log('[UIScene] shutdown — cleaned up');
   }

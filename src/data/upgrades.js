@@ -137,7 +137,7 @@ const UPGRADES = [
   {
     id: 'flurry_t2',
     name: 'Bleeding Cuts',
-    description: 'Each Rapid Strike hit applies a small DOT',
+    description: 'Rapid Strikes applies a small DOT',
     group: 'skill',
     stance: 'tempest',
     category: 'legit',
@@ -165,7 +165,7 @@ const UPGRADES = [
   {
     id: 'bulwark_t1',
     name: 'Reinforced Shell',
-    description: 'Shield absorb increased to 14% max HP',
+    description: 'Shield absorb increased to 20% max HP',
     group: 'skill',
     stance: 'fortress',
     category: 'legit',
@@ -190,7 +190,7 @@ const UPGRADES = [
   {
     id: 'bulwark_t3',
     name: 'Bastion',
-    description: 'Shield duration increased to 14s',
+    description: 'Bulwark cooldown reduced to 20s',
     group: 'skill',
     stance: 'fortress',
     category: 'legit',
@@ -198,7 +198,7 @@ const UPGRADES = [
     maxLevel: 1,
     requires: 'bulwark_t2',
     costFormula: () => 1,
-    effect: { type: 'flag', target: 'bulwarkDuration14s' },
+    effect: { type: 'flag', target: 'bulwarkCooldown20s' },
   },
 
   // -- Ruin secondary: Armor Break --

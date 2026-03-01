@@ -43,7 +43,7 @@ const SUMMONED_ADD_REWARD_MULT = COMBAT_V2.summonedAddRewardMult ?? 0;
 const ARMOR_BREAK_DURATION_MS = ABILITIES.armorBreak.durationMs;
 const SMASH_VULNERABILITY_BONUS = 0.15;
 const SMASH_VULNERABILITY_DURATION_MS = 10000;
-const BULWARK_REFLECT_RATIO = 0.30;
+const BULWARK_REFLECT_BASE_ATTACK_RATIO = 0.5;
 const RAPID_STRIKES_DOT_TICKS = 3;
 const RAPID_STRIKES_DOT_INTERVAL_MS = 1000;
 const RAPID_STRIKES_DOT_SCALAR = 0.15;
@@ -64,6 +64,7 @@ const CORRUPTION_CFG = {
 const CHARGE_ATTACK_DEFAULT_DAMAGE_MULT = 4.0;
 const CHARGE_ATTACK_DEFAULT_CAST_MS = 2500;
 const CHARGE_ATTACK_DEFAULT_COOLDOWN_MS = 15000;
+const SLIMEFANG_DEMO_END_DELAY_MS = 10000;
 
 const AREA1_SLIME_BASE_VARIANTS = [
   { name: 'Friendly Slime', defaultKey: 'slime001_default' },
@@ -254,6 +255,8 @@ const CombatEngine = {
       maxHp: D(enemyData.hp),
       attack: enemyData.attack,
       attackSpeed: effectiveAtkSpeed,
+      _baseAttack: enemyData.attack,
+      _baseAttackSpeed: effectiveAtkSpeed,
       defense: enemyData.defense ?? 0,
       accuracy: enemyData.accuracy ?? 80,
       armorPen: enemyData.armorPen ?? 0,
@@ -281,11 +284,14 @@ const CombatEngine = {
       spriteSpreadBonus: enemyData.spriteSpreadBonus ?? 0,
       chargeArmor: enemyData.chargeArmor ?? 0,
       splitOnDeath: enemyData.splitOnDeath ?? null,
+      respawnOnDeath: enemyData.respawnOnDeath ?? null,
       _armorShredPercent: 0,
       _armorBreakTimerId: null,
       _smashVulnerabilityMult: 0,
       _smashVulnerabilityTimerId: null,
       _enraged: false,
+      _enrageStage: 0,
+      _enrageTimerId: null,
       _summonCasting: false,
       _summonCastTimerId: null,
       _chargeCasting: false,
@@ -366,9 +372,48 @@ const CombatEngine = {
     };
   },
 
-  _getFreeEncounterSlot() {
+  _getFrontlineMember() {
+    if (!encounter) return null;
+    let front = null;
+    for (const m of encounter.members) {
+      if (!m.alive) continue;
+      if (!front || m.slot < front.slot) front = m;
+    }
+    return front;
+  },
+
+  _syncFrontlineTarget(emitChange = true) {
+    if (!encounter) return null;
+    const front = CombatEngine._getFrontlineMember();
+    if (!front) {
+      encounter.targetId = null;
+      return null;
+    }
+    if (encounter.targetId !== front.instanceId) {
+      encounter.targetId = front.instanceId;
+      if (emitChange) {
+        emit(EVENTS.COMBAT_TARGET_CHANGED, {
+          encounterId: encounter.id,
+          instanceId: front.instanceId,
+          slot: front.slot,
+          enemyId: front.enemyId,
+        });
+      }
+    }
+    return front;
+  },
+
+  _getFreeEncounterSlot(preferredSlot = null, requirePreferred = false) {
     if (!encounter) return null;
     const occupied = new Set(encounter.members.filter(m => m.alive).map(m => m.slot));
+    if (
+      Number.isInteger(preferredSlot)
+      && preferredSlot >= 0
+      && preferredSlot < COMBAT_V2.maxEncounterSize
+    ) {
+      if (!occupied.has(preferredSlot)) return preferredSlot;
+      if (requirePreferred) return null;
+    }
     for (let i = 0; i < COMBAT_V2.maxEncounterSize; i++) {
       if (!occupied.has(i)) return i;
     }
@@ -381,7 +426,7 @@ const CombatEngine = {
    */
   _startEncounter(enc) {
     encounter = enc;
-    enc.targetId = enc.members[0].instanceId;
+    enc.targetId = null;
     enc.corruptionStacks = 0;
     resetCombatDebuffs();
 
@@ -398,6 +443,7 @@ const CombatEngine = {
       memberCount: enc.members.length,
       members: enc.members.map(m => CombatEngine._toMemberPayload(m)),
     });
+    CombatEngine._syncFrontlineTarget(true);
   },
 
   /** Register attack + DoT timers for a single encounter member.
@@ -519,6 +565,15 @@ const CombatEngine = {
       encounter.activeTimerIds.delete(member._interruptStunTimerId);
       member._interruptStunTimerId = null;
     }
+
+    if (member._enrageTimerId) {
+      TimeEngine.unregister(member._enrageTimerId);
+      encounter.activeTimerIds.delete(member._enrageTimerId);
+      member._enrageTimerId = null;
+    }
+    member._enraged = false;
+    member.attack = member._baseAttack;
+    member.attackSpeed = member._baseAttackSpeed;
   },
 
   /** Unregister all timers owned by the current encounter. */
@@ -538,11 +593,14 @@ const CombatEngine = {
     }
   },
 
-  _buildScaledEnemyForCurrentZone(enemyId) {
+  _buildScaledEnemyForCurrentZone(enemyId, opts = {}) {
+    const skipVariants = !!opts.skipVariants;
     const state = Store.getState();
     let enemyTemplate = getEnemyById(enemyId);
     if (!enemyTemplate) return null;
-    enemyTemplate = CombatEngine._resolveArea1SlimeVariant(enemyTemplate, state);
+    if (!skipVariants) {
+      enemyTemplate = CombatEngine._resolveArea1SlimeVariant(enemyTemplate, state);
+    }
     const zone = state.currentZone;
     const areaData = getArea(state.currentArea);
     const globalZone = areaData ? areaData.zoneStart + zone - 1 : zone;
@@ -560,6 +618,29 @@ const CombatEngine = {
       xpDrop: D(enemyTemplate.xpDrop).times(getZoneScaling(zone, 'xp') * getZoneBias(globalZone, 'xp') * eb('xp') * rewardMult).floor().toString(),
       regen: enemyTemplate.regen ? Math.floor(enemyTemplate.regen * atkScale * getZoneBias(globalZone, 'regen') * eb('regen')) : 0,
       thorns: enemyTemplate.thorns ? Math.floor(enemyTemplate.thorns * atkScale * getZoneBias(globalZone, 'atk') * eb('atk')) : 0,
+    };
+  },
+
+  _buildArea1Zone4BroodSlime(mult = 1.5, useZoneVariants = true) {
+    const base = CombatEngine._buildScaledEnemyForCurrentZone('a1_slime', { skipVariants: true });
+    if (!base) return null;
+    const variant = useZoneVariants
+      ? (CombatEngine._buildScaledEnemyForCurrentZone('a1_slime', { skipVariants: false }) || base)
+      : base;
+    const variantDefault = variant?.sprites?.default || base?.sprites?.default || 'slime001_default';
+    const variantName = variant?.name || 'Brood Slime';
+    return {
+      ...base,
+      name: variantName,
+      hp: D(base.hp).times(mult).floor().toString(),
+      attack: Math.max(1, Math.floor((base.attack ?? 0) * mult)),
+      defense: Math.max(0, Math.floor((base.defense ?? 0) * mult)),
+      regen: Math.max(0, Math.floor((base.regen ?? 0) * mult)),
+      noAttack: false,
+      sprites: {
+        ...base.sprites,
+        default: variantDefault,
+      },
     };
   },
 
@@ -610,7 +691,10 @@ const CombatEngine = {
 
   _addEncounterMember(enemyData, opts = {}) {
     if (!encounter) return null;
-    const slot = CombatEngine._getFreeEncounterSlot();
+    const slot = CombatEngine._getFreeEncounterSlot(
+      opts.preferredSlot ?? null,
+      !!opts.requirePreferredSlot,
+    );
     if (slot == null) return null;
 
     const member = CombatEngine._buildMember(enemyData, slot, {
@@ -622,16 +706,7 @@ const CombatEngine = {
     encounter.members.push(member);
     encounter.memberById.set(member.instanceId, member);
     CombatEngine._registerMemberTimers(member, encounter.members.length - 1);
-
-    if (!CombatEngine.hasTarget()) {
-      encounter.targetId = member.instanceId;
-      emit(EVENTS.COMBAT_TARGET_CHANGED, {
-        encounterId: encounter.id,
-        instanceId: member.instanceId,
-        slot: member.slot,
-        enemyId: member.enemyId,
-      });
-    }
+    CombatEngine._syncFrontlineTarget(true);
 
     emit(EVENTS.COMBAT_MEMBER_ADDED, {
       encounterId: encounter.id,
@@ -1000,6 +1075,7 @@ const CombatEngine = {
 
   /** Spawn a regular enemy using encounter templates + zone scaling. */
   spawnEnemy() {
+    if (Store.getState().flags.demoCompleted) return;
     const state = Store.getState();
     const area = state.currentArea;
     const zone = state.currentZone;
@@ -1041,6 +1117,59 @@ const CombatEngine = {
       xpDrop:      D(bossTemplate.xpDrop).times(bb('xp')).floor().toString(),
       regen:       bossTemplate.regen ? Math.floor(bossTemplate.regen * bb('regen')) : 0,
     };
+
+    // Special encounter: Area 1 Zone 4 (Blight Mother) is a 4-slime brood fight.
+    // Replacements spawn 15s after a slime dies; no charge/cast system involved.
+    if (bossTemplate.id === 'boss_a1z4_blight_mother') {
+      const broodBase = CombatEngine._buildArea1Zone4BroodSlime(1.5, true);
+      if (!broodBase) return;
+      const respawnCfg = {
+        enemyId: 'a1_slime',
+        delayMs: 15000,
+        hpMult: 1.5,
+        attackMult: 1.5,
+        defenseMult: 1.5,
+        regenMult: 1.5,
+        skipVariants: true,
+        useZoneVariants: true,
+      };
+
+      const bossSlime = {
+        ...scaledBoss,
+        ...broodBase,
+        id: scaledBoss.id,
+        name: scaledBoss.name,
+        title: scaledBoss.title ?? null,
+        description: scaledBoss.description ?? null,
+        hp: D(scaledBoss.hp).times(3).floor().toString(),
+        attack: Math.max(1, Math.floor((scaledBoss.attack ?? broodBase.attack ?? 1) * 0.8)),
+        defense: Math.max(12, Math.floor((scaledBoss.defense ?? 0) * 2 + 12)),
+        spriteSize: scaledBoss.spriteSize ?? broodBase.spriteSize,
+        spriteOffsetY: scaledBoss.spriteOffsetY ?? broodBase.spriteOffsetY,
+        goldDrop: scaledBoss.goldDrop,
+        xpDrop: scaledBoss.xpDrop,
+        lootTable: scaledBoss.lootTable,
+      };
+      const bossMember = CombatEngine._buildMember(bossSlime, 3, { isBoss: true });
+
+      const members = [];
+      for (let i = 0; i < 3; i++) {
+        const frontSlime = CombatEngine._buildArea1Zone4BroodSlime(1.5, true) || broodBase;
+        const addMember = CombatEngine._buildMember(
+          { ...frontSlime, respawnOnDeath: respawnCfg },
+          i,
+          { isAdd: true, summonerId: bossMember.instanceId },
+        );
+        members.push(addMember);
+      }
+      members.push(bossMember);
+
+      const enc = CombatEngine._createEncounterRuntime(members, null, 'boss');
+      enc.bossMemberId = bossMember.instanceId;
+      CombatEngine._startEncounter(enc);
+      return;
+    }
+
     const bossMember = CombatEngine._buildMember(scaledBoss, 0, { isBoss: true });
 
     const enc = CombatEngine._createEncounterRuntime([bossMember], null, 'boss');
@@ -1217,7 +1346,7 @@ const CombatEngine = {
   /** Returns the EnemyRuntime currently targeted, or null. */
   getTargetMember() {
     if (!encounter) return null;
-    return encounter.memberById.get(encounter.targetId) ?? null;
+    return CombatEngine._syncFrontlineTarget(false);
   },
 
   /** Returns array of alive EnemyRuntime members. */
@@ -1234,9 +1363,7 @@ const CombatEngine = {
 
   /** True if there is a living target. */
   hasTarget() {
-    if (!encounter) return false;
-    const target = encounter.memberById.get(encounter.targetId);
-    return target?.alive === true;
+    return !!CombatEngine.getTargetMember();
   },
 
   /** Set the current target to a living member. Emits COMBAT_TARGET_CHANGED. */
@@ -1244,32 +1371,86 @@ const CombatEngine = {
     if (!encounter) return;
     const member = encounter.memberById.get(instanceId);
     if (!member || !member.alive) return;
-    encounter.targetId = instanceId;
-    emit(EVENTS.COMBAT_TARGET_CHANGED, {
-      encounterId: encounter.id,
-      instanceId: member.instanceId,
-      slot: member.slot,
-      enemyId: member.enemyId,
-    });
+    const front = CombatEngine._syncFrontlineTarget(false);
+    if (!front || front.instanceId !== instanceId) return;
+    CombatEngine._syncFrontlineTarget(true);
   },
 
   // ── Enrage check ──
 
-  /** One-time enrage trigger when a member's HP drops below threshold. */
+  _refreshMemberAttackTimer(member) {
+    if (!encounter || !member || member.noAttack || !member.alive) return;
+    const atkKey = `enc:${encounter.id}:atk:${member.instanceId}`;
+    const interval = Math.max(400, Math.floor(COMBAT_V2.baseAttackIntervalMs / member.attackSpeed));
+    TimeEngine.register(atkKey, () => CombatEngine.enemyAttack(member.instanceId), interval, true);
+    encounter.activeTimerIds.add(atkKey);
+  },
+
+  _endTimedEnrage(instanceId, timerId) {
+    if (!encounter) return;
+    const member = encounter.memberById.get(instanceId);
+    if (!member) {
+      encounter.activeTimerIds.delete(timerId);
+      return;
+    }
+    encounter.activeTimerIds.delete(timerId);
+    if (member._enrageTimerId === timerId) member._enrageTimerId = null;
+    if (!member.alive || !member._enraged) return;
+
+    member._enraged = false;
+    member.attack = member._baseAttack;
+    member.attackSpeed = member._baseAttackSpeed;
+    CombatEngine._refreshMemberAttackTimer(member);
+
+    emit(EVENTS.COMBAT_ENEMY_ENRAGE_ENDED, {
+      enemyId: member.enemyId,
+      name: member.name,
+      encounterId: encounter?.id ?? null,
+      instanceId: member.instanceId,
+      slot: member.slot,
+      enrageStage: member._enrageStage,
+    });
+
+    // If HP is already below a later threshold, allow immediate re-trigger.
+    CombatEngine._checkEnrage(member);
+  },
+
+  /** Enrage trigger(s): initial threshold, plus optional retrigger threshold. */
   _checkEnrage(member) {
     if (!member.enrage || member._enraged) return;
     const ratio = member.hp.div(member.maxHp).toNumber();
-    if (ratio >= member.enrage.threshold) return;
+    const firstThreshold = Number(member.enrage.threshold ?? 0);
+    const retriggerThreshold = Number(member.enrage.retriggerThreshold ?? Number.NaN);
 
+    let shouldTrigger = false;
+    if (member._enrageStage === 0 && ratio < firstThreshold) {
+      shouldTrigger = true;
+    } else if (
+      member._enrageStage === 1
+      && Number.isFinite(retriggerThreshold)
+      && ratio < retriggerThreshold
+    ) {
+      shouldTrigger = true;
+    }
+    if (!shouldTrigger) return;
+
+    member._enrageStage += 1;
     member._enraged = true;
-    member.attack = Math.floor(member.attack * member.enrage.atkMult);
-    member.attackSpeed *= member.enrage.speedMult;
+    member.attack = Math.floor(member._baseAttack * member.enrage.atkMult);
+    member.attackSpeed = member._baseAttackSpeed * member.enrage.speedMult;
+    CombatEngine._refreshMemberAttackTimer(member);
 
-    // Re-register attack timer with boosted speed
-    if (encounter && !member.noAttack) {
-      const atkKey = `enc:${encounter.id}:atk:${member.instanceId}`;
-      const interval = Math.max(400, Math.floor(COMBAT_V2.baseAttackIntervalMs / member.attackSpeed));
-      TimeEngine.register(atkKey, () => CombatEngine.enemyAttack(member.instanceId), interval, true);
+    const durationMs = Math.max(0, Number(member.enrage.durationMs ?? 0));
+    let timerKey = null;
+    if (durationMs > 0 && encounter) {
+      if (member._enrageTimerId) {
+        TimeEngine.unregister(member._enrageTimerId);
+        encounter.activeTimerIds.delete(member._enrageTimerId);
+      }
+      timerKey = `enc:${encounter.id}:enrage:${member.instanceId}:${member._enrageStage}`;
+      member._enrageTimerId = timerKey;
+      TimeEngine.scheduleOnce(timerKey, () => CombatEngine._endTimedEnrage(member.instanceId, timerKey), durationMs);
+      encounter.activeTimerIds.add(timerKey);
     }
 
     emit(EVENTS.COMBAT_ENEMY_ENRAGED, {
@@ -1278,6 +1459,9 @@ const CombatEngine = {
       encounterId: encounter?.id ?? null,
       instanceId: member.instanceId,
       slot: member.slot,
+      durationMs,
+      timerKey,
+      enrageStage: member._enrageStage,
     });
   },
 
@@ -1350,8 +1534,16 @@ const CombatEngine = {
     // 2. Bulwark shield absorb
     if (_shieldHp > 0) {
       if (sourceMember?.alive && UpgradeManager.hasUpgrade('bulwark_t2')) {
-        const reflectDamage = Math.max(1, Math.floor(dmg * BULWARK_REFLECT_RATIO));
-        CombatEngine._dealDirectDamage(sourceMember, reflectDamage, { skipAttackAnim: true, source: 'bulwark_reflect' });
+        // Reflect uses attacker base attack (not mitigated incoming damage) and ignores enemy armor.
+        const reflectDamage = Math.max(
+          1,
+          Math.floor((sourceMember.attack ?? 0) * BULWARK_REFLECT_BASE_ATTACK_RATIO),
+        );
+        CombatEngine._dealDirectDamage(sourceMember, reflectDamage, {
+          applyArmor: false,
+          skipAttackAnim: true,
+          source: 'bulwark_reflect',
+        });
       }
       if (dmg <= _shieldHp) {
         _shieldHp -= dmg;
@@ -1375,6 +1567,7 @@ const CombatEngine = {
   activateRapidStrikes(hitCount = 5) {
     const castId = _generateId('rapid');
     const totalHits = Math.max(1, Math.floor(hitCount));
+    let bleedAppliedThisCast = false;
     for (let i = 0; i < totalHits; i++) {
       const timerId = `ability:rapid:${castId}:${i}`;
       _rapidStrikeTimerIds.add(timerId);
@@ -1384,8 +1577,9 @@ const CombatEngine = {
         const target = CombatEngine.getTargetMember();
         if (!target) return;
         CombatEngine.playerAttack(false, 'rapid_strikes');
-        if (UpgradeManager.hasUpgrade('flurry_t2')) {
+        if (!bleedAppliedThisCast && UpgradeManager.hasUpgrade('flurry_t2')) {
           CombatEngine._applyRapidStrikesDot(target);
+          bleedAppliedThisCast = true;
         }
       }, 200 * (i + 1));
     }
@@ -1595,38 +1789,81 @@ const CombatEngine = {
       }, 1000);
     }
 
+    // Optional delayed replacement spawn (used by specific boss encounter scripts).
+    if (member.respawnOnDeath && member.instanceId !== encounter.bossMemberId) {
+      const cfg = member.respawnOnDeath;
+      const preferredSlot = member.slot;
+      const respawnKey = `enc:${encounter.id}:respawn:${member.instanceId}:${Date.now()}`;
+      encounter.pendingSplits += 1;
+      encounter.activeTimerIds.add(respawnKey);
+      emit(EVENTS.COMBAT_ENEMY_CASTING, {
+        encounterId: encounter.id,
+        instanceId: member.instanceId,
+        slot: preferredSlot,
+        enemyId: member.enemyId,
+        castTime: Math.max(100, cfg.delayMs ?? 15000),
+        castKind: 'respawn',
+        timerKey: respawnKey,
+      });
+      TimeEngine.scheduleOnce(respawnKey, () => {
+        if (!encounter) return;
+        encounter.activeTimerIds.delete(respawnKey);
+        encounter.pendingSplits = Math.max(0, encounter.pendingSplits - 1);
+
+        const boss = encounter.memberById.get(encounter.bossMemberId);
+        if (!boss?.alive) return;
+        if (CombatEngine._getFreeEncounterSlot(preferredSlot, true) == null) return;
+
+        const scaled = CombatEngine._buildScaledEnemyForCurrentZone(cfg.enemyId, {
+          skipVariants: !!cfg.skipVariants,
+        });
+        if (!scaled) return;
+        const variant = cfg.useZoneVariants
+          ? (CombatEngine._buildScaledEnemyForCurrentZone(cfg.enemyId, { skipVariants: false }) || scaled)
+          : scaled;
+
+        const respawned = {
+          ...scaled,
+          name: cfg.name || variant.name || scaled.name,
+          hp: D(scaled.hp).times(cfg.hpMult ?? 1).floor().toString(),
+          attack: Math.max(1, Math.floor((scaled.attack ?? 0) * (cfg.attackMult ?? 1))),
+          defense: Math.max(0, Math.floor((scaled.defense ?? 0) * (cfg.defenseMult ?? 1))),
+          regen: Math.max(0, Math.floor((scaled.regen ?? 0) * (cfg.regenMult ?? 1))),
+          noAttack: !!cfg.noAttack,
+          sprites: {
+            ...scaled.sprites,
+            default: variant?.sprites?.default || scaled?.sprites?.default,
+          },
+          respawnOnDeath: cfg,
+        };
+
+        CombatEngine._addEncounterMember(respawned, {
+          isAdd: true,
+          summonerId: encounter.bossMemberId,
+          preferredSlot,
+          requirePreferredSlot: true,
+        });
+      }, Math.max(100, cfg.delayMs ?? 15000));
+    }
+
     // 5. Boss killed → immediate encounter end
     if (member.instanceId === encounter.bossMemberId) {
       CombatEngine._onEncounterEnd('boss_killed');
       return;
     }
 
-    // 6. Retarget if dead member was current target
+    // 6. Retarget to current frontline (leftmost living member).
     const hasPendingSplits = encounter.pendingSplits > 0;
-    if (encounter.targetId === instanceId) {
-      const living = CombatEngine.getLivingMembers();
-      if (living.length === 0 && !hasPendingSplits) {
+    const living = CombatEngine.getLivingMembers();
+    if (living.length === 0) {
+      if (!hasPendingSplits) {
         CombatEngine._onEncounterEnd('cleared');
-        return;
+      } else {
+        encounter.targetId = null;
       }
-      if (living.length > 0) {
-        // Lowest-slot living member becomes new target
-        living.sort((a, b) => a.slot - b.slot);
-        const next = living[0];
-        encounter.targetId = next.instanceId;
-        emit(EVENTS.COMBAT_TARGET_CHANGED, {
-          encounterId: encounter.id,
-          instanceId: next.instanceId,
-          slot: next.slot,
-          enemyId: next.enemyId,
-        });
-      }
-    } else {
-      // Non-target died — check if encounter is fully cleared
-      if (CombatEngine.getLivingMembers().length === 0 && !hasPendingSplits) {
-        CombatEngine._onEncounterEnd('cleared');
-      }
+      return;
     }
+    CombatEngine._syncFrontlineTarget(true);
   },
 
   _onEncounterEnd(reason) {
@@ -1683,9 +1920,13 @@ const CombatEngine = {
         CombatEngine.spawnEnemy();
       }, COMBAT_V2.spawnDelay);
     } else if (reason === 'boss_killed') {
+      const activeBoss = BossManager.getActiveBoss();
+      const bossDefeatedDelayMs = activeBoss?.id === 'boss_a1z5_the_hollow'
+        ? SLIMEFANG_DEMO_END_DELAY_MS
+        : 500;
       TimeEngine.scheduleOnce('combat:bossDefeatedDelay', () => {
         BossManager.onBossDefeated();
-      }, 500);
+      }, bossDefeatedDelayMs);
     }
     // 'zone_change', 'player_death': no scheduling (Phase 7 wires these)
   },

@@ -11,6 +11,41 @@ Format:
 ---
 
 ## 2026-03-01
+- Tags: progression, release-scope, ui
+- Decision: Current build is a 5-zone demo slice that ends at Slimefang (`boss_a1z5_the_hollow`) with a dedicated full-screen "DEMO COMPLETE" overlay instead of advancing to Zone 6+.
+- Rationale: We need a polished vertical-slice endpoint while later area/zone content is still under active iteration.
+- Alternatives considered: Continue normal progression to placeholder/balance-incomplete zones (rejected: hurts demo quality), hard stop with no UI messaging (rejected: feels like a bug).
+- Consequences / Follow-ups: `flags.demoCompleted` is persisted; `CombatEngine.spawnEnemy()` short-circuits when demo is complete; UIScene now listens for `DEMO_COMPLETED`.
+
+## 2026-03-01
+- Tags: combat, boss, telegraphing
+- Decision: Slimefang enrage is timed and staged: trigger at 50% HP, last 15s, expire, and allow one retrigger at 10% HP.
+- Rationale: Keeps the encounter readable and dramatic without permanent stat spike lock-in.
+- Alternatives considered: Permanent enrage from first threshold (rejected: too binary), repeated unlimited retriggers (rejected: noisy/chaotic pacing).
+- Consequences / Follow-ups: Added enrage countdown UI via enemy cast bar/text (`castKind: 'enrage'`) and `COMBAT_ENEMY_ENRAGE_ENDED` event for visual reset.
+
+## 2026-03-01
+- Tags: visual, combat, boss
+- Decision: Slimefang has bespoke presentation:
+- Rationale: As the demo final boss, it needs stronger readability and payoff than generic enemy reactions/deaths.
+- Alternatives considered: Reuse normal slime hit/death animations (rejected: underwhelming finale feel).
+- Consequences / Follow-ups: Slimefang hit reaction uses default sprite + red tint recoil (no reaction frame); enrage now flashes center-screen warning (`ENRAGED!`, plus large `DEFEND YOURSELF!` for Slimefang); death is a detached 10s escalating shake/fade sequence, and demo-end handoff waits ~10s to let it complete.
+
+## 2026-03-01
+- Tags: progression, economy, skills
+- Decision: Skill respec unlocks at level 5 (not 10) but only after equipment-slot enhancement tutorial completion (`enhanceTutorialCompleted`).
+- Rationale: Earlier experimentation improves player agency, but gating behind the enhancement tutorial ensures core systems are introduced first.
+- Alternatives considered: Level-only gate at 5 (rejected: players can skip key equipment tutorial), keep level 10 gate (rejected: too late for demo pacing).
+- Consequences / Follow-ups: Unlock check centralized in `UpgradeManager.isSkillRespecUnlocked(state)` and used by both backend validation and UpgradePanel visibility.
+
+## 2026-03-01
+- Tags: balance, skills
+- Decision: Fortress upgrades retuned:
+- Rationale: Prior Bulwark upgrade progression was skewed toward duration rather than responsiveness.
+- Alternatives considered: Keep duration-focused tier 3 (rejected: less interactive), partial cooldown reduction only (rejected after tuning requests).
+- Consequences / Follow-ups: `bulwark_t1` absorb raised to 20% max HP; `bulwark_t3` changed from longer duration to 20s cooldown; base respec gold cost reduced to 300 for early-demo economy.
+
+## 2026-03-01
 - Tags: ui, onboarding, progression
 - Decision: Enhancement tutorial is one-time per save and driven by explicit staged flags (`enhanceTutorialStage`, `enhanceTutorialCompleted`) with popup-dismiss sequencing.
 - Rationale: The flow needs deterministic progression across multiple UI surfaces (popup -> top bar highlight -> inventory button -> slot -> enhance button) and must survive refreshes/reopens.

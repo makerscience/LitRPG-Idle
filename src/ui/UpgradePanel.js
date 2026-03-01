@@ -44,7 +44,7 @@ export default class UpgradePanel extends ModalPanel {
     });
 
     this._lastFailedPurchaseTime = 0;
-    this._currentTab = 'stats';
+    this._currentTab = 'skills';
     this._tabStatsBtn = null;
     this._tabSkillsBtn = null;
     this._tabStatsText = null;
@@ -64,6 +64,7 @@ export default class UpgradePanel extends ModalPanel {
     this._contentBottomY ??= 0;
     this._wheelHandler ??= null;
     this._dragHandler ??= null;
+    this._respecConfirmPending = false;
 
     // Pulse SKILLS toggle when unspent SP is available.
     this._unsubs.push(on(EVENTS.STATE_CHANGED, ({ changedKeys } = {}) => {
@@ -142,6 +143,17 @@ export default class UpgradePanel extends ModalPanel {
     // Tab controls are created in _buildContent() so their visual state is rebuilt deterministically.
   }
 
+  _open() {
+    this._respecConfirmPending = false;
+    this._currentTab = 'skills';
+    super._open();
+  }
+
+  _close() {
+    this._respecConfirmPending = false;
+    super._close();
+  }
+
   _setTab(nextTab) {
     if (this._currentTab === nextTab) return;
     this._currentTab = nextTab;
@@ -197,6 +209,7 @@ export default class UpgradePanel extends ModalPanel {
       fontFamily: 'monospace', fontSize: '15px', color: '#22c55e', fontStyle: 'bold',
     }).setOrigin(0.5, 0);
     this._dynamicObjects.push(pointsText);
+    this._buildRespecControls(state);
 
     const scrollStartIdx = this._dynamicObjects.length;
     let contentBottom = this._cy - PANEL_H / 2 + 84;
@@ -211,6 +224,72 @@ export default class UpgradePanel extends ModalPanel {
     this._contentBottomY = contentBottom;
     this._recomputeScrollBounds();
     this._setScroll(previousScroll);
+  }
+
+  _buildRespecControls(state) {
+    if (!UpgradeManager.isSkillRespecUnlocked(state)) return;
+    const level = state.playerStats?.level || 1;
+
+    const cost = UpgradeManager.getSkillRespecCost(level);
+    const refund = UpgradeManager.getSkillRespecRefundPoints();
+    const canRespec = UpgradeManager.canRespecSkills();
+    const rightX = this._cx + PANEL_W / 2 - 18;
+    const topY = this._cy - PANEL_H / 2 + 24;
+
+    const costLabel = this.scene.add.text(rightX, topY, `Respec: ${format(D(cost))}g`, {
+      fontFamily: 'monospace',
+      fontSize: '11px',
+      color: canRespec ? '#facc15' : '#888888',
+    }).setOrigin(1, 0);
+    const refundLabel = this.scene.add.text(rightX, topY + 12, `Refund: ${refund} SP`, {
+      fontFamily: 'monospace',
+      fontSize: '11px',
+      color: refund > 0 ? '#93c5fd' : '#6b7280',
+    }).setOrigin(1, 0);
+    this._dynamicObjects.push(costLabel, refundLabel);
+
+    if (!this._respecConfirmPending) {
+      const btn = makeButton(this.scene, rightX - 92, topY + 24, 'RESPEC', {
+        color: canRespec ? '#f8fafc' : '#666666',
+        bg: canRespec ? '#7f1d1d' : '#222222',
+        hoverBg: canRespec ? '#991b1b' : '#222222',
+        fontSize: '12px',
+        padding: { x: 10, y: 4 },
+        onDown: () => {
+          if (!canRespec) return;
+          this._respecConfirmPending = true;
+          this._refresh();
+        },
+      }).setOrigin(1, 0);
+      this._dynamicObjects.push(btn);
+      return;
+    }
+
+    const confirmBtn = makeButton(this.scene, rightX - 156, topY + 24, 'CONFIRM', {
+      color: canRespec ? '#fef2f2' : '#666666',
+      bg: canRespec ? '#991b1b' : '#222222',
+      hoverBg: canRespec ? '#b91c1c' : '#222222',
+      fontSize: '12px',
+      padding: { x: 8, y: 4 },
+      onDown: () => {
+        if (!canRespec) return;
+        if (!UpgradeManager.respecSkills()) return;
+        this._respecConfirmPending = false;
+        this._refresh();
+      },
+    }).setOrigin(1, 0);
+    const cancelBtn = makeButton(this.scene, rightX - 68, topY + 24, 'CANCEL', {
+      color: '#e5e7eb',
+      bg: '#374151',
+      hoverBg: '#4b5563',
+      fontSize: '12px',
+      padding: { x: 8, y: 4 },
+      onDown: () => {
+        this._respecConfirmPending = false;
+        this._refresh();
+      },
+    }).setOrigin(1, 0);
+    this._dynamicObjects.push(confirmBtn, cancelBtn);
   }
 
   _buildStatsTab(state) {

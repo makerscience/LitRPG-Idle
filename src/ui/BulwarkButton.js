@@ -8,7 +8,8 @@ import { on, EVENTS } from '../events.js';
 import { LAYOUT } from '../config.js';
 import { snapPx } from './ui-utils.js';
 
-const COOLDOWN_MS = 45000; // 45s cooldown
+const BASE_COOLDOWN_MS = 45000; // 45s cooldown
+const UPGRADED_COOLDOWN_MS = 20000; // 20s cooldown with bulwark_t3
 const BASE_SHIELD_HP_MULT = 0.10;
 const BASE_SHIELD_DURATION_MS = 8000;
 const HOVER_SCALE = 1.05;
@@ -71,11 +72,15 @@ export default class BulwarkButton {
   }
 
   _getShieldHpMult() {
-    return UpgradeManager.hasUpgrade('bulwark_t1') ? 0.14 : BASE_SHIELD_HP_MULT;
+    return UpgradeManager.hasUpgrade('bulwark_t1') ? 0.20 : BASE_SHIELD_HP_MULT;
   }
 
   _getShieldDurationMs() {
-    return UpgradeManager.hasUpgrade('bulwark_t3') ? 14000 : BASE_SHIELD_DURATION_MS;
+    return BASE_SHIELD_DURATION_MS;
+  }
+
+  _getCooldownMs() {
+    return UpgradeManager.hasUpgrade('bulwark_t3') ? UPGRADED_COOLDOWN_MS : BASE_COOLDOWN_MS;
   }
 
   _refreshVisibility() {
@@ -93,7 +98,7 @@ export default class BulwarkButton {
     const shieldAmount = Math.floor(getEffectiveMaxHp() * this._getShieldHpMult());
     CombatEngine.activateShield(shieldAmount, this._getShieldDurationMs());
 
-    this._cooldownMs = COOLDOWN_MS;
+    this._cooldownMs = this._getCooldownMs();
     this._cooldownStart = Date.now();
     this._cooldownEnd = this._cooldownStart + this._cooldownMs;
     this._startCooldownTimer();

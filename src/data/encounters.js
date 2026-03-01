@@ -9,10 +9,17 @@ import { getUnlockedEnemies } from './areas.js';
 const ENCOUNTERS = [
   // -- Area 1: The Whispering Woods (global zones 1-10) --------------------
   { id: 'a1_rat_pair', members: ['a1_rat', 'a1_rat'], weight: 2, zones: [2, 2], attackSpeedMult: 1.0, rewardMult: 1.1, lootBonus: { dropChanceMult: 1.0, rarityBoost: 0 } },
-  { id: 'a1_rat_pack', members: ['a1_rat', 'a1_rat', 'a1_rat'], weight: 1, zones: [3, 5], attackSpeedMult: 1.0, rewardMult: 1.25, lootBonus: { dropChanceMult: 1.0, rarityBoost: 0 } },
+  { id: 'a1_rat_pack', members: ['a1_rat', 'a1_rat', 'a1_rat'], weight: 2, zones: [3, 5], attackSpeedMult: 1.0, rewardMult: 1.25, lootBonus: { dropChanceMult: 1.0, rarityBoost: 0 } },
+  { id: 'a1_slime_pack', members: ['a1_slime', 'a1_slime', 'a1_slime'], weight: 2, zones: [4, 5], attackSpeedMult: 1.0, rewardMult: 1.25, lootBonus: { dropChanceMult: 1.0, rarityBoost: 0 } },
   { id: 'a1_slime_pair', members: ['a1_slime', 'a1_slime'], weight: 2, zones: [2, 3], attackSpeedMult: 1.0, rewardMult: 1.1, lootBonus: { dropChanceMult: 1.0, rarityBoost: 0 } },
-  { id: 'a1_hound_pair', members: ['a1_feral_hound', 'a1_feral_hound'], weight: 1, zones: [3, 5], attackSpeedMult: 0.9, rewardMult: 1.2, lootBonus: { dropChanceMult: 1.05, rarityBoost: 0 } },
-  { id: 'a1_hound_slime_mix', members: ['a1_feral_hound', 'a1_slime'], weight: 2, zones: [3, 5], attackSpeedMult: 1.0, rewardMult: 1.15, lootBonus: { dropChanceMult: 1.0, rarityBoost: 0 } },
+  { id: 'a1_hound_pair', members: ['a1_feral_hound', 'a1_feral_hound'], weight: 3, zones: [3, 5], attackSpeedMult: 0.9, rewardMult: 1.2, lootBonus: { dropChanceMult: 1.05, rarityBoost: 0 } },
+  { id: 'a1_hound_slime_mix', members: ['a1_feral_hound', 'a1_slime'], weight: 3, zones: [3, 5], attackSpeedMult: 1.0, rewardMult: 1.15, lootBonus: { dropChanceMult: 1.0, rarityBoost: 0 } },
+  { id: 'a1_rat_slime_trio_a', members: ['a1_rat', 'a1_rat', 'a1_slime'], weight: 1, zones: [4, 5], attackSpeedMult: 1.0, rewardMult: 1.22, lootBonus: { dropChanceMult: 1.0, rarityBoost: 0 } },
+  { id: 'a1_rat_slime_trio_b', members: ['a1_rat', 'a1_slime', 'a1_slime'], weight: 1, zones: [4, 5], attackSpeedMult: 1.0, rewardMult: 1.22, lootBonus: { dropChanceMult: 1.0, rarityBoost: 0 } },
+  { id: 'a1_rat_hound_trio_a', members: ['a1_rat', 'a1_rat', 'a1_feral_hound'], weight: 1, zones: [4, 5], attackSpeedMult: 0.98, rewardMult: 1.24, lootBonus: { dropChanceMult: 1.0, rarityBoost: 0 } },
+  { id: 'a1_rat_hound_trio_b', members: ['a1_rat', 'a1_feral_hound', 'a1_feral_hound'], weight: 1, zones: [4, 5], attackSpeedMult: 0.96, rewardMult: 1.24, lootBonus: { dropChanceMult: 1.0, rarityBoost: 0 } },
+  { id: 'a1_slime_hound_trio_a', members: ['a1_slime', 'a1_slime', 'a1_feral_hound'], weight: 1, zones: [4, 5], attackSpeedMult: 0.98, rewardMult: 1.24, lootBonus: { dropChanceMult: 1.0, rarityBoost: 0 } },
+  { id: 'a1_slime_hound_trio_b', members: ['a1_slime', 'a1_feral_hound', 'a1_feral_hound'], weight: 1, zones: [4, 5], attackSpeedMult: 0.96, rewardMult: 1.24, lootBonus: { dropChanceMult: 1.0, rarityBoost: 0 } },
   { id: 'a1_beetle_duo', members: ['a2_giant_beetle', 'a2_giant_beetle'], weight: 1, zones: [6, 10], attackSpeedMult: 0.85, rewardMult: 1.3, lootBonus: { dropChanceMult: 1.15, rarityBoost: 0.02 } },
   { id: 'a1_bird_pair', members: ['a1_bird', 'a1_bird'], weight: 2, zones: [7, 10], attackSpeedMult: 1.0, rewardMult: 1.2, lootBonus: { dropChanceMult: 1.05, rarityBoost: 0 } },
   { id: 'a1_beetle_bird_mix', members: ['a2_giant_beetle', 'a1_bird'], weight: 2, zones: [7, 10], attackSpeedMult: 1.0, rewardMult: 1.25, lootBonus: { dropChanceMult: 1.08, rarityBoost: 0 } },
@@ -107,7 +114,12 @@ export function getEncountersForZone(areaId, zoneNum) {
       if (enemy.id === 'a1_rat' && zoneNum >= 2) continue;
       if (enemy.id === 'a1_slime' && zoneNum >= 3) continue;
     }
-    pool.push({ template: getSoloEncounter(enemy), weight: 3 });
+    let soloWeight = 3;
+    // Area 1 zone 5 tuning: reduce solo feral hound frequency.
+    if (areaId === 1 && zoneNum === 5 && enemy.id === 'a1_feral_hound') {
+      soloWeight = 1;
+    }
+    pool.push({ template: getSoloEncounter(enemy), weight: soloWeight });
   }
 
   return pool;

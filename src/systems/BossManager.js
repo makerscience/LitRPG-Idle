@@ -98,6 +98,7 @@ const BossManager = {
     const baseSprites = boss.sprites || (baseEnemy?.sprites ?? null);
     const baseSpriteSize = boss.spriteSize || (baseEnemy?.spriteSize ?? { w: 200, h: 250 });
     const spriteOffsetY = boss.spriteOffsetY ?? (baseEnemy?.spriteOffsetY ?? 0);
+    const nameplateOffsetY = boss.nameplateOffsetY ?? (baseEnemy?.nameplateOffsetY ?? 0);
 
     return {
       id: boss.id,
@@ -114,11 +115,14 @@ const BossManager = {
       sprites: baseSprites,
       spriteSize: { w: baseSpriteSize.w * bossType.sizeMult, h: baseSpriteSize.h * bossType.sizeMult },
       spriteOffsetY,
+      nameplateOffsetY,
       lootTable: boss.lootTable || [],
       defense: boss.defense ?? 0,
       armorPen: boss.armorPen ?? 0,
       attackSpeed: boss.attackSpeed ?? 1.0,
+      regen: boss.regen ?? 0,
       dot: boss.dot ?? null,
+      enrage: boss.enrage ?? null,
     };
   },
 
@@ -159,6 +163,15 @@ const BossManager = {
       area, zone, bossType,
       name: activeBoss.name,
     });
+    // Demo endpoint: stop progression after Slimefang (Area 1 Zone 5).
+    if (activeBoss.id === 'boss_a1z5_the_hollow') {
+      if (!state.flags.demoCompleted) {
+        Store.setFlag('demoCompleted', true);
+      }
+      emit(EVENTS.DEMO_COMPLETED, { area, zone, name: activeBoss.name });
+      activeBoss = null;
+      return;
+    }
 
     // Area boss defeated → unlock next area
     if (bossType === BOSS_TYPES.AREA) {

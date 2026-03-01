@@ -1,5 +1,7 @@
 import Phaser from 'phaser';
 
+let combatSpritesDownscaled = false;
+
 export default class BootScene extends Phaser.Scene {
   constructor() {
     super('BootScene');
@@ -15,6 +17,10 @@ export default class BootScene extends Phaser.Scene {
     this.load.image('slime_scared_default', 'Images/Enemies/area1/ScaredSlime.png');
     this.load.image('slime_worried_default', 'Images/Enemies/area1/WorriedSlime.png');
     this.load.image('slime_unfriendly_default', 'Images/Enemies/area1/UnfriendlySlime.png');
+    this.load.image('slimefang_default', 'Images/Enemies/area1/Slimefang_default.png');
+    this.load.image('slimefang_reaction', 'Images/Enemies/area1/Slimefang_reaction.png');
+    this.load.image('slimefang_attack', 'Images/Enemies/area1/Slimefang_attack.png');
+    this.load.image('slimefang_dead', 'Images/Enemies/area1/Slimefang_dead.png');
     this.load.image('slime_george_default', 'Images/Enemies/area1/George_.png');
     this.load.image('bg002_rear',   'Images/Backgrounds/area1/background002_rear.png');
     this.load.image('bg002_mid',    'Images/Backgrounds/area1/background002_mid.png');
@@ -215,15 +221,20 @@ export default class BootScene extends Phaser.Scene {
   }
 
   create() {
-    // Go straight to main menu once preload is done.
-    // Skip boot splash and heavy pre-menu texture processing.
+    // One-time downscale pass for combat sprites to reduce in-game pixelation.
+    // Keep this focused on player/enemy sprites to avoid long startup delays.
+    if (!combatSpritesDownscaled) {
+      this._downscaleCombatSprites({ includeBackgrounds: false });
+      combatSpritesDownscaled = true;
+    }
     this.scene.start('StartScene');
   }
   /**
    * Replace oversized combat sprite textures with canvas-downscaled versions.
    * Target = 2× display size so WebGL bilinear handles the final 2× cleanly.
    */
-  _downscaleCombatSprites() {
+  _downscaleCombatSprites(opts = {}) {
+    const includeBackgrounds = !!opts.includeBackgrounds;
     // Player sprites — all displayed at ~300×375
     const playerTarget = { w: 600, h: 750 };
     const playerKeys = [
@@ -262,6 +273,7 @@ export default class BootScene extends Phaser.Scene {
         w: 320,
         h: 480,
       },
+      { keys: ['slimefang_default', 'slimefang_reaction', 'slimefang_attack', 'slimefang_dead'], w: 640, h: 474 },
       { keys: ['forestrat001_default', 'forestrat001_reaction', 'forestrat001_attack', 'forestrat001_dead'], w: 250, h: 250 },
       { keys: ['feralhound_default', 'feralhound_reaction', 'feralhound_attack', 'feralhound_dead'], w: 512, h: 280 },
       { keys: ['thornbackboar_default', 'thornbackboar_reaction', 'thornbackboar_attack', 'thornbackboar_dead'], w: 560, h: 306 },
@@ -285,18 +297,20 @@ export default class BootScene extends Phaser.Scene {
     }
 
     // Background parallax sprites — downscale to ~2× max display size
-    const bgSprites = [
-      { keys: ['swamptree001', 'swamptree002', 'swamptree003', 'fallentree001'], w: 400, h: 600 },
-      { keys: ['swamptree001_sm', 'swamptree002_sm', 'swamptree003_sm'], w: 90, h: 136 },
-      { keys: ['clutter001', 'clutter002', 'clutter003'], w: 200, h: 200 },
-      { keys: ['goblin001_default', 'goblin001_reaction', 'goblin001_attack', 'goblin001_dead'], w: 320, h: 320 },
-      { keys: ['bogzombie_default', 'bogzombie_reaction', 'bogzombie_attack', 'bogzombie_dead', 'bogzombie_dead2'], w: 400, h: 480 },
-      { keys: ['bogzombie_head'], w: 160, h: 160 },
-      { keys: ['thornbackboar2_default', 'thornbackboar2_reaction', 'thornbackboar2_attack', 'thornbackboar2_dead'], w: 560, h: 306 },
-    ];
-    for (const { keys, w, h } of bgSprites) {
-      for (const key of keys) {
-        this._downscaleTexture(key, w, h);
+    if (includeBackgrounds) {
+      const bgSprites = [
+        { keys: ['swamptree001', 'swamptree002', 'swamptree003', 'fallentree001'], w: 400, h: 600 },
+        { keys: ['swamptree001_sm', 'swamptree002_sm', 'swamptree003_sm'], w: 90, h: 136 },
+        { keys: ['clutter001', 'clutter002', 'clutter003'], w: 200, h: 200 },
+        { keys: ['goblin001_default', 'goblin001_reaction', 'goblin001_attack', 'goblin001_dead'], w: 320, h: 320 },
+        { keys: ['bogzombie_default', 'bogzombie_reaction', 'bogzombie_attack', 'bogzombie_dead', 'bogzombie_dead2'], w: 400, h: 480 },
+        { keys: ['bogzombie_head'], w: 160, h: 160 },
+        { keys: ['thornbackboar2_default', 'thornbackboar2_reaction', 'thornbackboar2_attack', 'thornbackboar2_dead'], w: 560, h: 306 },
+      ];
+      for (const { keys, w, h } of bgSprites) {
+        for (const key of keys) {
+          this._downscaleTexture(key, w, h);
+        }
       }
     }
   }

@@ -69,6 +69,8 @@ export function getZoneScaling(zoneNum, stat) {
 export const ZONE_BALANCE = {
   2: { hp: 1.2, atk: 1.2, def: 1.2 },
   3: { hp: 1.2, atk: 1.2, def: 1.2 },
+  4: { atk: 1.2 },
+  5: { hp: 1.3, atk: 1.35, def: 1.3, gold: 1.3, xp: 1.3 },
 };
 
 /** Returns the bias multiplier for a given global zone + stat. Defaults to 1.0. */

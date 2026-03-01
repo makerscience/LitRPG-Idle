@@ -63,6 +63,7 @@ export const EVENTS = {
   BOSS_SPAWNED:               'boss:spawned',
   BOSS_DEFEATED:              'boss:defeated',
   AREA_BOSS_DEFEATED:         'boss:areaDefeated',
+  DEMO_COMPLETED:             'demo:completed',
 
   // Territory
   TERRITORY_CLAIMED:          'territory:claimed',
@@ -75,6 +76,7 @@ export const EVENTS = {
   // Enemy Traits
   COMBAT_ENEMY_REGEN:   'combat:enemyRegen',
   COMBAT_ENEMY_ENRAGED: 'combat:enemyEnraged',
+  COMBAT_ENEMY_ENRAGE_ENDED: 'combat:enemyEnrageEnded',
   COMBAT_THORNS_DAMAGE: 'combat:thornsDamage',
   COMBAT_ARMOR_BROKEN:  'combat:armorBroken',
   COMBAT_ARMOR_RESTORED:'combat:armorRestored',
@@ -180,12 +182,14 @@ const EVENT_CONTRACTS = {
   [EVENTS.PRESTIGE_PERFORMED]:   ['count'],
   [EVENTS.ENHANCE_PURCHASED]:    ['slotId', 'level', 'cost'],
   [EVENTS.TERRITORY_CLAIMED]:    ['territoryId', 'name', 'buff'],
+  [EVENTS.DEMO_COMPLETED]:       ['area', 'zone', 'name'],
   [EVENTS.POWER_SMASH_USED]:     ['multiplier'],
   [EVENTS.RAPID_STRIKES_USED]:   ['hitCount'],
   [EVENTS.STANCE_CHANGED]:       ['stanceId', 'previousStance'],
   [EVENTS.BULWARK_ACTIVATED]:    ['shieldHp', 'durationMs'],
   [EVENTS.COMBAT_ENEMY_REGEN]:   ['amount', 'remainingHp', 'maxHp', 'encounterId', 'instanceId', 'slot'],
   [EVENTS.COMBAT_ENEMY_ENRAGED]: ['enemyId', 'name', 'encounterId', 'instanceId', 'slot'],
+  [EVENTS.COMBAT_ENEMY_ENRAGE_ENDED]: ['enemyId', 'name', 'encounterId', 'instanceId', 'slot'],
   [EVENTS.COMBAT_THORNS_DAMAGE]: ['amount', 'encounterId', 'instanceId', 'slot'],
   [EVENTS.COMBAT_ARMOR_BROKEN]:  ['encounterId', 'instanceId', 'slot', 'enemyId'],
   [EVENTS.COMBAT_ARMOR_RESTORED]:['encounterId', 'instanceId', 'slot', 'enemyId'],

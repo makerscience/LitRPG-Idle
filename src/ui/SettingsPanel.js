@@ -283,9 +283,11 @@ export default class SettingsPanel extends ModalPanel {
   _togglePauseGame() {
     const manager = this.scene.scene.manager;
     if (!manager) return;
-    if (!manager.isActive('GameScene')) return;
+    const isPaused = manager.isPaused('GameScene');
+    const isActive = manager.isActive('GameScene');
+    if (!isPaused && !isActive) return;
 
-    if (manager.isPaused('GameScene')) {
+    if (isPaused) {
       manager.resume('GameScene');
       this._setSaveMessage('Game resumed.');
     } else {

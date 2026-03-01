@@ -8,6 +8,25 @@ import { COMBAT_V2 } from '../config.js';
 import { getUpgrade, getAllUpgrades } from '../data/upgrades.js';
 import TerritoryManager from './TerritoryManager.js';
 
+const RESPEC_UNLOCK_LEVEL = 5;
+const RESPEC_BASE_GOLD_COST = 300;
+const RESPEC_GROWTH_PER_LEVEL = 1.2;
+
+const FLAT_STAT_TARGETS = new Set(['str', 'def', 'hp', 'regen', 'agi']);
+
+function getSkillPointUpgrades() {
+  return getAllUpgrades().filter((u) => u.currency === 'skillPoints');
+}
+
+function getSpentCostForUpgrade(upgrade, level) {
+  let total = 0;
+  const capped = Math.max(0, Math.floor(level || 0));
+  for (let i = 0; i < capped; i++) {
+    total += Number(upgrade.costFormula(i)) || 0;
+  }
+  return total;
+}
+
 const UpgradeManager = {
   getLevel(upgradeId) {
     const state = Store.getState();
@@ -125,6 +144,86 @@ const UpgradeManager = {
     if (!upgrade) return false;
     if (!upgrade.requiresFlag) return true;
     return !!Store.getState().flags[upgrade.requiresFlag];
+  },
+
+  getSkillRespecUnlockLevel() {
+    return RESPEC_UNLOCK_LEVEL;
+  },
+
+  isSkillRespecUnlocked(state = Store.getState()) {
+    const level = state?.playerStats?.level || 1;
+    const tutorialDone = !!state?.flags?.enhanceTutorialCompleted;
+    return level >= RESPEC_UNLOCK_LEVEL && tutorialDone;
+  },
+
+  getSkillRespecCost(level = Store.getState().playerStats.level, state = Store.getState()) {
+    const playerLevel = Math.max(1, Math.floor(Number(level) || 1));
+    const tutorialDone = !!state?.flags?.enhanceTutorialCompleted;
+    if (playerLevel < RESPEC_UNLOCK_LEVEL || !tutorialDone) return Infinity;
+    const steps = playerLevel - RESPEC_UNLOCK_LEVEL;
+    return Math.floor(RESPEC_BASE_GOLD_COST * (RESPEC_GROWTH_PER_LEVEL ** steps));
+  },
+
+  getSkillRespecRefundPoints() {
+    const state = Store.getState();
+    let refund = 0;
+    for (const upgrade of getSkillPointUpgrades()) {
+      const level = state.purchasedUpgrades[upgrade.id] || 0;
+      if (level <= 0) continue;
+      refund += getSpentCostForUpgrade(upgrade, level);
+    }
+    return refund;
+  },
+
+  canRespecSkills() {
+    const state = Store.getState();
+    if (!this.isSkillRespecUnlocked(state)) return false;
+    const refund = this.getSkillRespecRefundPoints();
+    if (refund <= 0) return false;
+    const cost = this.getSkillRespecCost(state.playerStats.level);
+    return Number.isFinite(cost) && state.gold.gte(D(cost));
+  },
+
+  respecSkills() {
+    const state = Store.getState();
+    if (!this.isSkillRespecUnlocked(state)) return false;
+
+    const refund = this.getSkillRespecRefundPoints();
+    if (refund <= 0) return false;
+
+    const cost = this.getSkillRespecCost(state.playerStats.level);
+    if (!Number.isFinite(cost) || !state.gold.gte(D(cost))) return false;
+
+    const currentPurchased = { ...state.purchasedUpgrades };
+    const nextPurchased = { ...currentPurchased };
+
+    for (const upgrade of getSkillPointUpgrades()) {
+      const level = currentPurchased[upgrade.id] || 0;
+      if (level <= 0) continue;
+
+      if (upgrade.effect?.type === 'flat' && FLAT_STAT_TARGETS.has(upgrade.effect.target)) {
+        const delta = (Number(upgrade.effect.valuePerLevel) || 0) * level;
+        if (delta !== 0) {
+          Store.addFlatStat(upgrade.effect.target, -delta);
+        }
+      }
+
+      delete nextPurchased[upgrade.id];
+    }
+
+    Store.setPurchasedUpgrades(nextPurchased);
+    Store.spendGold(cost);
+    Store.addSkillPoints(refund);
+    Store.clampPlayerHpToMax();
+
+    emit(EVENTS.UPG_PURCHASED, {
+      upgradeId: 'skill_respec',
+      name: 'Skill Respec',
+      level: 1,
+      category: 'system',
+    });
+
+    return true;
   },
 };
 

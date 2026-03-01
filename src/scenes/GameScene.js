@@ -186,6 +186,11 @@ export default class GameScene extends Phaser.Scene {
       const chargeBarFill = this.add.rectangle(-50, -(250 / 2) - 32, 100, 4, 0xef4444);
       chargeBarFill.setOrigin(0, 0.5).setDisplaySize(0, 4).setVisible(false);
       container.add(chargeBarFill);
+      const castText = this.add.text(0, -(250 / 2) - 42, '', {
+        fontFamily: 'monospace', fontSize: '12px', color: '#93c5fd',
+        stroke: '#000000', strokeThickness: 3,
+      }).setOrigin(0.5).setVisible(false);
+      container.add(castText);
 
       this._enemySlots.push({
         container,
@@ -196,6 +201,7 @@ export default class GameScene extends Phaser.Scene {
         hpBarFill,
         chargeBarBg,
         chargeBarFill,
+        castText,
         nameText,
         traitObjs: [],
         targetIndicator: null,
@@ -219,6 +225,7 @@ export default class GameScene extends Phaser.Scene {
           atkTimerKey: null,
           castTimerKey: null,
           castKind: null,
+          castDurationMs: 0,
           showAutoChargeBar: false,
         },
         baseX: this._enemyX,
@@ -240,6 +247,7 @@ export default class GameScene extends Phaser.Scene {
     this._unsubs.push(on(EVENTS.CORRUPTION_CLEANSED, (data) => this._onCorruptionCleansed(data)));
     this._unsubs.push(on(EVENTS.COMBAT_ENEMY_REGEN, (data) => this._onEnemyRegen(data)));
     this._unsubs.push(on(EVENTS.COMBAT_ENEMY_ENRAGED, (data) => this._onEnemyEnraged(data)));
+    this._unsubs.push(on(EVENTS.COMBAT_ENEMY_ENRAGE_ENDED, (data) => this._onEnemyEnrageEnded(data)));
     this._unsubs.push(on(EVENTS.COMBAT_THORNS_DAMAGE, (data) => this._onThornsDamage(data)));
     this._unsubs.push(on(EVENTS.COMBAT_ARMOR_BROKEN, (data) => this._onArmorBroken(data)));
     this._unsubs.push(on(EVENTS.COMBAT_ARMOR_RESTORED, (data) => this._onArmorRestored(data)));
@@ -386,9 +394,23 @@ export default class GameScene extends Phaser.Scene {
 
     // Update enemy attack charge bars + sync armor crack overlay
     for (const slot of this._enemySlots) {
-      if (slot.state.castTimerKey && slot.state.castKind === 'charge' && slot.chargeBarFill.visible) {
+      if (slot.state.castTimerKey && slot.chargeBarFill.visible) {
         const progress = TimeEngine.getProgress(slot.state.castTimerKey);
-        slot.chargeBarFill.setDisplaySize(Math.max(0, progress * 100), 4);
+        if (slot.state.castKind === 'charge') {
+          slot.chargeBarFill.setDisplaySize(Math.max(0, progress * 100), 4);
+        } else if (slot.state.castKind === 'respawn') {
+          slot.chargeBarFill.setDisplaySize(Math.max(0, (1 - progress) * 100), 4);
+          if (slot.castText?.visible) {
+            const remainingMs = Math.max(0, (slot.state.castDurationMs || 0) * (1 - progress));
+            slot.castText.setText(`${(remainingMs / 1000).toFixed(1)}s`);
+          }
+        } else if (slot.state.castKind === 'enrage') {
+          slot.chargeBarFill.setDisplaySize(Math.max(0, (1 - progress) * 100), 4);
+          if (slot.castText?.visible) {
+            const remainingMs = Math.max(0, (slot.state.castDurationMs || 0) * (1 - progress));
+            slot.castText.setText(`${(remainingMs / 1000).toFixed(1)}s`);
+          }
+        }
       }
       if (slot.state.armorCrackOverlay) {
         slot.state.armorCrackOverlay.setPosition(slot.sprite.x, slot.sprite.y);
@@ -719,6 +741,69 @@ export default class GameScene extends Phaser.Scene {
           onComplete: () => {
             text.destroy();
             if (this._flurryAnnounce === text) this._flurryAnnounce = null;
+          },
+        });
+      },
+    });
+  }
+
+  _announceEnrage(isSlimefang = false) {
+    const ga = LAYOUT.gameArea;
+    const cx = ga.x + ga.w / 2;
+    const baseY = ga.y + ga.h * 0.34;
+
+    const overlay = this.add.rectangle(
+      cx,
+      ga.y + ga.h / 2,
+      ga.w,
+      ga.h,
+      0x7f1d1d,
+      isSlimefang ? 0.2 : 0.12,
+    ).setDepth(108).setAlpha(0);
+
+    const headline = this.add.text(cx, baseY, 'ENRAGED!', {
+      fontFamily: 'Impact, Arial Black, sans-serif',
+      fontSize: isSlimefang ? '76px' : '52px',
+      fontStyle: 'bold',
+      color: '#ff3b3b',
+      stroke: '#000000',
+      strokeThickness: isSlimefang ? 8 : 6,
+    }).setOrigin(0.5).setDepth(110).setAlpha(0).setScale(0.92);
+
+    const objects = [overlay, headline];
+    if (isSlimefang) {
+      const sub = this.add.text(cx, baseY + 64, 'DEFEND YOURSELF!', {
+        fontFamily: 'Impact, Arial Black, sans-serif',
+        fontSize: '58px',
+        fontStyle: 'bold',
+        color: '#ffd4d4',
+        stroke: '#000000',
+        strokeThickness: 7,
+      }).setOrigin(0.5).setDepth(110).setAlpha(0).setScale(0.92);
+      objects.push(sub);
+    }
+
+    this.cameras.main.shake(isSlimefang ? 180 : 120, isSlimefang ? 0.005 : 0.0035);
+
+    this.tweens.add({
+      targets: objects,
+      alpha: 1,
+      scaleX: 1.05,
+      scaleY: 1.05,
+      duration: 120,
+      ease: 'Quad.easeOut',
+      onComplete: () => {
+        this.tweens.add({
+          targets: objects,
+          alpha: 0,
+          y: '-=20',
+          scaleX: 1,
+          scaleY: 1,
+          duration: isSlimefang ? 500 : 360,
+          delay: isSlimefang ? 220 : 140,
+          ease: 'Quad.easeIn',
+          onComplete: () => {
+            for (const obj of objects) obj.destroy();
           },
         });
       },
@@ -1139,12 +1224,14 @@ export default class GameScene extends Phaser.Scene {
     slot.state.atkTimerKey = `enc:${encounterId}:atk:${memberData.instanceId}`;
     slot.state.castTimerKey = null;
     slot.state.castKind = null;
+    slot.state.castDurationMs = 0;
     slot.state.chargeArmor = memberData.chargeArmor ?? template?.chargeArmor ?? 0;
     slot.state.showAutoChargeBar = false;
 
     const chargeY = -(halfH) - 32 + npOff;
     slot.chargeBarBg.setY(chargeY).setVisible(false).setAlpha(1);
     slot.chargeBarFill.setY(chargeY).setDisplaySize(0, 4).setVisible(false).setAlpha(1).setFillStyle(0xef4444);
+    slot.castText.setY(chargeY - 10).setVisible(false).setText('');
 
     slot.container.setVisible(true).setAlpha(1);
   }
@@ -1186,7 +1273,9 @@ export default class GameScene extends Phaser.Scene {
         slot.state.atkTimerKey = null;
         slot.state.castTimerKey = null;
         slot.state.castKind = null;
+        slot.state.castDurationMs = 0;
         slot.state.showAutoChargeBar = false;
+        slot.castText.setVisible(false).setText('');
         continue;
       }
 
@@ -1223,9 +1312,11 @@ export default class GameScene extends Phaser.Scene {
       slot.state.atkTimerKey = null;
       slot.state.castTimerKey = null;
       slot.state.castKind = null;
+      slot.state.castDurationMs = 0;
       slot.state.showAutoChargeBar = false;
       slot.chargeBarFill.setFillStyle(0xef4444).setDisplaySize(0, 4).setVisible(false);
       slot.chargeBarBg.setVisible(false);
+      slot.castText.setVisible(false).setText('');
     }
 
   }
@@ -1370,13 +1461,20 @@ export default class GameScene extends Phaser.Scene {
         slot.state.lastReactTime = now;
 
         const runSpriteReaction = () => {
-          slot.sprite.setTexture(slot.state.currentSprites.reaction);
-          const reactScale = slot.state.reactionSpriteScale ?? 1;
-          slot.sprite.setDisplaySize(slot.state.spriteW * reactScale, slot.state.spriteH * reactScale);
-          this._applyEnemyTint(slot.sprite, 0xffffff, slot.state.baseTint);
-          this.time.delayedCall(80, () => {
-            this._applyEnemyTint(slot.sprite, slot.state.enraged ? 0xff6666 : null, slot.state.baseTint);
-          });
+          const isSlimefang = slot.state.enemyId === 'boss_a1z5_the_hollow';
+          if (isSlimefang) {
+            slot.sprite.setTexture(slot.state.currentSprites.default);
+            slot.sprite.setDisplaySize(slot.state.spriteW, slot.state.spriteH);
+            this._applyEnemyTint(slot.sprite, 0xff5555, slot.state.baseTint);
+          } else {
+            slot.sprite.setTexture(slot.state.currentSprites.reaction);
+            const reactScale = slot.state.reactionSpriteScale ?? 1;
+            slot.sprite.setDisplaySize(slot.state.spriteW * reactScale, slot.state.spriteH * reactScale);
+            this._applyEnemyTint(slot.sprite, 0xffffff, slot.state.baseTint);
+            this.time.delayedCall(80, () => {
+              this._applyEnemyTint(slot.sprite, slot.state.enraged ? 0xff6666 : null, slot.state.baseTint);
+            });
+          }
 
           // Reset to local home position before knockback
           this.tweens.killTweensOf(slot.sprite);
@@ -1396,6 +1494,7 @@ export default class GameScene extends Phaser.Scene {
             if (slot.state.currentSprites) {
               slot.sprite.setTexture(slot.state.currentSprites.default);
               slot.sprite.setDisplaySize(slot.state.spriteW, slot.state.spriteH);
+              this._applyEnemyTint(slot.sprite, slot.state.enraged ? 0xff6666 : null, slot.state.baseTint);
             }
           });
         };
@@ -1478,6 +1577,7 @@ export default class GameScene extends Phaser.Scene {
   _onEnemyEnraged(data) {
     const slot = this._getSlotByInstanceId(data.instanceId);
     if (!slot) return;
+    const isSlimefang = data?.enemyId === 'boss_a1z5_the_hollow';
 
     // Add enrage indicator as new trait object
     const hasEnrage = slot.traitObjs.some(t => t.text === '▲');
@@ -1498,6 +1598,16 @@ export default class GameScene extends Phaser.Scene {
     } else {
       slot.rect.setFillStyle(0xff4444);
     }
+    if (data?.durationMs > 0 && data?.timerKey) {
+      slot.state.castTimerKey = data.timerKey;
+      slot.state.castKind = 'enrage';
+      slot.state.castDurationMs = data.durationMs;
+      slot.chargeBarBg.setVisible(true).setAlpha(1);
+      slot.chargeBarFill.setDisplaySize(100, 4).setVisible(true).setAlpha(1).setFillStyle(0xef4444);
+      slot.castText.setVisible(true).setText(`${(data.durationMs / 1000).toFixed(1)}s`);
+    }
+
+    this._announceEnrage(isSlimefang);
 
     // "ENRAGED!" floating text
     const x = slot.baseX;
@@ -1527,6 +1637,34 @@ export default class GameScene extends Phaser.Scene {
       ease: 'Linear',
       onComplete: () => text.destroy(),
     });
+  }
+
+  _onEnemyEnrageEnded(data) {
+    const slot = this._getSlotByInstanceId(data.instanceId);
+    if (!slot) return;
+
+    slot.state.enraged = false;
+    if (slot.state.currentSprites) {
+      this._applyEnemyTint(slot.sprite, null, slot.state.baseTint);
+    } else {
+      slot.rect.setFillStyle(0xef4444);
+    }
+
+    const remove = slot.traitObjs.filter(t => t.text === '▲');
+    for (const t of remove) {
+      t.destroy();
+      slot.traitObjs = slot.traitObjs.filter(obj => obj !== t);
+    }
+    let traitX = 56;
+    for (const t of slot.traitObjs) {
+      t.setX(traitX);
+      traitX += t.width + 1;
+    }
+    slot._nextTraitX = traitX;
+
+    if (slot.state.castKind === 'enrage') {
+      this._restoreSlotAutoChargeBar(slot);
+    }
   }
 
   _onArmorBroken(data) {
@@ -1608,6 +1746,7 @@ export default class GameScene extends Phaser.Scene {
       if (!slot) return;
       slot.state.castTimerKey = null;
       slot.state.castKind = null;
+      slot.state.castDurationMs = 0;
       slot.state.dying = true;
 
       // Remove armor crack overlay immediately on death
@@ -1655,10 +1794,54 @@ export default class GameScene extends Phaser.Scene {
               });
             },
           });
+        } else if (slot.state.enemyId === 'boss_a1z5_the_hollow') {
+          // Slimefang: dead pose lingers while quake intensity ramps up, then fades over 10s.
+          const absX = slot.baseX + slot.sprite.x;
+          const absY = slot.baseY + slot.sprite.y;
+          const corpse = this.add.image(absX, absY, slot.state.currentSprites.dead)
+            .setDisplaySize(slot.state.spriteW, slot.state.spriteH)
+            .setAlpha(1)
+            .setDepth((slot.container.depth ?? 0) + 1);
+          const tint = slot.sprite.tintTopLeft;
+          if (typeof tint === 'number' && Number.isFinite(tint)) {
+            corpse.setTint(tint);
+          }
+
+          // Hide the slot-bound sprite immediately; detached corpse continues even if slot is reused.
+          slot.sprite.setAlpha(0);
+
+          const shakeState = { amp: 1.5, rot: 1 };
+          const shakeTimer = this.time.addEvent({
+            delay: 65,
+            loop: true,
+            callback: () => {
+              if (!corpse.active) return;
+              corpse.x = absX + (Math.random() * 2 - 1) * shakeState.amp;
+              corpse.y = absY + (Math.random() * 2 - 1) * (shakeState.amp * 0.55);
+              corpse.angle = (Math.random() * 2 - 1) * shakeState.rot;
+            },
+          });
+
+          this.tweens.add({
+            targets: shakeState,
+            amp: 34,
+            rot: 19,
+            duration: 10000,
+            ease: 'Quad.easeIn',
+          });
+          this.tweens.add({
+            targets: corpse,
+            alpha: 0,
+            duration: 10000,
+            ease: 'Linear',
+            onComplete: () => {
+              shakeTimer.remove(false);
+              corpse.destroy();
+            },
+          });
         } else if (
           slot.state.enemyId === 'a1_hollow_slime'
           || slot.state.enemyId === 'a1_slime'
-          || slot.state.enemyId === 'boss_a1z5_the_hollow'
         ) {
           // Friendly Slime: oversized death pose, then squash wider/shorter while fading.
           slot.sprite.setDisplaySize(slot.state.spriteW * 1.3, slot.state.spriteH * 1.3);
@@ -2249,20 +2432,34 @@ export default class GameScene extends Phaser.Scene {
   _restoreSlotAutoChargeBar(slot) {
     slot.state.castTimerKey = null;
     slot.state.castKind = null;
+    slot.state.castDurationMs = 0;
     slot.chargeBarFill.setFillStyle(0xef4444);
     slot.chargeBarFill.setDisplaySize(0, 4).setVisible(false);
     slot.chargeBarBg.setVisible(false);
+    slot.castText.setVisible(false).setText('');
   }
 
   _onEnemyCasting(data) {
-    const slot = this._getSlotByInstanceId(data.instanceId);
+    const slot = this._getSlotByInstanceId(data.instanceId) || this._getSlotByIndex(data.slot);
     if (!slot) return;
     if (data.castKind === 'charge') {
       slot.state.castTimerKey = `enc:${data.encounterId}:chargeCast:${data.instanceId}`;
       slot.state.castKind = 'charge';
+      slot.state.castDurationMs = data.castTime || 0;
       slot.chargeBarBg.setVisible(true).setAlpha(1);
       slot.chargeBarFill.setDisplaySize(0, 4).setVisible(true).setAlpha(1).setFillStyle(0xf59e0b);
+      slot.castText.setVisible(false).setText('');
       this._spawnStatusText(slot.baseX, slot.baseY - 115, 'CHARGING!', '#f59e0b');
+      return;
+    }
+    if (data.castKind === 'respawn') {
+      slot.state.castTimerKey = data.timerKey || null;
+      slot.state.castKind = 'respawn';
+      slot.state.castDurationMs = data.castTime || 0;
+      slot.chargeBarBg.setVisible(true).setAlpha(1);
+      slot.chargeBarFill.setDisplaySize(100, 4).setVisible(true).setAlpha(1).setFillStyle(0x38bdf8);
+      slot.castText.setVisible(true).setText(`${((data.castTime || 0) / 1000).toFixed(1)}s`);
+      this._spawnStatusText(slot.baseX, slot.baseY - 115, 'SLIME REFORMING', '#38bdf8');
       return;
     }
     this._spawnStatusText(slot.baseX, slot.baseY - 115, 'CASTING', '#f59e0b');
