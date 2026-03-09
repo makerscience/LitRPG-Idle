@@ -80,7 +80,6 @@ export default class BootScene extends Phaser.Scene {
 
     // Area 2 backgrounds
     this.load.image('swamp_rear',      'Images/Backgrounds/area2/swampsky.png');
-    this.load.image('swamp_mid',       'Images/Backgrounds/area2/Swampmidlayer.png');
     this.load.image('swamp_front',     'Images/Backgrounds/area2/swampforeground.png');
     this.load.image('swamptree001',    'Images/Backgrounds/area2/swamptree001.png');
     this.load.image('swamptree002',    'Images/Backgrounds/area2/swamptree002.png');
@@ -170,7 +169,7 @@ export default class BootScene extends Phaser.Scene {
     this.load.image('roadbandit001_reaction', 'Images/Enemies/area1/roadbandit001_reaction.png');
     this.load.image('roadbandit001_attack',   'Images/Enemies/area1/roadbandit001_attack.png');
     this.load.image('roadbandit001_dead',     'Images/Enemies/area1/roadbandit001_dead.png');
-    this.load.image('crackedarmor001',       'Images/effects/crackedarmor001.png');
+    this.load.image('crackedarmor001',       'Images/Effects/crackedarmor001.png');
     this.load.image('bulwarkvisual',         'Images/Effects/bulwarkvisual.png');
 
     // Start screen backgrounds
@@ -220,46 +219,46 @@ export default class BootScene extends Phaser.Scene {
     this.load.image('player002_powerstance1',   'Images/Player Images/armor002/powerstance001.png');
 
     // Equipment thumbnails (128px pre-scaled for inventory/equip slots)
-    this.load.image('weapon001_sharpstick', 'Images/equipment/weapon001_sharpstick_thumb.png');
-    this.load.image('armor001_hide', 'Images/equipment/armor001_hide_thumb.png');
-    this.load.image('armor001_pelt', 'Images/equipment/armor001_pelt_thumb.png');
-    this.load.image('helm001_bonefragment', 'Images/equipment/helm001_bonefragment_thumb.png');
-    this.load.image('helm001_houndskull', 'Images/equipment/helm001_houndskull_thumb.png');
-    this.load.image('weapon001_boneshardblade', 'Images/equipment/weapon001_boneshardblade_thumb.png');
-    this.load.image('weapon002_salvagedcleaver', 'Images/equipment/weapon002_salvagedcleaver_thumb.png');
-    this.load.image('armor002_patchedleathervest', 'Images/equipment/armor002_patchedleathervest_thumb.png');
-    this.load.image('helm002_leatherhood', 'Images/equipment/helm002_leatherhood_thumb.png');
-    this.load.image('legs001_stitchedleggings', 'Images/equipment/legs001_stitchedleggings_thumb.png');
-    this.load.image('boots001_worntravelersboots', 'Images/equipment/boots001_worntravelersboots_thumb.png');
-    this.load.image('weapon002_frontierhatchet', 'Images/equipment/weapon002_frontierhatchet_thumb.png');
-    this.load.image('armor002_rangerscoat', 'Images/equipment/armor002_rangerscoat_thumb.png');
-    this.load.image('helm002_scoutshelfhelm', 'Images/equipment/helm002_scoutshelfhelm_thumb.png');
-    this.load.image('boots001_wayfinderboots', 'Images/equipment/boots001_wayfinderboots_thumb.png');
-    this.load.image('legs001_reinforcedtrousers', 'Images/equipment/legs001_reinforcedtrousers_thumb.png');
-    this.load.image('weapon002_sharpenedvcleaver', 'Images/equipment/weapon002_sharpenedvcleaver_thumb.png');
-    this.load.image('armor002_reinforcedleathervest', 'Images/equipment/armor002_reinforcedleathervest_thumb.png');
-    this.load.image('helm002_boiledleatherhood', 'Images/equipment/helm002_boiledleatherhood_thumb.png');
-    this.load.image('legs001_thickhideleggings', 'Images/equipment/legs001_thickhideleggings_thumb.png');
-    this.load.image('boots001_mendedtravelersboots', 'Images/equipment/boots001_mendedtravelersboots_thumb.png');
-    this.load.image('weapon003_reclaimedshortsword', 'Images/equipment/weapon003_reclaimedshortsword_thumb.png');
-    this.load.image('armor003_roadwardenshauberk', 'Images/equipment/armor003_roadwardenshauberk_thumb.png');
-    this.load.image('helm003_stone-carvedhalfhelm', 'Images/equipment/helm003_stone-carvedhalfhelm_thumb.png');
-    this.load.image('legs002_roadwardensgreaves', 'Images/equipment/legs002_roadwardensgreaves_thumb.png');
-    this.load.image('boots002_ironshodmarchingboots', 'Images/equipment/boots002_ironshodmarchingboots_thumb.png');
-    this.load.image('hands001_scavengedgauntlets', 'Images/equipment/hands001_scavengedgauntlets_thumb.png');
-    this.load.image('weapon003_sentinelsblade', 'Images/equipment/weapon003_sentinelsblade_thumb.png');
-    this.load.image('helm003_sentinelsvisage', 'Images/equipment/helm003_sentinelsvisage_thumb.png');
-    this.load.image('boots002_sentineltreads', 'Images/equipment/boots002_sentineltreads_thumb.png');
-    this.load.image('hands001_sentinelgauntlets', 'Images/equipment/hands001_sentinelgauntlets_thumb.png');
-    this.load.image('amulet001_crackedhearthstone', 'Images/equipment/amulet001_crackedhearthstone_thumb.png');
-    this.load.image('weapon003_wardensoath', 'Images/equipment/weapon003_wardensoath_thumb.png');
-    this.load.image('boots002_pathfindersstride', 'Images/equipment/boots002_pathfindersstride_thumb.png');
-    this.load.image('hands001_irongripgauntlets', 'Images/equipment/hands001_irongripgauntlets_thumb.png');
-    this.load.image('armor003_sentinelhalfplate', 'Images/equipment/armor003_sentinelhalfplate_thumb.png');
-    this.load.image('armor003_ancientsentinelplate', 'Images/equipment/armor003_ancientsentinelplate_thumb.png');
-    this.load.image('legs002_sentinelgreaves', 'Images/equipment/legs002_sentinelgreaves_thumb.png');
-    this.load.image('legs002_stoneguardlegplates', 'Images/equipment/legs002_stoneguardlegplates_thumb.png');
-    this.load.image('waterskin001', 'Images/equipment/waterskin001_thumb.png');
+    this.load.image('weapon001_sharpstick', 'Images/Equipment/weapon001_sharpstick_thumb.png');
+    this.load.image('armor001_hide', 'Images/Equipment/armor001_hide_thumb.png');
+    this.load.image('armor001_pelt', 'Images/Equipment/armor001_pelt_thumb.png');
+    this.load.image('helm001_bonefragment', 'Images/Equipment/helm001_bonefragment_thumb.png');
+    this.load.image('helm001_houndskull', 'Images/Equipment/helm001_houndskull_thumb.png');
+    this.load.image('weapon001_boneshardblade', 'Images/Equipment/weapon001_boneshardblade_thumb.png');
+    this.load.image('weapon002_salvagedcleaver', 'Images/Equipment/weapon002_salvagedcleaver_thumb.png');
+    this.load.image('armor002_patchedleathervest', 'Images/Equipment/armor002_patchedleathervest_thumb.png');
+    this.load.image('helm002_leatherhood', 'Images/Equipment/helm002_leatherhood_thumb.png');
+    this.load.image('legs001_stitchedleggings', 'Images/Equipment/legs001_stitchedleggings_thumb.png');
+    this.load.image('boots001_worntravelersboots', 'Images/Equipment/boots001_worntravelersboots_thumb.png');
+    this.load.image('weapon002_frontierhatchet', 'Images/Equipment/weapon002_frontierhatchet_thumb.png');
+    this.load.image('armor002_rangerscoat', 'Images/Equipment/armor002_rangerscoat_thumb.png');
+    this.load.image('helm002_scoutshelfhelm', 'Images/Equipment/helm002_scoutshelfhelm_thumb.png');
+    this.load.image('boots001_wayfinderboots', 'Images/Equipment/boots001_wayfinderboots_thumb.png');
+    this.load.image('legs001_reinforcedtrousers', 'Images/Equipment/legs001_reinforcedtrousers_thumb.png');
+    this.load.image('weapon002_sharpenedvcleaver', 'Images/Equipment/weapon002_sharpenedvcleaver_thumb.png');
+    this.load.image('armor002_reinforcedleathervest', 'Images/Equipment/armor002_reinforcedleathervest_thumb.png');
+    this.load.image('helm002_boiledleatherhood', 'Images/Equipment/helm002_boiledleatherhood_thumb.png');
+    this.load.image('legs001_thickhideleggings', 'Images/Equipment/legs001_thickhideleggings_thumb.png');
+    this.load.image('boots001_mendedtravelersboots', 'Images/Equipment/boots001_mendedtravelersboots_thumb.png');
+    this.load.image('weapon003_reclaimedshortsword', 'Images/Equipment/weapon003_reclaimedshortsword_thumb.png');
+    this.load.image('armor003_roadwardenshauberk', 'Images/Equipment/armor003_roadwardenshauberk_thumb.png');
+    this.load.image('helm003_stone-carvedhalfhelm', 'Images/Equipment/helm003_stone-carvedhalfhelm_thumb.png');
+    this.load.image('legs002_roadwardensgreaves', 'Images/Equipment/legs002_roadwardensgreaves_thumb.png');
+    this.load.image('boots002_ironshodmarchingboots', 'Images/Equipment/boots002_ironshodmarchingboots_thumb.png');
+    this.load.image('hands001_scavengedgauntlets', 'Images/Equipment/hands001_scavengedgauntlets_thumb.png');
+    this.load.image('weapon003_sentinelsblade', 'Images/Equipment/weapon003_sentinelsblade_thumb.png');
+    this.load.image('helm003_sentinelsvisage', 'Images/Equipment/helm003_sentinelsvisage_thumb.png');
+    this.load.image('boots002_sentineltreads', 'Images/Equipment/boots002_sentineltreads_thumb.png');
+    this.load.image('hands001_sentinelgauntlets', 'Images/Equipment/hands001_sentinelgauntlets_thumb.png');
+    this.load.image('amulet001_crackedhearthstone', 'Images/Equipment/amulet001_crackedhearthstone_thumb.png');
+    this.load.image('weapon003_wardensoath', 'Images/Equipment/weapon003_wardensoath_thumb.png');
+    this.load.image('boots002_pathfindersstride', 'Images/Equipment/boots002_pathfindersstride_thumb.png');
+    this.load.image('hands001_irongripgauntlets', 'Images/Equipment/hands001_irongripgauntlets_thumb.png');
+    this.load.image('armor003_sentinelhalfplate', 'Images/Equipment/armor003_sentinelhalfplate_thumb.png');
+    this.load.image('armor003_ancientsentinelplate', 'Images/Equipment/armor003_ancientsentinelplate_thumb.png');
+    this.load.image('legs002_sentinelgreaves', 'Images/Equipment/legs002_sentinelgreaves_thumb.png');
+    this.load.image('legs002_stoneguardlegplates', 'Images/Equipment/legs002_stoneguardlegplates_thumb.png');
+    this.load.image('waterskin001', 'Images/Equipment/waterskin001_thumb.png');
 
   }
 

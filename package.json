@@ -1,11 +1,11 @@
 {
-  "name": "litrpg-idle",
+  "name": "exiles-ascension",
   "version": "1.0.0",
-  "description": "",
+  "description": "Static web build for Exile's Ascension, a Phaser-based idle RPG vertical slice.",
   "main": "index.js",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && node scripts/copy-static-assets.js",
     "preview": "vite preview",
     "validate:data": "node scripts/validate-data.js",
     "verify:combat": "node scripts/verify-combat-mechanics.js",

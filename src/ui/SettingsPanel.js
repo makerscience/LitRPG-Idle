@@ -4,6 +4,7 @@
 import ModalPanel from './ModalPanel.js';
 import SaveManager from '../systems/SaveManager.js';
 import Store from '../systems/Store.js';
+import MusicManager from '../systems/MusicManager.js';
 import { LAYOUT } from '../config.js';
 
 const PANEL_W = 540;
@@ -87,6 +88,7 @@ export default class SettingsPanel extends ModalPanel {
       const localX = Math.max(0, Math.min(trackW, pointer.x - trackBg.x));
       const newVol = Math.round((localX / trackW) * 100) / 100;
       Store.updateSetting('musicVolume', newVol);
+      MusicManager.setVolume(newVol);
       trackFill.setDisplaySize(trackW * newVol, trackH);
       pctLabel.setText(`${Math.round(newVol * 100)}%`);
     };

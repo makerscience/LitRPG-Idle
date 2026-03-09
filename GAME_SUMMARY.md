@@ -1,4 +1,4 @@
-# LitRPG Idle — Game Summary
+# Exile's Ascension — Game Summary
 
 ## What Is This?
 

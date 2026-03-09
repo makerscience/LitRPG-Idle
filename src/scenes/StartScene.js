@@ -300,6 +300,7 @@ export default class StartScene extends Phaser.Scene {
       const localX = Phaser.Math.Clamp(pointer.x - trackX, 0, trackW);
       const newVol = Math.round((localX / trackW) * 100) / 100;
       Store.updateSetting('musicVolume', newVol);
+      MusicManager.setVolume(newVol);
       trackFill.setDisplaySize(trackW * newVol, trackH);
       percent.setText(`${Math.round(newVol * 100)}%`);
     };
